@@ -9,7 +9,6 @@ import { databaseConnection } from "./src/config/database.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import authRouter from "./src/routes/auth-routes.routes.js";
-import profileRouter from "./src/routes/profile.routes.js";
 
 // import swagger
 import { setupSwagger } from "./src/config/swagger.js";
@@ -41,7 +40,6 @@ setupSwagger(app);
 // res: response (phản hồi từ server gửi về client)
 
 app.use("/api/auth", authRouter); // mục dích phục vụ cho riêng authentication
-app.use("/api/profile", profileRouter); // mục đích phục vụ cho riêng profile')
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`, "http://localhost:3000");
