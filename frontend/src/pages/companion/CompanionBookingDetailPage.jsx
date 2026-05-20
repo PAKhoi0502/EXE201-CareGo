@@ -27,6 +27,10 @@ const CompanionBookingDetailPage = () => {
 
   const booking = data?.booking;
   const shiftLog = data?.shiftLog;
+  const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
+  const directionUrl = serviceLocation
+    ? `https://www.google.com/maps/dir/?api=1&destination=${serviceLocation.lat},${serviceLocation.lng}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking?.address || "")}`;
   const checklist = useMemo(() => shiftLog?.checklist || [], [shiftLog]);
   const allLocations = useMemo(
     () => [...(shiftLog?.locations || []), ...liveLocations],
@@ -149,7 +153,17 @@ const CompanionBookingDetailPage = () => {
             <StatusBadge status={booking.status} />
           </div>
           <p className="mt-2 text-sm text-slate-500">{booking.address}</p>
+          {serviceLocation ? (
+            <p className="mt-2 text-sm font-semibold text-teal-700">
+              Diem den da ghim: {Number(serviceLocation.lat).toFixed(6)}, {Number(serviceLocation.lng).toFixed(6)}
+            </p>
+          ) : null}
           <p className="mt-4 text-sm text-slate-600">{booking.note || "Khong co ghi chu tu gia dinh"}</p>
+          <div className="mt-5">
+            <a href={directionUrl} target="_blank" rel="noreferrer">
+              <Button type="button" variant="secondary">Mo chi duong</Button>
+            </a>
+          </div>
           <div className="mt-5 grid gap-3">
             <Select label="Cap nhat trang thai" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="accepted">Nhan ca</option>
@@ -158,6 +172,28 @@ const CompanionBookingDetailPage = () => {
             </Select>
             <Button onClick={updateStatus}>Luu trang thai</Button>
           </div>
+        </Card>
+
+        <Card>
+          <h2 className="font-bold text-slate-950">Diem den cua khach hang</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Vi tri nay lay tu dia chi khach hang da tim kiem hoac bam ghim khi dat lich.
+          </p>
+          {serviceLocation ? (
+            <>
+              <p className="mt-3 text-sm font-semibold text-teal-700">
+                Da ghim: {Number(serviceLocation.lat).toFixed(6)}, {Number(serviceLocation.lng).toFixed(6)}
+              </p>
+              <div className="mt-4">
+                <LiveLocationMap location={serviceLocation} locations={[]} />
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 rounded-md bg-amber-50 p-4 text-sm text-amber-800">
+              Booking nay chua co toa do ghim. Hay mo chi duong bang dia chi text, hoac tao booking moi va bam
+              "Tim tren ban do" truoc khi dat lich.
+            </div>
+          )}
         </Card>
 
         <Card>
@@ -175,7 +211,7 @@ const CompanionBookingDetailPage = () => {
             )}
           </div>
           <div className="mt-4">
-            <LiveLocationMap location={latestLocation} locations={allLocations} />
+            <LiveLocationMap location={latestLocation || serviceLocation} locations={allLocations} />
           </div>
         </Card>
 

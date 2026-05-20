@@ -16,6 +16,7 @@ const CustomerBookingDetailPage = () => {
 
   const booking = data?.booking;
   const shiftLog = data?.shiftLog;
+  const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
   const allLocations = useMemo(
     () => [...(shiftLog?.locations || []), ...liveLocations],
     [shiftLog?.locations, liveLocations],
@@ -125,7 +126,7 @@ const CustomerBookingDetailPage = () => {
               : "Chua co vi tri."}
           </p>
           <div className="mt-4">
-            <LiveLocationMap location={latestLocation} locations={allLocations} />
+            <LiveLocationMap location={latestLocation || serviceLocation} locations={allLocations} />
           </div>
           <div className="mt-4 max-h-64 space-y-2 overflow-auto text-sm">
             {allLocations.length ? allLocations.map((location) => (

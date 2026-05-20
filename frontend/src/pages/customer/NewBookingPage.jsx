@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../../api/client.js";
+import AddressSearchMap from "../../components/AddressSearchMap.jsx";
 import { Button, Card, Input, PageHeader, Select, Textarea } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
@@ -17,6 +18,7 @@ const NewBookingPage = () => {
     startTime: "",
     durationHours: 2,
     address: "",
+    addressLocation: null,
     note: "",
   });
   const [error, setError] = useState("");
@@ -33,10 +35,16 @@ const NewBookingPage = () => {
   const submit = async (event) => {
     event.preventDefault();
     setError("");
+    if (!form.addressLocation?.lat || !form.addressLocation?.lng) {
+      setError("Vui long tim dia chi tren ban do hoac bam vao ban do de ghim vi tri truoc khi dat lich");
+      return;
+    }
+
     try {
       const data = await api.post("/bookings", {
         ...form,
         durationHours: Number(form.durationHours),
+        addressLocation: form.addressLocation,
       });
       navigate(`/customer/bookings/${data.booking._id}`);
     } catch (err) {
@@ -64,8 +72,13 @@ const NewBookingPage = () => {
             </Select>
             <Input label="Thoi gian bat dau" type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
             <Input label="So gio" type="number" min="1" value={form.durationHours} onChange={(e) => setForm({ ...form, durationHours: e.target.value })} />
-            <Input label="Dia chi thuc hien" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </div>
+          <AddressSearchMap
+            address={form.address}
+            location={form.addressLocation}
+            onAddressChange={(address) => setForm((current) => ({ ...current, address }))}
+            onLocationChange={(addressLocation) => setForm((current) => ({ ...current, addressLocation }))}
+          />
           <Textarea label="Ghi chu cho nguoi dong hanh" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           <div className="rounded-md bg-slate-50 p-4 text-sm">
             <span className="text-slate-500">Tam tinh: </span>

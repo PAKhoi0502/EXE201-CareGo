@@ -35,6 +35,11 @@ const BookingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    addressLocation: {
+      lat: Number,
+      lng: Number,
+      displayName: String,
+    },
     note: {
       type: String,
       default: "",

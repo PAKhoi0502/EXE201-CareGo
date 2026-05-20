@@ -31,8 +31,16 @@ const canAccessBooking = (booking, user) => {
 
 export const createBooking = async (req, res) => {
   try {
-    const { elderProfileId, serviceId, companionId, startTime, durationHours, address, note } =
-      req.body;
+    const {
+      elderProfileId,
+      serviceId,
+      companionId,
+      startTime,
+      durationHours,
+      address,
+      addressLocation,
+      note,
+    } = req.body;
 
     if (!elderProfileId || !serviceId || !companionId || !startTime || !durationHours || !address) {
       return res.status(400).json({
@@ -72,6 +80,7 @@ export const createBooking = async (req, res) => {
       startTime,
       durationHours,
       address,
+      addressLocation,
       note,
       totalAmount,
       platformFee,
