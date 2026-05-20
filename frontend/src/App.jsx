@@ -23,6 +23,7 @@ import CustomerServicesPage from "./pages/customer/CustomerServicesPage.jsx";
 import NewBookingPage from "./pages/customer/NewBookingPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
+import AdminLayout from "./layouts/AdminLayout.jsx";
 
 const RoleRoute = ({ role, children }) => {
   const { user, loading } = useAuth();
@@ -87,7 +88,7 @@ const App = () => {
         path="/admin"
         element={
           <RoleRoute role="admin">
-            <AppLayout />
+            <AdminLayout />
           </RoleRoute>
         }
       >
