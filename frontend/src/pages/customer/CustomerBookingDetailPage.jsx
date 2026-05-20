@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { api } from "../../api/client.js";
 import { Button, Card, Input, PageHeader, StatusBadge, Textarea } from "../../components/Ui.jsx";
+import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
+import { locationSocket } from "../../socket/locationSocket.js";
 import { dateTime, money } from "../../utils/format.js";
 
 const CustomerBookingDetailPage = () => {
@@ -10,9 +12,33 @@ const CustomerBookingDetailPage = () => {
   const { data, loading, error, reload } = useAsync(() => api.get(`/bookings/${id}`), [id]);
   const [review, setReview] = useState({ rating: 5, comment: "" });
   const [submitError, setSubmitError] = useState("");
+  const [liveLocations, setLiveLocations] = useState([]);
 
   const booking = data?.booking;
   const shiftLog = data?.shiftLog;
+  const allLocations = useMemo(
+    () => [...(shiftLog?.locations || []), ...liveLocations],
+    [shiftLog?.locations, liveLocations],
+  );
+  const latestLocation = allLocations[allLocations.length - 1];
+
+  useEffect(() => {
+    locationSocket.connect();
+    locationSocket.emit("booking:join", { bookingId: id });
+
+    const handleLocation = (location) => {
+      if (location.bookingId === id) {
+        setLiveLocations((current) => [...current, location]);
+      }
+    };
+
+    locationSocket.on("location:update", handleLocation);
+
+    return () => {
+      locationSocket.emit("booking:leave", { bookingId: id });
+      locationSocket.off("location:update", handleLocation);
+    };
+  }, [id]);
 
   const pay = async () => {
     setSubmitError("");
@@ -92,9 +118,17 @@ const CustomerBookingDetailPage = () => {
         </Card>
 
         <Card>
-          <h2 className="font-bold text-slate-950">GPS da cap nhat</h2>
+          <h2 className="font-bold text-slate-950">GPS realtime</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {latestLocation
+              ? `Vi tri moi nhat: ${Number(latestLocation.lat).toFixed(6)}, ${Number(latestLocation.lng).toFixed(6)}`
+              : "Chua co vi tri."}
+          </p>
+          <div className="mt-4">
+            <LiveLocationMap location={latestLocation} locations={allLocations} />
+          </div>
           <div className="mt-4 max-h-64 space-y-2 overflow-auto text-sm">
-            {shiftLog?.locations?.length ? shiftLog.locations.map((location) => (
+            {allLocations.length ? allLocations.map((location) => (
               <div key={`${location.lat}-${location.lng}-${location.recordedAt}`} className="rounded-md bg-slate-50 p-3">
                 {location.lat}, {location.lng} - {dateTime(location.recordedAt)}
               </div>

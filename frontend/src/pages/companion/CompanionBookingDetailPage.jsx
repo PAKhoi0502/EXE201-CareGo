@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { api } from "../../api/client.js";
 import { Button, Card, Input, PageHeader, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
+import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
+import { locationSocket } from "../../socket/locationSocket.js";
 import { dateTime } from "../../utils/format.js";
 
 const CompanionBookingDetailPage = () => {
@@ -19,10 +21,30 @@ const CompanionBookingDetailPage = () => {
     companionNote: "",
   });
   const [submitError, setSubmitError] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const [liveLocations, setLiveLocations] = useState([]);
+  const watchIdRef = useRef(null);
 
   const booking = data?.booking;
   const shiftLog = data?.shiftLog;
   const checklist = useMemo(() => shiftLog?.checklist || [], [shiftLog]);
+  const allLocations = useMemo(
+    () => [...(shiftLog?.locations || []), ...liveLocations],
+    [shiftLog?.locations, liveLocations],
+  );
+  const latestLocation = allLocations[allLocations.length - 1];
+
+  useEffect(() => {
+    locationSocket.connect();
+    locationSocket.emit("booking:join", { bookingId: id });
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      locationSocket.emit("booking:leave", { bookingId: id });
+    };
+  }, [id]);
 
   const updateStatus = async () => {
     setSubmitError("");
@@ -48,6 +70,48 @@ const CompanionBookingDetailPage = () => {
     } catch (err) {
       setSubmitError(err.message);
     }
+  };
+
+  const startSharing = () => {
+    setSubmitError("");
+
+    if (!navigator.geolocation) {
+      setSubmitError("Trinh duyet khong ho tro GPS");
+      return;
+    }
+
+    setSharing(true);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const nextLocation = {
+          bookingId: id,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          note: "Realtime GPS",
+          recordedAt: new Date().toISOString(),
+        };
+
+        setLiveLocations((current) => [...current, nextLocation]);
+        locationSocket.emit("location:send", nextLocation);
+      },
+      (gpsError) => {
+        setSubmitError(gpsError.message);
+        setSharing(false);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 10000,
+      },
+    );
+  };
+
+  const stopSharing = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setSharing(false);
   };
 
   const updateShift = async (nextChecklist = checklist) => {
@@ -97,7 +161,26 @@ const CompanionBookingDetailPage = () => {
         </Card>
 
         <Card>
-          <h2 className="font-bold text-slate-950">Cap nhat GPS</h2>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-bold text-slate-950">GPS realtime</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {sharing ? "Dang chia se vi tri voi gia dinh." : "Bam bat dau de khach hang thay vi tri tren ban do."}
+              </p>
+            </div>
+            {sharing ? (
+              <Button variant="danger" onClick={stopSharing}>Dung chia se</Button>
+            ) : (
+              <Button onClick={startSharing}>Bat dau chia se</Button>
+            )}
+          </div>
+          <div className="mt-4">
+            <LiveLocationMap location={latestLocation} locations={allLocations} />
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="font-bold text-slate-950">Cap nhat GPS thu cong</h2>
           <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={addLocation}>
             <Input label="Lat" value={location.lat} onChange={(e) => setLocation({ ...location, lat: e.target.value })} />
             <Input label="Lng" value={location.lng} onChange={(e) => setLocation({ ...location, lng: e.target.value })} />

@@ -1,5 +1,7 @@
 // const express = require('express');
 import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 //--------import mongoose module to connect to MongoDB--------
 
@@ -14,11 +16,13 @@ import bookingRouter from "./src/routes/booking.routes.js";
 import companionRouter from "./src/routes/companion.routes.js";
 import elderRouter from "./src/routes/elder.routes.js";
 import serviceRouter from "./src/routes/service.routes.js";
+import { setupLocationSocket } from "./src/socket/location.socket.js";
 
 // import swagger
 import { setupSwagger } from "./src/config/swagger.js";
 // tạo ứng dụng express
 const app = express();
+const server = createServer(app);
 const port = 3000;
 dotenv.config();
 // --------------connect to mongodb--------------
@@ -51,7 +55,16 @@ app.use("/api/elders", elderRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/admin", adminRouter);
 
-app.listen(port, () => {
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  },
+});
+
+setupLocationSocket(io);
+
+server.listen(port, () => {
   console.log(`Example app listening on port ${port}`, "http://localhost:3000");
 });
 
