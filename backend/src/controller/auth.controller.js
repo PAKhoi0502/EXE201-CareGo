@@ -3,6 +3,7 @@ import {
   generateRefreshToken,
 } from "../middlleware/jwt.js";
 import jwt from "jsonwebtoken";
+import CompanionProfile from "../models/companion-profile.models.js";
 import User from "../models/user.models.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -94,6 +95,12 @@ export const loginController = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        companionProfile:
+          user.role === "companion"
+            ? await CompanionProfile.findOne({ userId: user._id }).select(
+                "vettingStatus fullName university major skills",
+              )
+            : null,
       },
     });
   } catch (error) {
@@ -171,7 +178,14 @@ export const getCurrentUser = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "user not found" });
     }
-    return res.status(200).json({ user: user });
+    const companionProfile =
+      user.role === "companion"
+        ? await CompanionProfile.findOne({ userId }).select(
+            "vettingStatus fullName university major skills serviceAreas pricePerHour",
+          )
+        : null;
+
+    return res.status(200).json({ user: user, companionProfile });
   } catch (error) {
     return res
       .status(500)
