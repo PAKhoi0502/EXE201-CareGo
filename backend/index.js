@@ -31,7 +31,7 @@ app.use(bodyParser.urlencoded({ extended: true })); // xử lý dữ liệu form
 app.use(
   cors({
     origin: "*", //cho phép domain này truy cập vào server
-    methods: ["GET", "POST", "PUT", "DELETE"], // cho phép các phương thức này
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"], // cho phép các phương thức này
     allowedHeaders: "*", //cho phép các heder này gửi lên server
     credentials: true, //cho phép gửi cookie
   }),
