@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { api } from "../../api/client.js";
 import { Button, Card, Input, PageHeader, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
+import ImageUpload from "../../components/ImageUpload.jsx";
 import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { locationSocket } from "../../socket/locationSocket.js";
@@ -247,7 +248,12 @@ const CompanionBookingDetailPage = () => {
             Luu anh check-in truoc, sau do thuc hien checklist theo dung thu tu.
           </p>
           <div className="mt-4 grid gap-4">
-            <Input label="Anh check-in URL" value={shift.checkInPhotoUrl} onChange={(e) => setShift({ ...shift, checkInPhotoUrl: e.target.value })} />
+            <ImageUpload
+              label="Anh check-in"
+              folder="carego/check-in"
+              value={shift.checkInPhotoUrl}
+              onUploaded={(url) => setShift({ ...shift, checkInPhotoUrl: url })}
+            />
             <Button onClick={() => updateShift()} disabled={!shift.checkInPhotoUrl}>
               Luu anh check-in
             </Button>
@@ -313,7 +319,12 @@ const CompanionBookingDetailPage = () => {
         <Card>
           <h2 className="font-bold text-slate-950">Bao cao sau ca</h2>
           <div className="mt-4 grid gap-4">
-            <Input label="Anh check-out URL" value={shift.checkOutPhotoUrl} onChange={(e) => setShift({ ...shift, checkOutPhotoUrl: e.target.value })} />
+            <ImageUpload
+              label="Anh check-out"
+              folder="carego/check-out"
+              value={shift.checkOutPhotoUrl}
+              onUploaded={(url) => setShift({ ...shift, checkOutPhotoUrl: url })}
+            />
             <div className="grid gap-3 md:grid-cols-3">
               <Input label="Huyet ap" value={shift.bloodPressure} onChange={(e) => setShift({ ...shift, bloodPressure: e.target.value })} />
               <Input label="Nhip tim" type="number" value={shift.heartRate} onChange={(e) => setShift({ ...shift, heartRate: e.target.value })} />

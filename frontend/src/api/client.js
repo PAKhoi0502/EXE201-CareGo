@@ -43,3 +43,23 @@ export const api = {
   patch: (path, body) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: "DELETE" }),
 };
+
+export const uploadImage = async ({ file, folder = "carego" }) => {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("folder", folder);
+
+  const response = await fetch(`${API_BASE_URL}/upload/image`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || "Upload failed");
+  }
+
+  return data;
+};
