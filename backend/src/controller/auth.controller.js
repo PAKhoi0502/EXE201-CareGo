@@ -5,8 +5,20 @@ import {
 import jwt from "jsonwebtoken";
 import CompanionProfile from "../models/companion-profile.models.js";
 import User from "../models/user.models.js";
+import { sendOtpEmail, sendPasswordResetEmail } from "../utils/email.js";
+import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+
+const OTP_EXPIRES_IN_MS = 10 * 60 * 1000;
+
+export const attachEmailOtp = async (user) => {
+  const otp = generateOtp();
+  user.emailOtpHash = await hashOtp(otp);
+  user.emailOtpExpires = new Date(Date.now() + OTP_EXPIRES_IN_MS);
+  await user.save();
+  await sendOtpEmail({ to: user.email, name: user.name, otp });
+};
 
 //signup
 export const signupController = async (req, res) => {
@@ -38,8 +50,10 @@ export const signupController = async (req, res) => {
       password: hashedPassword,
     });
     await newUser.save();
+    await attachEmailOtp(newUser);
     return res.status(201).json({
-      message: "register success fully",
+      message: "register successfully, please verify email otp",
+      email: newUser.email,
     });
   } catch (error) {
     return res.status(500).json({
@@ -60,6 +74,13 @@ export const loginController = async (req, res) => {
     }
     if (!user.isActive) {
       return res.status(403).json({ message: "account is inactive" });
+    }
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        message: "email is not verified",
+        code: "EMAIL_NOT_VERIFIED",
+        email: user.email,
+      });
     }
     const isPasswordMatched = await bcrypt.compare(password, user.password);
     if (!isPasswordMatched) {
@@ -107,6 +128,65 @@ export const loginController = async (req, res) => {
     return res
       .status(400)
       .json({ message: "internal sever error", error: error.message });
+  }
+};
+
+export const verifyEmailOtpController = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ message: "email and otp are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(200).json({ message: "email already verified" });
+    }
+
+    if (!user.emailOtpHash || !user.emailOtpExpires || user.emailOtpExpires < new Date()) {
+      return res.status(400).json({ message: "otp expired, please request a new otp" });
+    }
+
+    const isMatched = await verifyOtp(otp, user.emailOtpHash);
+    if (!isMatched) {
+      return res.status(400).json({ message: "invalid otp" });
+    }
+
+    user.isEmailVerified = true;
+    user.emailOtpHash = undefined;
+    user.emailOtpExpires = undefined;
+    await user.save();
+
+    return res.status(200).json({ message: "email verified successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
+  }
+};
+
+export const resendEmailOtpController = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: "email already verified" });
+    }
+
+    await attachEmailOtp(user);
+    return res.status(200).json({ message: "otp resent successfully", email: user.email });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
   }
 };
 
@@ -212,14 +292,18 @@ export const forgetpasswordController = async (req, res) => {
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpries = resetTokenExpries;
     await user.save();
-    const resetUrl = `http://localhost:3000/api/auth/reset-password/${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
-    //gửi email chứa link đặt lại mật khẩu
-    // sử dụng dịch vụ email như SendGrid, Mailgun, AWS SES,...
-    //Nội dung email có thể là link đến trang đặt lại mật khẩu kèm theo token
-    console.log(`reset your password by clicking the link ${resetUrl}`);
+    await sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      resetUrl,
+    });
+
     return res.status(200).json({
-      message: "password reset link has been seent your emai" + `${resetUrl}`,
+      message: "password reset link has been sent to your email",
+      resetUrl: process.env.NODE_ENV === "production" ? undefined : resetUrl,
     });
   } catch (err) {
     return res

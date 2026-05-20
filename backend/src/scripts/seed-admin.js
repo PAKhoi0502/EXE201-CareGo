@@ -26,6 +26,7 @@ const seedAdmin = async () => {
   if (existingAdmin) {
     existingAdmin.role = "admin";
     existingAdmin.isActive = true;
+    existingAdmin.isEmailVerified = true;
     await existingAdmin.save();
     console.log("Admin already exists, role updated:", email);
     return;
@@ -37,6 +38,7 @@ const seedAdmin = async () => {
     email,
     password: hashedPassword,
     role: "admin",
+    isEmailVerified: true,
   });
 
   console.log("Admin created:", email);

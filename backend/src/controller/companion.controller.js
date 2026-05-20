@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import { attachEmailOtp } from "./auth.controller.js";
 import CompanionProfile from "../models/companion-profile.models.js";
 import User from "../models/user.models.js";
 
@@ -65,6 +66,7 @@ export const registerCompanion = async (req, res) => {
       password: hashedPassword,
       role: "companion",
     });
+    await attachEmailOtp(user);
 
     const profile = await CompanionProfile.create({
       userId: user._id,
@@ -82,7 +84,7 @@ export const registerCompanion = async (req, res) => {
     });
 
     return res.status(201).json({
-      message: "companion registered and waiting for admin approval",
+      message: "companion registered, please verify email otp and wait for admin approval",
       companion: profile,
       user: {
         id: user._id,
@@ -130,6 +132,7 @@ export const adminCreateCompanion = async (req, res) => {
       phone,
       password: hashedPassword,
       role: "companion",
+      isEmailVerified: true,
     });
 
     const profile = await CompanionProfile.create({

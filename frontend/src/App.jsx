@@ -6,8 +6,11 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
 import AdminServicesPage from "./pages/admin/AdminServicesPage.jsx";
 import AdminUsersPage from "./pages/admin/AdminUsersPage.jsx";
 import LoginPage from "./pages/auth/LoginPage.jsx";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage.jsx";
 import RegisterCompanionPage from "./pages/auth/RegisterCompanionPage.jsx";
 import RegisterPage from "./pages/auth/RegisterPage.jsx";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage.jsx";
+import VerifyEmailPage from "./pages/auth/VerifyEmailPage.jsx";
 import CompanionBookingDetailPage from "./pages/companion/CompanionBookingDetailPage.jsx";
 import CompanionBookingsPage from "./pages/companion/CompanionBookingsPage.jsx";
 import CompanionHomePage from "./pages/companion/CompanionHomePage.jsx";
@@ -44,8 +47,11 @@ const App = () => {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/companion-register" element={<RegisterCompanionPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route
         path="/customer"

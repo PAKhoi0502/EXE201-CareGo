@@ -15,7 +15,9 @@ const RegisterPage = () => {
     setError("");
     try {
       await registerCustomer(form);
-      navigate("/customer");
+      navigate("/verify-email", {
+        state: { email: form.email, password: form.password, role: "customer" },
+      });
     } catch (err) {
       setError(err.message);
     }

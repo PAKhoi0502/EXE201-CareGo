@@ -5,8 +5,10 @@ import {
   loginController,
   logoutController,
   refreshTokenController,
+  resendEmailOtpController,
   resetPasswordController,
   signupController,
+  verifyEmailOtpController,
 } from "../controller/auth.controller.js";
 import { verifyToken } from "../middlleware/auth.middleware.js";
 
@@ -15,6 +17,8 @@ const router = express.Router();
 //giúp quản lý mã nguồn tốt hơn
 
 router.post("/signup", signupController);
+router.post("/verify-email", verifyEmailOtpController);
+router.post("/resend-otp", resendEmailOtpController);
 router.post("/login", loginController);
 router.post("/logout", verifyToken, logoutController);
 router.post("/refresh-token", refreshTokenController);

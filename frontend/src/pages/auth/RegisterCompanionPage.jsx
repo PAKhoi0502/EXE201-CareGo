@@ -32,7 +32,9 @@ const RegisterCompanionPage = () => {
         serviceAreas: form.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
         pricePerHour: Number(form.pricePerHour),
       });
-      navigate("/companion");
+      navigate("/verify-email", {
+        state: { email: form.email, password: form.password, role: "companion" },
+      });
     } catch (err) {
       setError(err.message);
     }

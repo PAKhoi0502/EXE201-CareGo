@@ -46,13 +46,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   const registerCustomer = async (payload) => {
-    await api.post("/auth/signup", payload);
-    return login({ email: payload.email, password: payload.password });
+    return api.post("/auth/signup", payload);
   };
 
   const registerCompanion = async (payload) => {
-    await api.post("/companions/register", payload);
-    return login({ email: payload.email, password: payload.password });
+    return api.post("/companions/register", payload);
+  };
+
+  const verifyEmail = async (payload) => {
+    return api.post("/auth/verify-email", payload);
+  };
+
+  const resendOtp = async (email) => {
+    return api.post("/auth/resend-otp", { email });
   };
 
   const logout = () => {
@@ -61,7 +67,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = useMemo(
-    () => ({ user, loading, login, registerCustomer, registerCompanion, logout }),
+    () => ({
+      user,
+      loading,
+      login,
+      registerCustomer,
+      registerCompanion,
+      verifyEmail,
+      resendOtp,
+      logout,
+    }),
     [user, loading],
   );
 

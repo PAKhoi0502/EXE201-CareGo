@@ -38,6 +38,9 @@ const LoginPage = () => {
       <form className="grid gap-4" onSubmit={submit}>
         <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <Input label="Mat khau" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+        <Link className="text-right text-sm font-semibold text-teal-700" to="/forgot-password">
+          Quen mat khau?
+        </Link>
         {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
         <Button disabled={submitting}>{submitting ? "Dang xu ly..." : "Dang nhap"}</Button>
       </form>
