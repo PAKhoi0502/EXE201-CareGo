@@ -23,6 +23,8 @@ const CompanionBookingDetailPage = () => {
   });
   const [submitError, setSubmitError] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [gpsReady, setGpsReady] = useState(false);
+  const [gpsError, setGpsError] = useState("");
   const [liveLocations, setLiveLocations] = useState([]);
   const watchIdRef = useRef(null);
 
@@ -44,46 +46,12 @@ const CompanionBookingDetailPage = () => {
     locationSocket.connect();
     locationSocket.emit("booking:join", { bookingId: id });
 
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-      locationSocket.emit("booking:leave", { bookingId: id });
-    };
-  }, [id]);
-
-  const updateStatus = async () => {
-    setSubmitError("");
-    try {
-      await api.patch(`/bookings/${id}/status`, { status });
-      reload();
-    } catch (err) {
-      setSubmitError(err.message);
-    }
-  };
-
-  const addLocation = async (event) => {
-    event.preventDefault();
-    setSubmitError("");
-    try {
-      await api.post(`/bookings/${id}/location`, {
-        lat: Number(location.lat),
-        lng: Number(location.lng),
-        note: location.note,
-      });
-      setLocation({ lat: "", lng: "", note: "" });
-      reload();
-    } catch (err) {
-      setSubmitError(err.message);
-    }
-  };
-
-  const startSharing = () => {
-    setSubmitError("");
-
     if (!navigator.geolocation) {
-      setSubmitError("Trinh duyet khong ho tro GPS");
-      return;
+      setGpsReady(false);
+      setGpsError("Trinh duyet khong ho tro GPS");
+      return () => {
+        locationSocket.emit("booking:leave", { bookingId: id });
+      };
     }
 
     setSharing(true);
@@ -99,9 +67,12 @@ const CompanionBookingDetailPage = () => {
 
         setLiveLocations((current) => [...current, nextLocation]);
         locationSocket.emit("location:send", nextLocation);
+        setGpsReady(true);
+        setGpsError("");
       },
       (gpsError) => {
-        setSubmitError(gpsError.message);
+        setGpsReady(false);
+        setGpsError(gpsError.message);
         setSharing(false);
       },
       {
@@ -110,17 +81,60 @@ const CompanionBookingDetailPage = () => {
         timeout: 10000,
       },
     );
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setSharing(false);
+      setGpsReady(false);
+      locationSocket.emit("booking:leave", { bookingId: id });
+    };
+  }, [id]);
+
+  const updateStatus = async () => {
+    if (!gpsReady) {
+      setSubmitError("Ban can bat GPS va cap quyen vi tri de thao tac ca lam");
+      return;
+    }
+
+    setSubmitError("");
+    try {
+      await api.patch(`/bookings/${id}/status`, { status });
+      reload();
+    } catch (err) {
+      setSubmitError(err.message);
+    }
   };
 
-  const stopSharing = () => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
+  const addLocation = async (event) => {
+    event.preventDefault();
+    if (!gpsReady) {
+      setSubmitError("Ban can bat GPS va cap quyen vi tri de thao tac ca lam");
+      return;
     }
-    setSharing(false);
+
+    setSubmitError("");
+    try {
+      await api.post(`/bookings/${id}/location`, {
+        lat: Number(location.lat),
+        lng: Number(location.lng),
+        note: location.note,
+      });
+      setLocation({ lat: "", lng: "", note: "" });
+      reload();
+    } catch (err) {
+      setSubmitError(err.message);
+    }
   };
 
   const updateShift = async (nextChecklist = checklist) => {
+    if (!gpsReady) {
+      setSubmitError("Ban can bat GPS va cap quyen vi tri de thao tac ca lam");
+      return;
+    }
+
     setSubmitError("");
     try {
       await api.patch(`/bookings/${id}/shift-log`, {
@@ -162,6 +176,12 @@ const CompanionBookingDetailPage = () => {
   return (
     <>
       <PageHeader title="Cap nhat ca lam" subtitle={`${booking.serviceId?.name} - ${dateTime(booking.startTime)}`} />
+      {!gpsReady ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Ban can bat GPS va cho phep trinh duyet truy cap vi tri de thuc hien ca lam.
+          {gpsError ? <p className="mt-1 font-semibold">Loi GPS: {gpsError}</p> : null}
+        </div>
+      ) : null}
       {submitError ? <p className="mb-4 rounded-md bg-rose-50 p-3 text-sm text-rose-700">{submitError}</p> : null}
       <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
         <Card>
@@ -187,7 +207,7 @@ const CompanionBookingDetailPage = () => {
               <option value="in_progress">Bat dau ca</option>
               <option value="completed">Hoan thanh</option>
             </Select>
-            <Button onClick={updateStatus}>Luu trang thai</Button>
+            <Button onClick={updateStatus} disabled={!gpsReady}>Luu trang thai</Button>
           </div>
         </Card>
 
@@ -213,34 +233,24 @@ const CompanionBookingDetailPage = () => {
           )}
         </Card>
 
-        <Card>
+        {/* <Card>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="font-bold text-slate-950">GPS realtime</h2>
               <p className="mt-1 text-sm text-slate-500">
-                {sharing ? "Dang chia se vi tri voi gia dinh." : "Bam bat dau de khach hang thay vi tri tren ban do."}
+                {gpsReady
+                  ? "Dang tu dong chia se vi tri voi gia dinh."
+                  : "Dang cho quyen GPS tu trinh duyet."}
               </p>
             </div>
-            {sharing ? (
-              <Button variant="danger" onClick={stopSharing}>Dung chia se</Button>
-            ) : (
-              <Button onClick={startSharing}>Bat dau chia se</Button>
-            )}
+            <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700">
+              {gpsReady ? "Auto GPS dang bat" : "GPS bat buoc"}
+            </span>
           </div>
           <div className="mt-4">
             <LiveLocationMap location={latestLocation || serviceLocation} locations={allLocations} />
           </div>
-        </Card>
-
-        <Card>
-          <h2 className="font-bold text-slate-950">Cap nhat GPS thu cong</h2>
-          <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={addLocation}>
-            <Input label="Lat" value={location.lat} onChange={(e) => setLocation({ ...location, lat: e.target.value })} />
-            <Input label="Lng" value={location.lng} onChange={(e) => setLocation({ ...location, lng: e.target.value })} />
-            <Input label="Ghi chu" value={location.note} onChange={(e) => setLocation({ ...location, note: e.target.value })} />
-            <Button className="md:col-span-3">Them vi tri</Button>
-          </form>
-        </Card>
+        </Card> */}
 
         <Card>
           <h2 className="font-bold text-slate-950">Quy trinh check-in</h2>
@@ -254,7 +264,7 @@ const CompanionBookingDetailPage = () => {
               value={shift.checkInPhotoUrl}
               onUploaded={(url) => setShift({ ...shift, checkInPhotoUrl: url })}
             />
-            <Button onClick={() => updateShift()} disabled={!shift.checkInPhotoUrl}>
+            <Button onClick={() => updateShift()} disabled={!gpsReady || !shift.checkInPhotoUrl}>
               Luu anh check-in
             </Button>
           </div>
@@ -274,21 +284,26 @@ const CompanionBookingDetailPage = () => {
           <div className="mt-4 grid gap-3">
             {checklist.map((item, index) => {
               const previousDone = index === 0 || checklist[index - 1]?.done;
-              const disabled = !hasCheckInPhoto || !previousDone;
+              const disabled = !gpsReady || !hasCheckInPhoto || !previousDone;
 
               return (
                 <div
                   key={item.label}
-                  className={`flex items-center justify-between gap-4 rounded-md border p-4 text-sm ${
-                    item.done ? "border-teal-200 bg-teal-50" : "border-slate-200 bg-white"
-                  } ${disabled ? "opacity-60" : ""}`}
+                  className={`flex items-center justify-between gap-4 rounded-md border p-4 text-sm ${item.done ? "border-teal-200 bg-teal-50" : "border-slate-200 bg-white"
+                    } ${disabled ? "opacity-60" : ""}`}
                 >
                   <div>
                     <p className="font-semibold text-slate-900">
                       Buoc {index + 1}: {item.label}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {disabled ? "Hoan thanh buoc truoc de mo buoc nay" : item.done ? "Da hoan thanh" : "Gat de xac nhan"}
+                      {!gpsReady
+                        ? "Can bat GPS de thao tac"
+                        : disabled
+                          ? "Hoan thanh buoc truoc de mo buoc nay"
+                          : item.done
+                            ? "Da hoan thanh"
+                            : "Gat de xac nhan"}
                     </p>
                   </div>
                   <button
@@ -300,14 +315,12 @@ const CompanionBookingDetailPage = () => {
                       );
                       updateShift(next);
                     }}
-                    className={`relative h-7 w-12 rounded-full transition ${
-                      item.done ? "bg-teal-700" : "bg-slate-300"
-                    } disabled:cursor-not-allowed`}
+                    className={`relative h-7 w-12 rounded-full transition ${item.done ? "bg-teal-700" : "bg-slate-300"
+                      } disabled:cursor-not-allowed`}
                   >
                     <span
-                      className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${
-                        item.done ? "left-6" : "left-1"
-                      }`}
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${item.done ? "left-6" : "left-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -331,7 +344,7 @@ const CompanionBookingDetailPage = () => {
               <Input label="Tam trang" value={shift.mood} onChange={(e) => setShift({ ...shift, mood: e.target.value })} />
             </div>
             <Textarea label="Ghi chu" value={shift.companionNote} onChange={(e) => setShift({ ...shift, companionNote: e.target.value })} />
-            <Button onClick={() => updateShift()}>Luu bao cao</Button>
+            <Button onClick={() => updateShift()} disabled={!gpsReady}>Luu bao cao</Button>
           </div>
         </Card>
       </div>
