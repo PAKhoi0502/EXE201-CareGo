@@ -62,11 +62,6 @@ const CompanionProfileSchema = new mongoose.Schema(
         trim: true,
       },
     ],
-    pricePerHour: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
     ratingAverage: {
       type: Number,
       default: 0,

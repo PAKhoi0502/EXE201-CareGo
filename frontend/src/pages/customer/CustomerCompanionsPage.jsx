@@ -1,7 +1,6 @@
 import { api } from "../../api/client.js";
 import { Card, EmptyState, PageHeader, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
-import { money } from "../../utils/format.js";
 
 const CustomerCompanionsPage = () => {
   const { data, loading, error } = useAsync(() => api.get("/companions"), []);
@@ -24,7 +23,6 @@ const CustomerCompanionsPage = () => {
               </div>
               <StatusBadge status={item.vettingStatus} />
             </div>
-            <p className="mt-3 text-sm font-semibold text-teal-700">{money(item.pricePerHour)}/h</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {item.skills?.map((skill) => (
                 <span key={skill} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">

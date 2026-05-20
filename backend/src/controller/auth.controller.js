@@ -261,7 +261,7 @@ export const getCurrentUser = async (req, res) => {
     const companionProfile =
       user.role === "companion"
         ? await CompanionProfile.findOne({ userId }).select(
-            "vettingStatus fullName university major skills serviceAreas pricePerHour",
+            "vettingStatus fullName university major skills serviceAreas",
           )
         : null;
 

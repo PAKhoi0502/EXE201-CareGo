@@ -13,7 +13,6 @@ const emptyForm = {
   major: "",
   skillsText: "",
   serviceAreasText: "",
-  pricePerHour: 80000,
 };
 
 const AdminCompanionsPage = () => {
@@ -30,7 +29,6 @@ const AdminCompanionsPage = () => {
         ...form,
         skills: form.skillsText.split(",").map((item) => item.trim()).filter(Boolean),
         serviceAreas: form.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
-        pricePerHour: Number(form.pricePerHour),
       });
       setForm(emptyForm);
       reload();
@@ -61,7 +59,6 @@ const AdminCompanionsPage = () => {
             <Input label="Nganh" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
             <Input label="Ky nang" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} />
             <Input label="Khu vuc" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} />
-            <Input label="Gia theo gio" type="number" value={form.pricePerHour} onChange={(e) => setForm({ ...form, pricePerHour: e.target.value })} />
             {submitError ? <p className="text-sm text-rose-600">{submitError}</p> : null}
             <Button>Tao va duyet</Button>
           </form>

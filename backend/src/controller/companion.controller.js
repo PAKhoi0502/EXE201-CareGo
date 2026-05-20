@@ -46,7 +46,6 @@ export const registerCompanion = async (req, res) => {
       skills,
       documents,
       serviceAreas,
-      pricePerHour,
     } = req.body;
 
     if (!name || !email || !password || !fullName) {
@@ -79,7 +78,6 @@ export const registerCompanion = async (req, res) => {
       skills,
       documents,
       serviceAreas,
-      pricePerHour,
       vettingStatus: "pending",
     });
 
@@ -113,7 +111,6 @@ export const adminCreateCompanion = async (req, res) => {
       skills,
       documents,
       serviceAreas,
-      pricePerHour,
     } = req.body;
 
     if (!name || !email || !password || !fullName) {
@@ -146,7 +143,6 @@ export const adminCreateCompanion = async (req, res) => {
       skills,
       documents,
       serviceAreas,
-      pricePerHour,
       vettingStatus: "approved",
     });
 

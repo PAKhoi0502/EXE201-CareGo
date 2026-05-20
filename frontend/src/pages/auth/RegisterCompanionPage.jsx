@@ -18,7 +18,6 @@ const RegisterCompanionPage = () => {
     major: "",
     skillsText: "",
     serviceAreasText: "",
-    pricePerHour: 80000,
   });
   const [error, setError] = useState("");
 
@@ -30,7 +29,6 @@ const RegisterCompanionPage = () => {
         ...form,
         skills: form.skillsText.split(",").map((item) => item.trim()).filter(Boolean),
         serviceAreas: form.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
-        pricePerHour: Number(form.pricePerHour),
       });
       navigate("/verify-email", {
         state: { email: form.email, password: form.password, role: "companion" },
@@ -61,7 +59,6 @@ const RegisterCompanionPage = () => {
         <Input label="Nganh hoc" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
         <Input label="Ky nang, cach nhau bang dau phay" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} />
         <Input label="Khu vuc hoat dong" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} />
-        <Input label="Gia theo gio" type="number" value={form.pricePerHour} onChange={(e) => setForm({ ...form, pricePerHour: e.target.value })} />
         {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
         <Button>Gui ho so</Button>
       </form>
