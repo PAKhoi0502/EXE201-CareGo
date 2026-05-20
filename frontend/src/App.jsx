@@ -3,6 +3,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import AdminBookingsPage from "./pages/admin/AdminBookingsPage.jsx";
 import AdminCompanionsPage from "./pages/admin/AdminCompanionsPage.jsx";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
+import AdminReportsPage from "./pages/admin/AdminReportsPage.jsx";
 import AdminServicesPage from "./pages/admin/AdminServicesPage.jsx";
 import AdminUsersPage from "./pages/admin/AdminUsersPage.jsx";
 import LoginPage from "./pages/auth/LoginPage.jsx";
@@ -97,6 +98,7 @@ const App = () => {
         <Route path="companions" element={<AdminCompanionsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="bookings" element={<AdminBookingsPage />} />
+        <Route path="reports" element={<AdminReportsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -3,11 +3,12 @@ import { Button } from "../components/Ui.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const navItems = [
-  { label: "Tong quan", to: "/admin", icon: "◇" },
-  { label: "Sinh vien Companion", to: "/admin/companions", icon: "✚" },
-  { label: "Người dùng", to: "/admin/users", icon: "◉" },
-  { label: "Quan ly lịch đặt", to: "/admin/bookings", icon: "✓" },
-  { label: "Dich vu", to: "/admin/services", icon: "▣" },
+  { label: "Tổng quan", to: "/admin", icon: "D" },
+  { label: "Người Đồng Hành", to: "/admin/companions", icon: "C" },
+  { label: "Người Dùng", to: "/admin/users", icon: "U" },
+  { label: "Quản Lý Booking", to: "/admin/bookings", icon: "B" },
+  { label: "Dịch Vụ", to: "/admin/services", icon: "S" },
+  { label: "Báo Cáo", to: "/admin/reports", icon: "R" },
 ];
 
 const AdminLayout = () => {
@@ -43,7 +44,9 @@ const AdminLayout = () => {
                   }`
                 }
               >
-                <span className="flex w-5 justify-center text-base">{item.icon}</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/10 text-xs font-bold">
+                  {item.icon}
+                </span>
                 <span>{item.label}</span>
               </NavLink>
             ))}
@@ -109,7 +112,7 @@ const AdminLayout = () => {
         </main>
 
         <footer className="border-t border-slate-200 bg-white px-6 py-4 text-center text-xs text-slate-400">
-          © 2026 CareGo - Nen tang ket noi Cham soc Nguoi cao tuoi.
+          (c) 2026 CareGo - Nen tang ket noi Cham soc Nguoi cao tuoi.
         </footer>
       </div>
     </div>

@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { api } from "../../api/client.js";
+import AdminDetailModal, { DetailGrid, DetailItem, DetailTags } from "../../components/AdminDetailModal.jsx";
 import { Button, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
+import { dateTime } from "../../utils/format.js";
 
 const initials = (name = "CG") =>
   name
@@ -31,6 +33,7 @@ const AdminUsersPage = () => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [majorFilter, setMajorFilter] = useState("all");
+  const [selectedDetail, setSelectedDetail] = useState(null);
 
   const users = usersData?.users || [];
   const companions = companionsData?.companions || [];
@@ -260,6 +263,13 @@ const AdminUsersPage = () => {
                       </p>
                     </td>
                     <td className="space-x-1 whitespace-nowrap p-4 text-right">
+                      <Button
+                        variant="muted"
+                        className="min-h-8 px-2.5 text-xs"
+                        onClick={() => setSelectedDetail({ type: "companion", data: item })}
+                      >
+                        Chi tiet
+                      </Button>
                       {item.vettingStatus === "pending" ? (
                         <>
                           <Button className="min-h-8 px-2.5 text-xs" onClick={() => updateCompanionStatus(item._id, "approved")}>
@@ -337,13 +347,22 @@ const AdminUsersPage = () => {
                       <StatusBadge status={user.isActive ? "approved" : "suspended"} />
                     </td>
                     <td className="p-4 text-right">
-                      <Button
-                        variant={user.isActive ? "danger" : "secondary"}
-                        className="min-h-8 px-2.5 text-xs"
-                        onClick={() => toggleUserStatus(user)}
-                      >
-                        {user.isActive ? "Khoa" : "Mo khoa"}
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="muted"
+                          className="min-h-8 px-2.5 text-xs"
+                          onClick={() => setSelectedDetail({ type: "customer", data: user })}
+                        >
+                          Chi tiet
+                        </Button>
+                        <Button
+                          variant={user.isActive ? "danger" : "secondary"}
+                          className="min-h-8 px-2.5 text-xs"
+                          onClick={() => toggleUserStatus(user)}
+                        >
+                          {user.isActive ? "Khoa" : "Mo khoa"}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -374,6 +393,64 @@ const AdminUsersPage = () => {
           </div>
         </div>
       </section>
+
+      {selectedDetail?.type === "companion" ? (
+        <AdminDetailModal
+          title={selectedDetail.data.fullName}
+          subtitle={`Tai khoan companion: ${selectedDetail.data.userId?.email || "Chua co email"}`}
+          status={selectedDetail.data.vettingStatus}
+          onClose={() => setSelectedDetail(null)}
+        >
+          <div className="space-y-5">
+            <DetailGrid>
+              <DetailItem label="ID ho so" value={selectedDetail.data._id} />
+              <DetailItem label="User ID" value={selectedDetail.data.userId?._id} />
+              <DetailItem label="So dien thoai" value={selectedDetail.data.phone} />
+              <DetailItem label="Truong" value={selectedDetail.data.university} />
+              <DetailItem label="Chuyen nganh" value={selectedDetail.data.major} />
+              <DetailItem label="Ngay tao" value={dateTime(selectedDetail.data.createdAt)} />
+              <DetailItem label="So ca hoan thanh" value={`${selectedDetail.data.completedBookings || 0} ca`} />
+              <DetailItem
+                label="Danh gia"
+                value={`${Number(selectedDetail.data.ratingAverage || 0).toFixed(1)} / 5 (${selectedDetail.data.ratingCount || 0})`}
+              />
+            </DetailGrid>
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Ky nang / khu vuc</h3>
+              <div className="mt-3 space-y-3">
+                <DetailTags items={selectedDetail.data.skills || []} tone="blue" empty="Chua co ky nang" />
+                <DetailTags items={selectedDetail.data.serviceAreas || []} tone="teal" empty="Chua co khu vuc" />
+              </div>
+            </section>
+            <DetailGrid>
+              <DetailItem label="CCCD" value={selectedDetail.data.documents?.citizenId || "Chua bo sung"} />
+              <DetailItem label="The sinh vien" value={selectedDetail.data.documents?.studentCardUrl ? "Da co file" : "Chua bo sung"} />
+              <DetailItem label="Ly lich tu phap" value={selectedDetail.data.documents?.backgroundCheckUrl ? "Da co file" : "Chua bo sung"} />
+              <DetailItem label="Cap nhat lan cuoi" value={dateTime(selectedDetail.data.updatedAt)} />
+            </DetailGrid>
+          </div>
+        </AdminDetailModal>
+      ) : null}
+
+      {selectedDetail?.type === "customer" ? (
+        <AdminDetailModal
+          title={selectedDetail.data.name}
+          subtitle={`User ID: ${selectedDetail.data._id}`}
+          status={selectedDetail.data.isActive ? "approved" : "suspended"}
+          onClose={() => setSelectedDetail(null)}
+        >
+          <DetailGrid>
+            <DetailItem label="Email" value={selectedDetail.data.email} />
+            <DetailItem label="So dien thoai" value={selectedDetail.data.phone} />
+            <DetailItem label="Vai tro" value={selectedDetail.data.role} />
+            <DetailItem label="Email da xac thuc" value={selectedDetail.data.isEmailVerified ? "Da xac thuc" : "Chua xac thuc"} />
+            <DetailItem label="Trang thai" value={selectedDetail.data.isActive ? "Dang hoat dong" : "Dang bi khoa"} />
+            <DetailItem label="Ngay tao" value={dateTime(selectedDetail.data.createdAt)} />
+            <DetailItem label="Cap nhat lan cuoi" value={dateTime(selectedDetail.data.updatedAt)} />
+            <DetailItem label="Avatar" value={selectedDetail.data.avatar?.url ? "Da co anh" : "Chua co anh"} />
+          </DetailGrid>
+        </AdminDetailModal>
+      ) : null}
     </div>
   );
 };

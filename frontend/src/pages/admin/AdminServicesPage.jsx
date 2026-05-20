@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { api } from "../../api/client.js";
+import AdminDetailModal, { DetailGrid, DetailItem, DetailTags } from "../../components/AdminDetailModal.jsx";
 import { Button, Input, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
-import { money } from "../../utils/format.js";
+import { dateTime, money } from "../../utils/format.js";
 
 const emptyForm = { name: "", code: "", description: "", pricePerHour: 80000, checklistText: "" };
 
@@ -29,6 +30,7 @@ const AdminServicesPage = () => {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
   const services = data?.services || [];
 
   const filteredServices = services.filter((service) => {
@@ -186,9 +188,14 @@ const AdminServicesPage = () => {
                       <StatusBadge status={service.isActive ? "approved" : "suspended"} />
                     </td>
                     <td className="p-4 text-right">
-                      <Button variant="danger" className="min-h-8 px-2.5 text-xs" onClick={() => disable(service._id)}>
-                        An dich vu
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedService(service)}>
+                          Chi tiet
+                        </Button>
+                        <Button variant="danger" className="min-h-8 px-2.5 text-xs" onClick={() => disable(service._id)}>
+                          An dich vu
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -246,6 +253,41 @@ const AdminServicesPage = () => {
             </form>
           </div>
         </div>
+      ) : null}
+
+      {selectedService ? (
+        <AdminDetailModal
+          title={selectedService.name}
+          subtitle={`Ma dich vu: ${selectedService.code}`}
+          status={selectedService.isActive ? "approved" : "suspended"}
+          onClose={() => setSelectedService(null)}
+        >
+          <div className="space-y-5">
+            <DetailGrid>
+              <DetailItem label="ID dich vu" value={selectedService._id} />
+              <DetailItem label="Phan loai" value={categoryLabel[serviceCategory(selectedService.code, selectedService.name)]} />
+              <DetailItem label="Gia theo gio" value={money(selectedService.pricePerHour)} />
+              <DetailItem label="Trang thai" value={selectedService.isActive ? "Dang hien thi" : "Dang an"} />
+              <DetailItem label="Ngay tao" value={dateTime(selectedService.createdAt)} />
+              <DetailItem label="Cap nhat lan cuoi" value={dateTime(selectedService.updatedAt)} />
+            </DetailGrid>
+
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Mo ta dich vu</h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{selectedService.description || "Chua co mo ta."}</p>
+            </section>
+
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Checklist mac dinh</h3>
+              <div className="mt-3">
+                <DetailTags items={selectedService.defaultChecklist || []} tone="teal" empty="Chua co checklist" />
+              </div>
+              <p className="mt-3 text-xs text-slate-500">
+                Checklist nay se duoc dua vao booking de nguoi dong hanh gat theo thu tu khi thuc hien ca.
+              </p>
+            </section>
+          </div>
+        </AdminDetailModal>
       ) : null}
     </div>
   );

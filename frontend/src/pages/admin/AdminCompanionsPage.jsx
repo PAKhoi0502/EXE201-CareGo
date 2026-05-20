@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { api } from "../../api/client.js";
+import AdminDetailModal, { DetailGrid, DetailItem, DetailTags } from "../../components/AdminDetailModal.jsx";
 import { Button, Input, Select, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
+import { dateTime } from "../../utils/format.js";
 
 const emptyForm = {
   name: "",
@@ -31,6 +33,7 @@ const AdminCompanionsPage = () => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [areaFilter, setAreaFilter] = useState("all");
+  const [selectedCompanion, setSelectedCompanion] = useState(null);
   const companions = data?.companions || [];
 
   const areas = useMemo(() => {
@@ -218,6 +221,9 @@ const AdminCompanionsPage = () => {
                     <StatusBadge status={item.vettingStatus} />
                   </td>
                   <td className="space-x-1 whitespace-nowrap p-4 text-right">
+                    <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedCompanion(item)}>
+                      Chi tiet
+                    </Button>
                     {item.vettingStatus === "pending" ? (
                       <>
                         <Button className="min-h-8 px-2.5 text-xs" onClick={() => updateStatus(item._id, "approved")}>
@@ -296,6 +302,48 @@ const AdminCompanionsPage = () => {
             </form>
           </div>
         </div>
+      ) : null}
+
+      {selectedCompanion ? (
+        <AdminDetailModal
+          title={selectedCompanion.fullName}
+          subtitle={`Companion ID: ${selectedCompanion._id}`}
+          status={selectedCompanion.vettingStatus}
+          onClose={() => setSelectedCompanion(null)}
+        >
+          <div className="space-y-5">
+            <DetailGrid>
+              <DetailItem label="Email" value={selectedCompanion.userId?.email} />
+              <DetailItem label="So dien thoai" value={selectedCompanion.phone} />
+              <DetailItem label="Truong" value={selectedCompanion.university} />
+              <DetailItem label="Chuyen nganh" value={selectedCompanion.major} />
+              <DetailItem label="Gioi tinh" value={selectedCompanion.gender} />
+              <DetailItem label="Ngay tao ho so" value={dateTime(selectedCompanion.createdAt)} />
+              <DetailItem label="So ca hoan thanh" value={`${selectedCompanion.completedBookings || 0} ca`} />
+              <DetailItem
+                label="Danh gia"
+                value={`${Number(selectedCompanion.ratingAverage || 0).toFixed(1)} / 5 (${selectedCompanion.ratingCount || 0} danh gia)`}
+              />
+            </DetailGrid>
+
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Ky nang va khu vuc hoat dong</h3>
+              <div className="mt-3 space-y-3">
+                <DetailTags items={selectedCompanion.skills || []} tone="blue" empty="Chua co ky nang" />
+                <DetailTags items={selectedCompanion.serviceAreas || []} tone="teal" empty="Chua co khu vuc" />
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Kiem duyet 3 lop</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <DetailItem label="Lop 1 - CCCD" value={selectedCompanion.documents?.citizenId || "Chua bo sung"} />
+                <DetailItem label="The sinh vien" value={selectedCompanion.documents?.studentCardUrl ? "Da co file" : "Chua bo sung"} />
+                <DetailItem label="Ly lich tu phap" value={selectedCompanion.documents?.backgroundCheckUrl ? "Da co file" : "Chua bo sung"} />
+              </div>
+            </section>
+          </div>
+        </AdminDetailModal>
       ) : null}
     </div>
   );

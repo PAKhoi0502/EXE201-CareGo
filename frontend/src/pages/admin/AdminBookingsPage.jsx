@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { api } from "../../api/client.js";
+import AdminDetailModal, { DetailGrid, DetailItem } from "../../components/AdminDetailModal.jsx";
 import { Button, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime, money } from "../../utils/format.js";
@@ -27,6 +28,7 @@ const AdminBookingsPage = () => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [serviceFilter, setServiceFilter] = useState("all");
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const bookings = data?.bookings || [];
 
   const services = useMemo(() => {
@@ -137,6 +139,7 @@ const AdminBookingsPage = () => {
                 <th className="p-4">GPS diem den</th>
                 <th className="p-4">Trang thai</th>
                 <th className="p-4 text-right">Gia tri</th>
+                <th className="p-4 text-right">Thao tac</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -201,12 +204,17 @@ const AdminBookingsPage = () => {
                       <p className="text-sm font-bold text-teal-700">{money(booking.totalAmount)}</p>
                       <p className="text-[11px] text-slate-400">Phi nen tang: {money(booking.platformFee)}</p>
                     </td>
+                    <td className="p-4 text-right">
+                      <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedBooking(booking)}>
+                        Chi tiet
+                      </Button>
+                    </td>
                   </tr>
                 );
               })}
               {!filteredBookings.length ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-sm text-slate-400">
+                  <td colSpan="7" className="p-8 text-center text-sm text-slate-400">
                     Khong tim thay booking phu hop.
                   </td>
                 </tr>
@@ -220,6 +228,57 @@ const AdminBookingsPage = () => {
           <span className="font-semibold text-slate-500">Phi nen tang tam tinh: {money(platformFee)}</span>
         </div>
       </section>
+
+      {selectedBooking ? (
+        <AdminDetailModal
+          title={`Booking ${selectedBooking._id}`}
+          subtitle={`${selectedBooking.serviceId?.name || "Dich vu"} - ${dateTime(selectedBooking.startTime)}`}
+          status={selectedBooking.status}
+          onClose={() => setSelectedBooking(null)}
+        >
+          <div className="space-y-5">
+            <DetailGrid>
+              <DetailItem label="Khach hang" value={`${selectedBooking.customerId?.name || "Khach hang"} - ${selectedBooking.customerId?.email || ""}`} />
+              <DetailItem label="Nguoi than" value={selectedBooking.elderProfileId?.fullName} />
+              <DetailItem label="Companion" value={`${selectedBooking.companionId?.name || "Chua co"} - ${selectedBooking.companionId?.email || ""}`} />
+              <DetailItem label="Dich vu" value={selectedBooking.serviceId?.name} />
+              <DetailItem label="Thoi gian bat dau" value={dateTime(selectedBooking.startTime)} />
+              <DetailItem label="Thoi luong" value={`${selectedBooking.durationHours || 0} gio`} />
+              <DetailItem label="Tong tien" value={money(selectedBooking.totalAmount)} />
+              <DetailItem label="Phi nen tang" value={money(selectedBooking.platformFee)} />
+              <DetailItem label="Ngay tao" value={dateTime(selectedBooking.createdAt)} />
+              <DetailItem label="Cap nhat lan cuoi" value={dateTime(selectedBooking.updatedAt)} />
+            </DetailGrid>
+
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Dia diem thuc hien</h3>
+              <p className="mt-2 text-sm font-semibold text-slate-800">{selectedBooking.address}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {selectedBooking.addressLocation?.lat
+                  ? `${selectedBooking.addressLocation.displayName || "Da ghim tren ban do"} - ${selectedBooking.addressLocation.lat}, ${selectedBooking.addressLocation.lng}`
+                  : "Booking nay chua co toa do GPS duoc ghim."}
+              </p>
+              <a
+                href={
+                  selectedBooking.addressLocation?.lat
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${selectedBooking.addressLocation.lat},${selectedBooking.addressLocation.lng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedBooking.address || "")}`
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex rounded-lg bg-teal-50 px-3 py-2 text-xs font-bold text-teal-700 hover:bg-teal-100"
+              >
+                Mo Google Maps
+              </a>
+            </section>
+
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Ghi chu booking</h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{selectedBooking.note || "Khong co ghi chu."}</p>
+            </section>
+          </div>
+        </AdminDetailModal>
+      ) : null}
     </div>
   );
 };
