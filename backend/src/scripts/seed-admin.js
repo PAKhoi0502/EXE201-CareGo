@@ -1,8 +1,10 @@
 import bcrypt from "bcrypt";
+import dns from "dns";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import User from "../models/user.models.js";
 
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 dotenv.config();
 
 const seedAdmin = async () => {
@@ -14,7 +16,11 @@ const seedAdmin = async () => {
     throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required");
   }
 
-  await mongoose.connect(process.env.MONGODB_URL);
+  await mongoose.connect(process.env.MONGODB_URL, {
+    dbName: process.env.MONGODB_DB_NAME || "carego",
+  });
+  console.log("Connected database:", mongoose.connection.name);
+  console.log("Users collection:", User.collection.name);
 
   const existingAdmin = await User.findOne({ email });
   if (existingAdmin) {

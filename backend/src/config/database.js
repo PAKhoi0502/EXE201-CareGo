@@ -7,9 +7,10 @@ const dbUrl = process.env.MONGODB_URL;
 
 export const databaseConnection = async () => {
     try {
-        await mongoose.connect(dbUrl);
-        console.log('dburl:', dbUrl);
-        console.log('Connected to MongoDB');
+        await mongoose.connect(dbUrl, {
+            dbName: process.env.MONGODB_DB_NAME || "carego",
+        });
+        console.log('Connected to MongoDB database:', mongoose.connection.name);
     } catch (error) {
         console.log('Error connecting to MongoDB:', error);
         process.exit(1);
