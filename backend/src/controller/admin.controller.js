@@ -3,6 +3,7 @@ import CompanionProfile from "../models/companion-profile.models.js";
 import Payment from "../models/payment.models.js";
 import Service from "../models/service.models.js";
 import User from "../models/user.models.js";
+import { getCompanionGpsStatuses, getUserOnlineStatuses } from "../socket/location.socket.js";
 
 export const getAdminDashboard = async (req, res) => {
   try {
@@ -77,6 +78,22 @@ export const getAdminBookings = async (req, res) => {
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ bookings });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
+  }
+};
+
+export const getAdminGpsStatuses = async (req, res) => {
+  try {
+    return res.status(200).json({ gpsStatuses: getCompanionGpsStatuses() });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
+  }
+};
+
+export const getAdminOnlineStatuses = async (req, res) => {
+  try {
+    return res.status(200).json({ onlineStatuses: getUserOnlineStatuses() });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }

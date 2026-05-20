@@ -29,6 +29,7 @@ const CompanionBookingDetailPage = () => {
   const watchIdRef = useRef(null);
 
   const booking = data?.booking;
+  const companionUserId = booking?.companionId?._id || booking?.companionId;
   const shiftLog = data?.shiftLog;
   const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
   const directionUrl = serviceLocation
@@ -59,6 +60,7 @@ const CompanionBookingDetailPage = () => {
       (position) => {
         const nextLocation = {
           bookingId: id,
+          companionId: companionUserId,
           lat: position.coords.latitude,
           lng: position.coords.longitude,
           note: "Realtime GPS",
@@ -74,6 +76,7 @@ const CompanionBookingDetailPage = () => {
         setGpsReady(false);
         setGpsError(gpsError.message);
         setSharing(false);
+        locationSocket.emit("location:stop", { bookingId: id, companionId: companionUserId });
       },
       {
         enableHighAccuracy: true,
@@ -89,9 +92,10 @@ const CompanionBookingDetailPage = () => {
       }
       setSharing(false);
       setGpsReady(false);
+      locationSocket.emit("location:stop", { bookingId: id, companionId: companionUserId });
       locationSocket.emit("booking:leave", { bookingId: id });
     };
-  }, [id]);
+  }, [id, companionUserId]);
 
   const updateStatus = async () => {
     if (!gpsReady) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client.js";
 import AdminDetailModal, { DetailGrid, DetailItem, DetailTags } from "../../components/AdminDetailModal.jsx";
 import { Button, StatusBadge } from "../../components/Ui.jsx";
@@ -20,6 +20,36 @@ const vettingLabel = {
   suspended: "Tam khoa",
 };
 
+const AccountLockBadge = ({ active }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      active ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-rose-50 text-rose-700 ring-rose-200"
+    }`}
+  >
+    {active ? "Tai khoan mo" : "Tai khoan bi khoa"}
+  </span>
+);
+
+const OnlineBadge = ({ status }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      status?.isOnline ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
+    }`}
+  >
+    {status?.isOnline ? "Online" : "Offline"}
+  </span>
+);
+
+const GpsBadge = ({ status }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      status?.isGpsOn ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
+    }`}
+  >
+    GPS {status?.isGpsOn ? "dang bat" : "dang tat"}
+  </span>
+);
+
 const AdminUsersPage = () => {
   const { data: usersData, loading, error, reload: reloadUsers } = useAsync(
     () => api.get("/admin/users"),
@@ -34,9 +64,14 @@ const AdminUsersPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [majorFilter, setMajorFilter] = useState("all");
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [gpsStatuses, setGpsStatuses] = useState({});
+  const [onlineStatuses, setOnlineStatuses] = useState({});
 
   const users = usersData?.users || [];
   const companions = companionsData?.companions || [];
+  const getGpsStatus = (companion) => gpsStatuses[companion.userId?._id || companion.userId] || null;
+  const getOnlineStatus = (id) => onlineStatuses[id] || null;
+  const getCompanionOnlineStatus = (companion) => getOnlineStatus(companion.userId?._id || companion.userId);
   const customers = users.filter((user) => user.role === "customer");
   const activeUsers = users.filter((user) => user.isActive).length;
   const pendingCompanions = companions.filter((item) => item.vettingStatus === "pending");
@@ -44,6 +79,26 @@ const AdminUsersPage = () => {
   const healthMajorCount = companions.filter((item) =>
     `${item.major || ""} ${item.university || ""}`.toLowerCase().match(/y|duoc|dieu duong|tam ly/),
   ).length;
+
+  useEffect(() => {
+    const loadRealtimeStatuses = async () => {
+      try {
+        const [gpsResponse, onlineResponse] = await Promise.all([
+          api.get("/admin/gps-statuses"),
+          api.get("/admin/online-statuses"),
+        ]);
+        setGpsStatuses(gpsResponse.gpsStatuses || {});
+        setOnlineStatuses(onlineResponse.onlineStatuses || {});
+      } catch {
+        setGpsStatuses({});
+        setOnlineStatuses({});
+      }
+    };
+
+    loadRealtimeStatuses();
+    const timer = setInterval(loadRealtimeStatuses, 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   const majors = useMemo(() => {
     const values = companions.map((item) => item.major).filter(Boolean);
@@ -223,6 +278,11 @@ const AdminUsersPage = () => {
                           <p className="text-[11px] text-slate-400">
                             {item.userId?.email} | {item.university || "Chua co truong"} ({item.major || "Chua co nganh"})
                           </p>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            <AccountLockBadge active={item.userId?.isActive} />
+                            <OnlineBadge status={getCompanionOnlineStatus(item)} />
+                            <GpsBadge status={getGpsStatus(item)} />
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -258,6 +318,11 @@ const AdminUsersPage = () => {
                     </td>
                     <td className="p-4">
                       <StatusBadge status={item.vettingStatus} />
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <AccountLockBadge active={item.userId?.isActive} />
+                        <OnlineBadge status={getCompanionOnlineStatus(item)} />
+                        <GpsBadge status={getGpsStatus(item)} />
+                      </div>
                       <p className="mt-1 text-[11px] font-semibold text-slate-400">
                         {vettingLabel[item.vettingStatus] || item.vettingStatus}
                       </p>
@@ -344,7 +409,10 @@ const AdminUsersPage = () => {
                       <StatusBadge status={user.role} />
                     </td>
                     <td className="p-4">
-                      <StatusBadge status={user.isActive ? "approved" : "suspended"} />
+                      <div className="flex flex-wrap gap-1">
+                        <AccountLockBadge active={user.isActive} />
+                        <OnlineBadge status={getOnlineStatus(user._id)} />
+                      </div>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-1">
@@ -410,6 +478,15 @@ const AdminUsersPage = () => {
               <DetailItem label="Chuyen nganh" value={selectedDetail.data.major} />
               <DetailItem label="Ngay tao" value={dateTime(selectedDetail.data.createdAt)} />
               <DetailItem label="So ca hoan thanh" value={`${selectedDetail.data.completedBookings || 0} ca`} />
+              <DetailItem label="Trang thai tai khoan">
+                <AccountLockBadge active={selectedDetail.data.userId?.isActive} />
+              </DetailItem>
+              <DetailItem label="Online / Offline">
+                <OnlineBadge status={getCompanionOnlineStatus(selectedDetail.data)} />
+              </DetailItem>
+              <DetailItem label="Trang thai GPS">
+                <GpsBadge status={getGpsStatus(selectedDetail.data)} />
+              </DetailItem>
               <DetailItem
                 label="Danh gia"
                 value={`${Number(selectedDetail.data.ratingAverage || 0).toFixed(1)} / 5 (${selectedDetail.data.ratingCount || 0})`}
@@ -444,7 +521,12 @@ const AdminUsersPage = () => {
             <DetailItem label="So dien thoai" value={selectedDetail.data.phone} />
             <DetailItem label="Vai tro" value={selectedDetail.data.role} />
             <DetailItem label="Email da xac thuc" value={selectedDetail.data.isEmailVerified ? "Da xac thuc" : "Chua xac thuc"} />
-            <DetailItem label="Trang thai" value={selectedDetail.data.isActive ? "Dang hoat dong" : "Dang bi khoa"} />
+            <DetailItem label="Trang thai">
+              <AccountLockBadge active={selectedDetail.data.isActive} />
+            </DetailItem>
+            <DetailItem label="Online / Offline">
+              <OnlineBadge status={getOnlineStatus(selectedDetail.data._id)} />
+            </DetailItem>
             <DetailItem label="Ngay tao" value={dateTime(selectedDetail.data.createdAt)} />
             <DetailItem label="Cap nhat lan cuoi" value={dateTime(selectedDetail.data.updatedAt)} />
             <DetailItem label="Avatar" value={selectedDetail.data.avatar?.url ? "Da co anh" : "Chua co anh"} />

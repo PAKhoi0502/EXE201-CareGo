@@ -2,6 +2,8 @@ import express from "express";
 import {
   getAdminBookings,
   getAdminDashboard,
+  getAdminGpsStatuses,
+  getAdminOnlineStatuses,
   getAdminUsers,
   updateUserStatus,
 } from "../controller/admin.controller.js";
@@ -16,5 +18,7 @@ router.get("/dashboard", getAdminDashboard);
 router.get("/users", getAdminUsers);
 router.patch("/users/:id/status", updateUserStatus);
 router.get("/bookings", getAdminBookings);
+router.get("/gps-statuses", getAdminGpsStatuses);
+router.get("/online-statuses", getAdminOnlineStatuses);
 
 export default router;

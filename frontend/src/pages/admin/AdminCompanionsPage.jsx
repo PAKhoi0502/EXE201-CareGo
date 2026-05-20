@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client.js";
 import AdminDetailModal, { DetailGrid, DetailItem, DetailTags } from "../../components/AdminDetailModal.jsx";
 import { Button, Input, Select, StatusBadge } from "../../components/Ui.jsx";
@@ -25,6 +25,36 @@ const initials = (name = "CG") =>
     .slice(0, 2)
     .toUpperCase();
 
+const GpsBadge = ({ status }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      status?.isGpsOn ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
+    }`}
+  >
+    GPS {status?.isGpsOn ? "dang bat" : "dang tat"}
+  </span>
+);
+
+const AccountLockBadge = ({ active }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      active ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-rose-50 text-rose-700 ring-rose-200"
+    }`}
+  >
+    {active ? "Tai khoan mo" : "Tai khoan bi khoa"}
+  </span>
+);
+
+const OnlineBadge = ({ status }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      status?.isOnline ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
+    }`}
+  >
+    {status?.isOnline ? "Online" : "Offline"}
+  </span>
+);
+
 const AdminCompanionsPage = () => {
   const { data, reload, error } = useAsync(() => api.get("/companions/admin/all"), []);
   const [form, setForm] = useState(emptyForm);
@@ -34,7 +64,31 @@ const AdminCompanionsPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [areaFilter, setAreaFilter] = useState("all");
   const [selectedCompanion, setSelectedCompanion] = useState(null);
+  const [gpsStatuses, setGpsStatuses] = useState({});
+  const [onlineStatuses, setOnlineStatuses] = useState({});
   const companions = data?.companions || [];
+  const getGpsStatus = (companion) => gpsStatuses[companion.userId?._id || companion.userId] || null;
+  const getOnlineStatus = (companion) => onlineStatuses[companion.userId?._id || companion.userId] || null;
+
+  useEffect(() => {
+    const loadRealtimeStatuses = async () => {
+      try {
+        const [gpsResponse, onlineResponse] = await Promise.all([
+          api.get("/admin/gps-statuses"),
+          api.get("/admin/online-statuses"),
+        ]);
+        setGpsStatuses(gpsResponse.gpsStatuses || {});
+        setOnlineStatuses(onlineResponse.onlineStatuses || {});
+      } catch {
+        setGpsStatuses({});
+        setOnlineStatuses({});
+      }
+    };
+
+    loadRealtimeStatuses();
+    const timer = setInterval(loadRealtimeStatuses, 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   const areas = useMemo(() => {
     const values = companions.flatMap((item) => item.serviceAreas || []).filter(Boolean);
@@ -182,6 +236,11 @@ const AdminCompanionsPage = () => {
                         <p className="text-sm font-bold text-slate-800">{item.fullName}</p>
                         <p className="text-[11px] text-slate-400">{item.userId?.email}</p>
                         <p className="text-[11px] text-slate-400">{item.phone || "Chua co SDT"}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <AccountLockBadge active={item.userId?.isActive} />
+                          <OnlineBadge status={getOnlineStatus(item)} />
+                          <GpsBadge status={getGpsStatus(item)} />
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -320,6 +379,15 @@ const AdminCompanionsPage = () => {
               <DetailItem label="Gioi tinh" value={selectedCompanion.gender} />
               <DetailItem label="Ngay tao ho so" value={dateTime(selectedCompanion.createdAt)} />
               <DetailItem label="So ca hoan thanh" value={`${selectedCompanion.completedBookings || 0} ca`} />
+              <DetailItem label="Trang thai tai khoan">
+                <AccountLockBadge active={selectedCompanion.userId?.isActive} />
+              </DetailItem>
+              <DetailItem label="Online / Offline">
+                <OnlineBadge status={getOnlineStatus(selectedCompanion)} />
+              </DetailItem>
+              <DetailItem label="Trang thai GPS">
+                <GpsBadge status={getGpsStatus(selectedCompanion)} />
+              </DetailItem>
               <DetailItem
                 label="Danh gia"
                 value={`${Number(selectedCompanion.ratingAverage || 0).toFixed(1)} / 5 (${selectedCompanion.ratingCount || 0} danh gia)`}
