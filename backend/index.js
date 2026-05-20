@@ -9,6 +9,11 @@ import { databaseConnection } from "./src/config/database.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import authRouter from "./src/routes/auth-routes.routes.js";
+import adminRouter from "./src/routes/admin.routes.js";
+import bookingRouter from "./src/routes/booking.routes.js";
+import companionRouter from "./src/routes/companion.routes.js";
+import elderRouter from "./src/routes/elder.routes.js";
+import serviceRouter from "./src/routes/service.routes.js";
 
 // import swagger
 import { setupSwagger } from "./src/config/swagger.js";
@@ -17,7 +22,7 @@ const app = express();
 const port = 3000;
 dotenv.config();
 // --------------connect to mongodb--------------
-databaseConnection();
+await databaseConnection();
 // ---------------------------------------------
 app.use(cookieParser());
 app.use(express.json()); // chuyển đổi dữ liệu từ client gửi lên thành định dạng json
@@ -40,6 +45,11 @@ setupSwagger(app);
 // res: response (phản hồi từ server gửi về client)
 
 app.use("/api/auth", authRouter); // mục dích phục vụ cho riêng authentication
+app.use("/api/services", serviceRouter);
+app.use("/api/companions", companionRouter);
+app.use("/api/elders", elderRouter);
+app.use("/api/bookings", bookingRouter);
+app.use("/api/admin", adminRouter);
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`, "http://localhost:3000");
