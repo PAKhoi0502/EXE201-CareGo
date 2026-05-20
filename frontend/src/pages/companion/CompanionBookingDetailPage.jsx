@@ -32,6 +32,7 @@ const CompanionBookingDetailPage = () => {
     ? `https://www.google.com/maps/dir/?api=1&destination=${serviceLocation.lat},${serviceLocation.lng}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking?.address || "")}`;
   const checklist = useMemo(() => shiftLog?.checklist || [], [shiftLog]);
+  const hasCheckInPhoto = Boolean(shiftLog?.checkInPhotoUrl);
   const allLocations = useMemo(
     () => [...(shiftLog?.locations || []), ...liveLocations],
     [shiftLog?.locations, liveLocations],
@@ -138,6 +139,21 @@ const CompanionBookingDetailPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (!shiftLog) {
+      return;
+    }
+
+    setShift({
+      checkInPhotoUrl: shiftLog.checkInPhotoUrl || "",
+      checkOutPhotoUrl: shiftLog.checkOutPhotoUrl || "",
+      bloodPressure: shiftLog.healthMetrics?.bloodPressure || "",
+      heartRate: shiftLog.healthMetrics?.heartRate || "",
+      mood: shiftLog.healthMetrics?.mood || "",
+      companionNote: shiftLog.companionNote || "",
+    });
+  }, [shiftLog]);
+
   if (loading) return <p>Dang tai...</p>;
   if (error) return <p className="text-sm text-rose-600">{error}</p>;
   if (!booking) return null;
@@ -226,30 +242,77 @@ const CompanionBookingDetailPage = () => {
         </Card>
 
         <Card>
-          <h2 className="font-bold text-slate-950">Checklist</h2>
-          <div className="mt-4 grid gap-2">
-            {checklist.map((item, index) => (
-              <label key={item.label} className="flex items-center gap-3 rounded-md bg-slate-50 p-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={item.done}
-                  onChange={(event) => {
-                    const next = checklist.map((current, currentIndex) =>
-                      currentIndex === index ? { ...current, done: event.target.checked } : current,
-                    );
-                    updateShift(next);
-                  }}
-                />
-                <span>{item.label}</span>
-              </label>
-            ))}
+          <h2 className="font-bold text-slate-950">Quy trinh check-in</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Luu anh check-in truoc, sau do thuc hien checklist theo dung thu tu.
+          </p>
+          <div className="mt-4 grid gap-4">
+            <Input label="Anh check-in URL" value={shift.checkInPhotoUrl} onChange={(e) => setShift({ ...shift, checkInPhotoUrl: e.target.value })} />
+            <Button onClick={() => updateShift()} disabled={!shift.checkInPhotoUrl}>
+              Luu anh check-in
+            </Button>
+          </div>
+          {hasCheckInPhoto ? (
+            <p className="mt-3 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+              Da check-in. Co the bat dau checklist.
+            </p>
+          ) : (
+            <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+              Checklist se bi khoa cho den khi co anh check-in.
+            </p>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="font-bold text-slate-950">Checklist theo thu tu</h2>
+          <div className="mt-4 grid gap-3">
+            {checklist.map((item, index) => {
+              const previousDone = index === 0 || checklist[index - 1]?.done;
+              const disabled = !hasCheckInPhoto || !previousDone;
+
+              return (
+                <div
+                  key={item.label}
+                  className={`flex items-center justify-between gap-4 rounded-md border p-4 text-sm ${
+                    item.done ? "border-teal-200 bg-teal-50" : "border-slate-200 bg-white"
+                  } ${disabled ? "opacity-60" : ""}`}
+                >
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      Buoc {index + 1}: {item.label}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {disabled ? "Hoan thanh buoc truoc de mo buoc nay" : item.done ? "Da hoan thanh" : "Gat de xac nhan"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      const next = checklist.map((current, currentIndex) =>
+                        currentIndex === index ? { ...current, done: !current.done } : current,
+                      );
+                      updateShift(next);
+                    }}
+                    className={`relative h-7 w-12 rounded-full transition ${
+                      item.done ? "bg-teal-700" : "bg-slate-300"
+                    } disabled:cursor-not-allowed`}
+                  >
+                    <span
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${
+                        item.done ? "left-6" : "left-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </Card>
 
         <Card>
-          <h2 className="font-bold text-slate-950">Bao cao ca lam</h2>
+          <h2 className="font-bold text-slate-950">Bao cao sau ca</h2>
           <div className="mt-4 grid gap-4">
-            <Input label="Anh check-in URL" value={shift.checkInPhotoUrl} onChange={(e) => setShift({ ...shift, checkInPhotoUrl: e.target.value })} />
             <Input label="Anh check-out URL" value={shift.checkOutPhotoUrl} onChange={(e) => setShift({ ...shift, checkOutPhotoUrl: e.target.value })} />
             <div className="grid gap-3 md:grid-cols-3">
               <Input label="Huyet ap" value={shift.bloodPressure} onChange={(e) => setShift({ ...shift, bloodPressure: e.target.value })} />
