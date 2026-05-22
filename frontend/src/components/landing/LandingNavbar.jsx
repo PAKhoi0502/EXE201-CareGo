@@ -3,6 +3,7 @@ import LandingButton from "./LandingButton.jsx";
 const navItems = [
   ["Dịch vụ", "#services"],
   ["Quy trình", "#steps"],
+  ["Người đồng hành", "#companion-join"],
   ["An toàn", "#safety"],
   ["Liên hệ", "#contact"],
 ];
@@ -29,6 +30,9 @@ const LandingNavbar = () => (
         <LandingButton to="/login" variant="secondary" className="hidden sm:inline-flex">
           Đăng nhập
         </LandingButton>
+        {/* <LandingButton href="#companion-join" variant="secondary" className="hidden lg:inline-flex">
+          Làm người đồng hành
+        </LandingButton> */}
         <LandingButton to="/register">Đặt lịch</LandingButton>
       </div>
     </div>

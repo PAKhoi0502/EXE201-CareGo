@@ -36,26 +36,31 @@ const ResetPasswordPage = () => {
 
   return (
     <AuthShell
-      title="Dat lai mat khau"
-      subtitle="Nhap mat khau moi cho tai khoan CareGo."
-      footer={<Link className="font-semibold text-teal-700" to="/login">Quay lai dang nhap</Link>}
+      title="Đặt lại mật khẩu"
+      subtitle="Nhập mật khẩu mới cho tài khoản CareGo."
+      badge="Bảo mật tài khoản"
+      footer={<Link className="font-black text-teal-700" to="/login">Quay lại đăng nhập</Link>}
     >
-      <form className="grid gap-4" onSubmit={submit}>
+      <form className="grid gap-5" onSubmit={submit}>
         <Input
-          label="Mat khau moi"
+          label="Mật khẩu mới"
           type="password"
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
+          className="min-h-14 rounded-2xl border-teal-100"
         />
         <Input
-          label="Nhap lai mat khau"
+          label="Nhập lại mật khẩu"
           type="password"
           value={form.confirmPassword}
           onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+          className="min-h-14 rounded-2xl border-teal-100"
         />
-        {message ? <p className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
-        {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
-        <Button disabled={submitting}>{submitting ? "Dang luu..." : "Dat lai mat khau"}</Button>
+        {message ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p> : null}
+        {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+        <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
+          {submitting ? "Đang lưu..." : "Đặt lại mật khẩu"}
+        </Button>
       </form>
     </AuthShell>
   );

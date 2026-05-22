@@ -40,27 +40,28 @@ const RegisterCompanionPage = () => {
 
   return (
     <AuthShell
-      title="Dang ky nguoi dong hanh"
-      subtitle="Ho so se duoc admin kiem duyet truoc khi nhan ca."
-      footer={<Link className="font-semibold text-teal-700" to="/login">Da co tai khoan</Link>}
+      title="Đăng ký người đồng hành"
+      subtitle="Hồ sơ sẽ được admin kiểm duyệt trước khi nhận ca."
+      badge="Hồ sơ người đồng hành"
+      footer={<Link className="font-black text-teal-700" to="/login">Đã có tài khoản</Link>}
     >
       <form className="grid gap-4" onSubmit={submit}>
-        <Input label="Ten dang nhap/hien thi" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <Input label="Ho ten day du" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-        <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <Input label="Mat khau" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        <Input label="So dien thoai" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        <Select label="Gioi tinh" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
-          <option value="other">Khac</option>
+        <Input label="Tên hiển thị" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Input label="Họ tên đầy đủ" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Input label="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Input label="Số điện thoại" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Select label="Giới tính" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="min-h-12 rounded-2xl border-teal-100">
+          <option value="other">Khác</option>
           <option value="male">Nam</option>
-          <option value="female">Nu</option>
+          <option value="female">Nữ</option>
         </Select>
-        <Input label="Truong dai hoc" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
-        <Input label="Nganh hoc" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
-        <Input label="Ky nang, cach nhau bang dau phay" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} />
-        <Input label="Khu vuc hoat dong" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} />
-        {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
-        <Button>Gui ho so</Button>
+        <Input label="Trường đại học" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Input label="Ngành học" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Input label="Kỹ năng, cách nhau bằng dấu phẩy" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        <Input label="Khu vực hoạt động" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+        {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+        <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20">Gửi hồ sơ</Button>
       </form>
     </AuthShell>
   );

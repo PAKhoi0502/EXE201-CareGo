@@ -7,7 +7,6 @@ import AuthShell from "./AuthShell.jsx";
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [devLink, setDevLink] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -15,14 +14,10 @@ const ForgotPasswordPage = () => {
     event.preventDefault();
     setSubmitting(true);
     setMessage("");
-    setDevLink("");
     setError("");
     try {
       const data = await api.post("/auth/forget-password", { email });
       setMessage(data.message || "Da gui link dat lai mat khau.");
-      if (data.resetUrl) {
-        setDevLink(data.resetUrl);
-      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -32,20 +27,18 @@ const ForgotPasswordPage = () => {
 
   return (
     <AuthShell
-      title="Quen mat khau"
-      subtitle="Nhap email de nhan link dat lai mat khau."
-      footer={<Link className="font-semibold text-teal-700" to="/login">Quay lai dang nhap</Link>}
+      title="Quên mật khẩu"
+      subtitle="Nhập email để nhận link đặt lại mật khẩu."
+      badge="Khôi phục tài khoản"
+      footer={<Link className="font-black text-teal-700" to="/login">Quay lại đăng nhập</Link>}
     >
-      <form className="grid gap-4" onSubmit={submit}>
-        <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        {message ? <p className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
-        {devLink ? (
-          <a className="break-all rounded-md bg-slate-50 p-3 text-sm font-semibold text-teal-700" href={devLink}>
-            {devLink}
-          </a>
-        ) : null}
-        {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
-        <Button disabled={submitting}>{submitting ? "Dang gui..." : "Gui link dat lai"}</Button>
+      <form className="grid gap-5" onSubmit={submit}>
+        <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="min-h-14 rounded-2xl border-teal-100" />
+        {message ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p> : null}
+        {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+        <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
+          {submitting ? "Đang gửi..." : "Gửi link đặt lại"}
+        </Button>
       </form>
     </AuthShell>
   );

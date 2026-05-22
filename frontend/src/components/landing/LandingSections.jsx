@@ -94,6 +94,29 @@ export const SafetySection = () => (
   </section>
 );
 
+export const CompanionJoinSection = () => (
+  <section id="companion-join" className="scroll-mt-24 py-10">
+    <div className="mx-auto w-[min(1180px,92%)]">
+      <div className="grid gap-6 rounded-[34px] border border-teal-100 bg-white p-7 shadow-xl shadow-teal-900/5 lg:grid-cols-[1fr_auto] lg:items-center lg:p-9">
+        <div>
+          <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800">
+            Dành cho sinh viên Y Dược, Điều dưỡng, Tâm lý
+          </span>
+          <h2 className="mt-4 text-2xl font-black text-[#12312f] sm:text-3xl">
+            Trở thành người đồng hành CareGo
+          </h2>
+          <p className="mt-3 max-w-3xl leading-7 text-slate-500">
+            Đăng ký hồ sơ, xác thực email và chờ admin kiểm duyệt để bắt đầu nhận ca chăm sóc theo giờ.
+          </p>
+        </div>
+        <LandingButton to="/companion-register" className="w-full lg:w-auto">
+          Đăng ký người đồng hành
+        </LandingButton>
+      </div>
+    </div>
+  </section>
+);
+
 export const CtaSection = () => (
   <section id="contact" className="pb-12 pt-6">
     <div className="mx-auto w-[min(1180px,92%)]">

@@ -50,18 +50,21 @@ const VerifyEmailPage = () => {
 
   return (
     <AuthShell
-      title="Xac thuc email"
-      subtitle={role === "companion" ? "Xac thuc email truoc khi admin duyet ho so." : "Nhap ma OTP duoc gui den email cua ban."}
-      footer={<Link className="font-semibold text-teal-700" to="/login">Quay lai dang nhap</Link>}
+      title="Xác thực email"
+      subtitle={role === "companion" ? "Xác thực email trước khi admin duyệt hồ sơ." : "Nhập mã OTP được gửi đến email của bạn."}
+      badge="Xác thực OTP"
+      footer={<Link className="font-black text-teal-700" to="/login">Quay lại đăng nhập</Link>}
     >
-      <form className="grid gap-4" onSubmit={submit}>
-        <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Input label="Ma OTP" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} />
-        {message ? <p className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
-        {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
-        <Button disabled={submitting}>{submitting ? "Dang xac thuc..." : "Xac thuc"}</Button>
-        <Button type="button" variant="secondary" onClick={resend} disabled={!email}>
-          Gui lai OTP
+      <form className="grid gap-5" onSubmit={submit}>
+        <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="min-h-14 rounded-2xl border-teal-100" />
+        <Input label="Mã OTP" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="min-h-14 rounded-2xl border-teal-100" />
+        {message ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p> : null}
+        {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+        <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
+          {submitting ? "Đang xác thực..." : "Xác thực"}
+        </Button>
+        <Button type="button" variant="secondary" className="min-h-12 rounded-2xl font-black" onClick={resend} disabled={!email}>
+          Gửi lại OTP
         </Button>
       </form>
     </AuthShell>
