@@ -182,6 +182,15 @@ export const verifyEmailOtpController = async (req, res) => {
         role: pending.role,
         isEmailVerified: true,
       });
+
+      if (pending.role === "companion" && pending.companionProfile) {
+        await CompanionProfile.create({
+          ...pending.companionProfile,
+          userId: createdUser._id,
+          vettingStatus: "pending",
+        });
+      }
+
       await PendingRegistration.deleteOne({ _id: pending._id });
 
       return res.status(200).json({

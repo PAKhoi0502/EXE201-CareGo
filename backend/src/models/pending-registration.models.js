@@ -24,8 +24,12 @@ const PendingRegistrationSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["customer"],
+      enum: ["customer", "companion"],
       default: "customer",
+    },
+    companionProfile: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
     emailOtpHash: {
       type: String,
