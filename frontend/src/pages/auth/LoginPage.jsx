@@ -29,7 +29,7 @@ const LoginPage = () => {
   return (
     <AuthShell
       title="Đăng nhập"
-      subtitle="Chọn vai trò của bạn và nhập thông tin tài khoản để tiếp tục."
+      subtitle="CareGo Cần chăm sóc là có ngay luôn đồng hành cùng bạn"
       footer={
         <>
           Chưa có tài khoản? <Link className="font-black text-teal-700" to="/register">Đăng ký ngay</Link>
@@ -87,7 +87,7 @@ const LoginPage = () => {
           {submitting ? "Đang xử lý..." : "Đăng nhập"}
         </Button>
 
-        <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
+        {/* <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
           <span className="h-px flex-1 bg-teal-100" />
           hoặc đăng nhập bằng
           <span className="h-px flex-1 bg-teal-100" />
@@ -100,7 +100,7 @@ const LoginPage = () => {
           <button type="button" className="min-h-12 rounded-2xl border border-teal-100 bg-white text-sm font-black text-slate-700">
             Facebook
           </button>
-        </div>
+        </div> */}
 
       </form>
     </AuthShell>
