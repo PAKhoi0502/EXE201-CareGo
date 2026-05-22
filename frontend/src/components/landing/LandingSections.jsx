@@ -73,7 +73,7 @@ export const SafetySection = () => (
           minh bạch và kiểm soát rủi ro.
         </p>
         <LandingButton href="#contact" variant="light" className="mt-7">
-          Tìm hiểu quy trình an toàn
+          Xem thông tin liên hệ
         </LandingButton>
       </div>
 
@@ -118,7 +118,7 @@ export const CompanionJoinSection = () => (
 );
 
 export const CtaSection = () => (
-  <section id="contact" className="pb-12 pt-6">
+  <section className="pb-12 pt-6">
     <div className="mx-auto w-[min(1180px,92%)]">
       <div className="flex flex-col gap-7 rounded-[38px] bg-teal-700 p-8 text-white shadow-2xl shadow-teal-800/20 lg:flex-row lg:items-center lg:justify-between lg:p-12">
         <div>
@@ -136,7 +136,45 @@ export const CtaSection = () => (
 );
 
 export const LandingFooter = () => (
-  <footer className="px-4 py-9 text-center text-sm text-slate-500">
-    © 2026 CareGo. Cần chăm sóc là có ngay.
+  <footer id="contact" className="scroll-mt-24 border-t border-teal-100 bg-white">
+    <div className="mx-auto grid w-[min(1180px,92%)] gap-8 py-10 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
+      <div>
+        <div className="flex items-center gap-3 text-2xl font-black text-teal-800">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-700 text-xl text-white">+</span>
+          CareGo
+        </div>
+        <p className="mt-4 max-w-md text-sm leading-6 text-slate-500">
+          Nền tảng kết nối chăm sóc người cao tuổi theo giờ, giúp gia đình an tâm hơn trong giờ hành chính.
+        </p>
+      </div>
+
+      <div>
+        <h3 className="font-black text-slate-900">Liên hệ</h3>
+        <div className="mt-4 grid gap-2 text-sm text-slate-500">
+          <p>
+            Hotline: <span className="font-bold text-slate-700">1900 6868</span>
+          </p>
+          <p>
+            Email: <span className="font-bold text-slate-700">support@carego.vn</span>
+          </p>
+          <p>Thời gian: 08:00 - 20:00</p>
+          <p>Khu vực thử nghiệm: đô thị lớn, chung cư, bệnh viện.</p>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-black text-slate-900">Điều hướng</h3>
+        <div className="mt-4 grid gap-2 text-sm font-semibold text-slate-500">
+          <a href="#services" className="hover:text-teal-800">Dịch vụ</a>
+          <a href="#steps" className="hover:text-teal-800">Quy trình</a>
+          <a href="#companion-join" className="hover:text-teal-800">Người đồng hành</a>
+          <a href="#safety" className="hover:text-teal-800">An toàn</a>
+        </div>
+      </div>
+    </div>
+
+    <div className="border-t border-teal-100 px-4 py-5 text-center text-sm text-slate-500">
+      © 2026 CareGo. Cần chăm sóc là có ngay.
+    </div>
   </footer>
 );
