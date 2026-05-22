@@ -61,7 +61,7 @@ const LoginPage = () => {
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           className="min-h-14 rounded-2xl border-teal-100 bg-white px-4 focus:border-teal-500"
-          placeholder="VD: thanhnqse172335@fpt.edu.vn"
+          placeholder="nhập email của bạn"
         />
         <Input
           label="Mật khẩu"

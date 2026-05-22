@@ -4,6 +4,7 @@ import {
 } from "../middlleware/jwt.js";
 import jwt from "jsonwebtoken";
 import CompanionProfile from "../models/companion-profile.models.js";
+import PendingRegistration from "../models/pending-registration.models.js";
 import User from "../models/user.models.js";
 import { sendOtpEmail, sendPasswordResetEmail } from "../utils/email.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
@@ -11,6 +12,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 
 const OTP_EXPIRES_IN_MS = 10 * 60 * 1000;
+const PENDING_REGISTER_EXPIRES_IN_MS = 30 * 60 * 1000;
 
 export const attachEmailOtp = async (user) => {
   const otp = generateOtp();
@@ -20,40 +22,57 @@ export const attachEmailOtp = async (user) => {
   await sendOtpEmail({ to: user.email, name: user.name, otp });
 };
 
+const createOtpPayload = async () => {
+  const otp = generateOtp();
+  return {
+    otp,
+    emailOtpHash: await hashOtp(otp),
+    emailOtpExpires: new Date(Date.now() + OTP_EXPIRES_IN_MS),
+  };
+};
+
 //signup
 export const signupController = async (req, res) => {
   //logic xử lý đăng ký người dùng sẽ được đặt ở đây
   //account, email , password, confirm password
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phone } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "name,email,password are required",
       });
     }
     // kiểm tra email đã tòn tại trong db chưa
-    const existingUser = await User.findOne({ email });
-    console.log(existingUser);
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
     //findOne: tìm 1 document trong collection User thỏa mãn điều kiện
     if (existingUser) {
       return res.status(400).json({
         message: "email already existing",
       });
     }
-    console.log(name, email, password);
     //phải mã hóa password trước khi lưu vào database
     const hashedPassword = await bcrypt.hash(password, 10); // 10 là số lần băm, càng cao thì càng an toàn nhưng tốn thời gian hơn
 
-    const newUser = new User({
-      name: name,
-      email: email,
-      password: hashedPassword,
-    });
-    await newUser.save();
-    await attachEmailOtp(newUser);
+    const otpPayload = await createOtpPayload();
+    await PendingRegistration.findOneAndUpdate(
+      { email: normalizedEmail },
+      {
+        name,
+        email: normalizedEmail,
+        phone: phone || "",
+        password: hashedPassword,
+        role: "customer",
+        emailOtpHash: otpPayload.emailOtpHash,
+        emailOtpExpires: otpPayload.emailOtpExpires,
+        expiresAt: new Date(Date.now() + PENDING_REGISTER_EXPIRES_IN_MS),
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
+    await sendOtpEmail({ to: normalizedEmail, name, otp: otpPayload.otp });
     return res.status(201).json({
       message: "register successfully, please verify email otp",
-      email: newUser.email,
+      email: normalizedEmail,
     });
   } catch (error) {
     return res.status(500).json({
@@ -138,9 +157,42 @@ export const verifyEmailOtpController = async (req, res) => {
       return res.status(400).json({ message: "email and otp are required" });
     }
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      const pending = await PendingRegistration.findOne({ email: normalizedEmail });
+      if (!pending) {
+        return res.status(404).json({ message: "user not found" });
+      }
+
+      if (!pending.emailOtpHash || !pending.emailOtpExpires || pending.emailOtpExpires < new Date()) {
+        return res.status(400).json({ message: "otp expired, please request a new otp" });
+      }
+
+      const isMatched = await verifyOtp(otp, pending.emailOtpHash);
+      if (!isMatched) {
+        return res.status(400).json({ message: "invalid otp" });
+      }
+
+      const createdUser = await User.create({
+        name: pending.name,
+        email: pending.email,
+        phone: pending.phone,
+        password: pending.password,
+        role: pending.role,
+        isEmailVerified: true,
+      });
+      await PendingRegistration.deleteOne({ _id: pending._id });
+
+      return res.status(200).json({
+        message: "email verified successfully",
+        user: {
+          id: createdUser._id,
+          name: createdUser.name,
+          email: createdUser.email,
+          role: createdUser.role,
+        },
+      });
     }
 
     if (user.isEmailVerified) {
@@ -174,9 +226,22 @@ export const resendEmailOtpController = async (req, res) => {
       return res.status(400).json({ message: "email is required" });
     }
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      const pending = await PendingRegistration.findOne({ email: normalizedEmail });
+      if (!pending) {
+        return res.status(404).json({ message: "user not found" });
+      }
+
+      const otpPayload = await createOtpPayload();
+      pending.emailOtpHash = otpPayload.emailOtpHash;
+      pending.emailOtpExpires = otpPayload.emailOtpExpires;
+      pending.expiresAt = new Date(Date.now() + PENDING_REGISTER_EXPIRES_IN_MS);
+      await pending.save();
+      await sendOtpEmail({ to: pending.email, name: pending.name, otp: otpPayload.otp });
+
+      return res.status(200).json({ message: "otp resent successfully", email: pending.email });
     }
 
     if (user.isEmailVerified) {
