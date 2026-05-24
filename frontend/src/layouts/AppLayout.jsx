@@ -4,14 +4,6 @@ import { Button, StatusBadge } from "../components/Ui.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 
 const navByRole = {
-  customer: [
-    ["Tong quan", "/customer"],
-    ["Dich vu", "/customer/services"],
-    ["Nguoi than", "/customer/elders"],
-    ["Nguoi dong hanh", "/customer/companions"],
-    ["Dat lich", "/customer/bookings/new"],
-    ["Lich cua toi", "/customer/bookings"],
-  ],
   companion: [
     ["Tong quan", "/companion"],
     ["Ca lam", "/companion/bookings"],
@@ -28,7 +20,6 @@ const navByRole = {
 const AppLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const navItems = navByRole[user?.role] || [];
   const vettingStatus = user?.companionProfile?.vettingStatus;
   const isCustomer = user?.role === "customer";
 
@@ -47,6 +38,8 @@ const AppLayout = () => {
       </div>
     );
   }
+
+  const navItems = navByRole[user?.role] || [];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

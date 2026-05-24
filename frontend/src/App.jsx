@@ -19,7 +19,6 @@ import CustomerBookingDetailPage from "./pages/customer/CustomerBookingDetailPag
 import CustomerBookingsPage from "./pages/customer/CustomerBookingsPage.jsx";
 import CustomerCompanionsPage from "./pages/customer/CustomerCompanionsPage.jsx";
 import CustomerEldersPage from "./pages/customer/CustomerEldersPage.jsx";
-import CustomerHomePage from "./pages/customer/CustomerHomePage.jsx";
 import CustomerServicesPage from "./pages/customer/CustomerServicesPage.jsx";
 import NewBookingPage from "./pages/customer/NewBookingPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
@@ -63,7 +62,7 @@ const App = () => {
           </RoleRoute>
         }
       >
-        <Route index element={<CustomerHomePage />} />
+        <Route index element={<Navigate to="/" replace />} />
         <Route path="services" element={<CustomerServicesPage />} />
         <Route path="elders" element={<CustomerEldersPage />} />
         <Route path="companions" element={<CustomerCompanionsPage />} />
