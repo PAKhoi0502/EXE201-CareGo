@@ -160,8 +160,8 @@ const CustomerBookingDetailPage = () => {
                     <div
                       key={label}
                       className={`rounded-[14px] border px-3 py-2 text-center text-xs font-black ${index <= statusIndex
-                          ? "border-teal-600 bg-teal-700 text-white"
-                          : "border-teal-100 bg-[#f7fffe] text-slate-400"
+                        ? "border-teal-600 bg-teal-700 text-white"
+                        : "border-teal-100 bg-[#f7fffe] text-slate-400"
                         }`}
                     >
                       {label}
@@ -186,13 +186,13 @@ const CustomerBookingDetailPage = () => {
               <div className="mt-4">
                 <LiveLocationMap location={latestLocation || serviceLocation} locations={allLocations} />
               </div>
-              <div className="mt-4 max-h-64 space-y-2 overflow-auto text-sm">
+              {/* <div className="mt-4 max-h-64 space-y-2 overflow-auto text-sm">
                 {allLocations.length ? allLocations.map((location) => (
                   <div key={`${location.lat}-${location.lng}-${location.recordedAt}`} className="rounded-md bg-slate-50 p-3">
                     {location.lat}, {location.lng} - {dateTime(location.recordedAt)}
                   </div>
                 )) : <p className="text-slate-500">Chưa có vị trí.</p>}
-              </div>
+              </div> */}
             </Card>
 
             <div className="grid gap-6 lg:grid-cols-2">
