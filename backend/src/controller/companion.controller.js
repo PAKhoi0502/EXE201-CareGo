@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import CompanionProfile from "../models/companion-profile.models.js";
 import PendingRegistration from "../models/pending-registration.models.js";
+import Review from "../models/review.models.js";
 import User from "../models/user.models.js";
 import { sendOtpEmail } from "../utils/email.js";
 import { getUserOnlineStatuses } from "../socket/location.socket.js";
@@ -56,6 +57,21 @@ export const getCompanionOnlineStatuses = async (req, res) => {
     );
 
     return res.status(200).json({ onlineStatuses });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "internal server error", error: error.message });
+  }
+};
+
+export const getCompanionReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ companionId: req.params.id })
+      .populate("customerId", "name")
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    return res.status(200).json({ reviews });
   } catch (error) {
     return res
       .status(500)

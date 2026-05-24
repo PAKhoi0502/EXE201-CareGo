@@ -4,6 +4,7 @@ import {
   adminGetCompanions,
   adminUpdateCompanion,
   adminUpdateCompanionStatus,
+  getCompanionReviews,
   getCompanionOnlineStatuses,
   getCompanionById,
   getCompanions,
@@ -18,6 +19,12 @@ router.get("/", getCompanions);
 router.post("/register", registerCompanion);
 router.get("/online-statuses", verifyToken, getCompanionOnlineStatuses);
 router.get("/admin/all", verifyToken, allowRoles("admin"), adminGetCompanions);
+router.get(
+  "/:id/reviews",
+  verifyToken,
+  allowRoles("customer", "admin"),
+  getCompanionReviews,
+);
 router.get("/:id", getCompanionById);
 router.post("/", verifyToken, allowRoles("admin"), adminCreateCompanion);
 router.put("/:id", verifyToken, allowRoles("admin"), adminUpdateCompanion);

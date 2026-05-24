@@ -34,6 +34,10 @@ const NewBookingPage = () => {
   const { data: companionData, loading: companionLoading } = useAsync(() => api.get("/companions"), []);
   const [onlineStatuses, setOnlineStatuses] = useState({});
   const [onlineLoading, setOnlineLoading] = useState(false);
+  const [detailCompanion, setDetailCompanion] = useState(null);
+  const [detailReviews, setDetailReviews] = useState([]);
+  const [detailReviewsLoading, setDetailReviewsLoading] = useState(false);
+  const [detailReviewsError, setDetailReviewsError] = useState("");
   const [form, setForm] = useState({
     elderProfileId: "",
     serviceId: "",
@@ -101,6 +105,38 @@ const NewBookingPage = () => {
       setForm((current) => ({ ...current, companionId: "" }));
     }
   }, [form.companionId, onlineStatuses]);
+
+  useEffect(() => {
+    if (!detailCompanion) return;
+    const companionUserId = detailCompanion.userId?._id || detailCompanion.userId;
+    if (!companionUserId) return;
+
+    let active = true;
+    const loadReviews = async () => {
+      setDetailReviewsLoading(true);
+      setDetailReviewsError("");
+      try {
+        const data = await api.get(`/companions/${companionUserId}/reviews`);
+        if (active) {
+          setDetailReviews(data.reviews || []);
+        }
+      } catch (err) {
+        if (active) {
+          setDetailReviews([]);
+          setDetailReviewsError(err.message);
+        }
+      } finally {
+        if (active) {
+          setDetailReviewsLoading(false);
+        }
+      }
+    };
+
+    loadReviews();
+    return () => {
+      active = false;
+    };
+  }, [detailCompanion]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -292,6 +328,19 @@ const NewBookingPage = () => {
                         </span>
                       ))}
                     </div>
+                    <div className="mt-4">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-9 px-3 text-xs"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDetailCompanion(item);
+                        }}
+                      >
+                        Xem chi tiết
+                      </Button>
+                    </div>
                   </button>
                 );
               })}
@@ -363,6 +412,91 @@ const NewBookingPage = () => {
           </div>
         </aside>
       </main>
+
+      {detailCompanion ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 p-5">
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-400">Chi tiết người đồng hành</p>
+                <h3 className="mt-1 text-xl font-black text-[#12312f]">{detailCompanion.fullName}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailCompanion(null)}
+                className="rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200"
+              >
+                Đóng
+              </button>
+            </div>
+
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase text-slate-400">Chuyên ngành</p>
+                <p className="mt-2 font-bold text-slate-900">{detailCompanion.major || "Chưa cập nhật"}</p>
+              </div>
+              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase text-slate-400">Trường</p>
+                <p className="mt-2 font-bold text-slate-900">{detailCompanion.university || "Chưa cập nhật"}</p>
+              </div>
+              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase text-slate-400">Số điện thoại</p>
+                <p className="mt-2 font-bold text-slate-900">{detailCompanion.phone || detailCompanion.userId?.phone || "Chưa cập nhật"}</p>
+              </div>
+              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase text-slate-400">Email</p>
+                <p className="mt-2 font-bold text-slate-900">{detailCompanion.userId?.email || "Chưa cập nhật"}</p>
+              </div>
+            </div>
+
+            <div className="px-5">
+              <div className="rounded-[18px] border border-teal-100 bg-[#f7fffe] p-4">
+                <p className="text-xs font-black uppercase text-slate-400">Kỹ năng</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(detailCompanion.skills?.length ? detailCompanion.skills : ["Chưa có kỹ năng"]).map((skill) => (
+                    <span key={skill} className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 pb-6">
+              <div className="rounded-[18px] border border-slate-100 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-black uppercase text-slate-400">Đánh giá từ khách hàng</p>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                    {detailCompanion.ratingAverage || 0}/5 · {detailCompanion.ratingCount || 0}
+                  </span>
+                </div>
+
+                {detailReviewsLoading ? <p className="mt-3 text-sm text-slate-500">Đang tải đánh giá...</p> : null}
+                {detailReviewsError ? <p className="mt-3 text-sm text-rose-600">{detailReviewsError}</p> : null}
+                {!detailReviewsLoading && !detailReviewsError && detailReviews.length === 0 ? (
+                  <p className="mt-3 text-sm text-slate-500">Chưa có đánh giá.</p>
+                ) : null}
+
+                <div className="mt-4 space-y-3">
+                  {detailReviews.map((review) => (
+                    <div key={review._id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <strong className="text-slate-900">{review.customerId?.name || "Khách hàng"}</strong>
+                        <span className="text-emerald-700">{review.rating}/5</span>
+                      </div>
+                      {review.comment ? (
+                        <p className="mt-2 text-sm text-slate-600">{review.comment}</p>
+                      ) : (
+                        <p className="mt-2 text-xs text-slate-400">Không có nhận xét.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 };

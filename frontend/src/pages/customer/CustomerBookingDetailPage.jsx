@@ -76,6 +76,8 @@ const CustomerBookingDetailPage = () => {
   const [submitError, setSubmitError] = useState("");
   const [liveLocations, setLiveLocations] = useState([]);
   const [previewPhoto, setPreviewPhoto] = useState(null);
+  const [showCompanionPhone, setShowCompanionPhone] = useState(false);
+  const [showHotline, setShowHotline] = useState(false);
 
   const booking = data?.booking;
   const shiftLog = data?.shiftLog;
@@ -258,7 +260,19 @@ const CustomerBookingDetailPage = () => {
               </div> */}
             </Card>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6">
+              <Card className="rounded-[32px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
+                <h2 className="text-2xl font-black">Checklist</h2>
+                <div className="mt-4 grid gap-2">
+                  {shiftLog?.checklist?.length ? shiftLog.checklist.map((item) => (
+                    <div key={item.label} className="flex items-center justify-between rounded-md bg-slate-50 p-3 text-sm">
+                      <span>{item.label}</span>
+                      <span className={item.done ? "text-teal-700" : "text-slate-400"}>{item.done ? "Đã xong" : "Chưa"}</span>
+                    </div>
+                  )) : <p className="text-sm text-slate-500">Chưa có checklist.</p>}
+                </div>
+              </Card>
+
               <Card className="rounded-[32px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
                 <h2 className="text-2xl font-black">Nhật ký ca làm</h2>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -269,19 +283,12 @@ const CustomerBookingDetailPage = () => {
                   <p><b>Huyết áp:</b> {shiftLog?.healthMetrics?.bloodPressure || "Chưa có"}</p>
                   <p><b>Nhịp tim:</b> {shiftLog?.healthMetrics?.heartRate || "Chưa có"}</p>
                   <p><b>Tâm trạng:</b> {shiftLog?.healthMetrics?.mood || "Chưa có"}</p>
-                  <p><b>Ghi chú:</b> {shiftLog?.companionNote || "Chưa có"}</p>
-                </div>
-              </Card>
-
-              <Card className="rounded-[32px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
-                <h2 className="text-2xl font-black">Checklist</h2>
-                <div className="mt-4 grid gap-2">
-                  {shiftLog?.checklist?.length ? shiftLog.checklist.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between rounded-md bg-slate-50 p-3 text-sm">
-                      <span>{item.label}</span>
-                      <span className={item.done ? "text-teal-700" : "text-slate-400"}>{item.done ? "Đã xong" : "Chưa"}</span>
-                    </div>
-                  )) : <p className="text-sm text-slate-500">Chưa có checklist.</p>}
+                  <div>
+                    <p><b>Ghi chú:</b></p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-slate-700">
+                      {shiftLog?.companionNote || "Chưa có"}
+                    </p>
+                  </div>
                 </div>
               </Card>
             </div>
@@ -373,9 +380,23 @@ const CustomerBookingDetailPage = () => {
               <h2 className="text-2xl font-black">Hành động nhanh</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">Liên hệ khi cần hỗ trợ.</p>
               <div className="mt-4 grid gap-3">
-                <Button variant="secondary">Gọi người đồng hành</Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => setShowCompanionPhone((current) => !current)}
+                >
+                  {showCompanionPhone
+                    ? booking.companionId?.phone || "Chưa cập nhật số điện thoại"
+                    : "Gọi người đồng hành"}
+                </Button>
                 <Button variant="secondary">Nhắn tin</Button>
-                <Button className="bg-[#12312f] text-white hover:bg-[#0b1f1d]">Gọi tổng đài CareGo</Button>
+                <Button
+                  className="bg-[#12312f] text-white hover:bg-[#0b1f1d]"
+                  type="button"
+                  onClick={() => setShowHotline((current) => !current)}
+                >
+                  {showHotline ? "1900 6868" : "Gọi tổng đài CareGo"}
+                </Button>
               </div>
             </Card>
           </aside>
