@@ -33,8 +33,8 @@ const LiveLocationMap = ({ location, locations = [], height = "360px" }) => {
     .map((item) => [Number(item.lat), Number(item.lng)]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200" style={{ height }}>
-      <MapContainer center={position} zoom={16} scrollWheelZoom className="h-full w-full">
+    <div className="relative z-0 overflow-hidden rounded-lg border border-slate-200" style={{ height }}>
+      <MapContainer center={position} zoom={16} scrollWheelZoom className="carego-leaflet-map h-full w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

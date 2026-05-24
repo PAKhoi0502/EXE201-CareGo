@@ -86,8 +86,13 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
         </div>
       </div>
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      <div className="h-80 overflow-hidden rounded-lg border border-slate-200">
-        <MapContainer key={`${center[0]}-${center[1]}`} center={center} zoom={location ? 16 : 12} className="h-full w-full">
+      <div className="relative z-0 h-80 overflow-hidden rounded-lg border border-slate-200">
+        <MapContainer
+          key={`${center[0]}-${center[1]}`}
+          center={center}
+          zoom={location ? 16 : 12}
+          className="carego-leaflet-map h-full w-full"
+        >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

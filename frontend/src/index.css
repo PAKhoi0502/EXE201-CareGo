@@ -18,3 +18,22 @@ textarea,
 select {
   font: inherit;
 }
+
+.carego-leaflet-map {
+  z-index: 0;
+}
+
+.carego-leaflet-map .leaflet-pane,
+.carego-leaflet-map .leaflet-top,
+.carego-leaflet-map .leaflet-bottom {
+  z-index: 0;
+}
+
+.carego-leaflet-map .leaflet-control {
+  z-index: 1;
+}
+
+.carego-leaflet-map .leaflet-marker-pane,
+.carego-leaflet-map .leaflet-popup-pane {
+  z-index: 2;
+}
