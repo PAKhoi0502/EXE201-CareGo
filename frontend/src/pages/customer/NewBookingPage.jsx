@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../../api/client.js";
 import AddressSearchMap from "../../components/AddressSearchMap.jsx";
@@ -32,6 +32,8 @@ const NewBookingPage = () => {
   const { data: elderData, loading: elderLoading } = useAsync(() => api.get("/elders/my"), []);
   const { data: serviceData, loading: serviceLoading } = useAsync(() => api.get("/services"), []);
   const { data: companionData, loading: companionLoading } = useAsync(() => api.get("/companions"), []);
+  const [onlineStatuses, setOnlineStatuses] = useState({});
+  const [onlineLoading, setOnlineLoading] = useState(false);
   const [form, setForm] = useState({
     elderProfileId: "",
     serviceId: "",
@@ -47,6 +49,14 @@ const NewBookingPage = () => {
   const elders = elderData?.elders || [];
   const services = serviceData?.services || [];
   const companions = companionData?.companions || [];
+  const onlineCompanions = useMemo(
+    () =>
+      companions.filter((item) => {
+        const userId = item.userId?._id || item.userId;
+        return onlineStatuses[userId]?.isOnline;
+      }),
+    [companions, onlineStatuses],
+  );
   const selectedService = useMemo(() => services.find((item) => item._id === form.serviceId), [services, form.serviceId]);
   const selectedElder = useMemo(() => elders.find((item) => item._id === form.elderProfileId), [elders, form.elderProfileId]);
   const selectedCompanion = useMemo(
@@ -54,6 +64,43 @@ const NewBookingPage = () => {
     [companions, form.companionId],
   );
   const total = (selectedService?.pricePerHour || 0) * Number(form.durationHours || 0);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadOnlineStatuses = async () => {
+      setOnlineLoading(true);
+      try {
+        const data = await api.get("/companions/online-statuses");
+        if (active) {
+          setOnlineStatuses(data.onlineStatuses || {});
+        }
+      } catch {
+        if (active) {
+          setOnlineStatuses({});
+        }
+      } finally {
+        if (active) {
+          setOnlineLoading(false);
+        }
+      }
+    };
+
+    loadOnlineStatuses();
+    const timer = setInterval(loadOnlineStatuses, 10000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!form.companionId) return;
+    const status = onlineStatuses[form.companionId];
+    if (status && !status.isOnline) {
+      setForm((current) => ({ ...current, companionId: "" }));
+    }
+  }, [form.companionId, onlineStatuses]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -208,8 +255,16 @@ const NewBookingPage = () => {
             </div>
 
             {companionLoading ? <p className="text-sm text-slate-500">Đang tải người đồng hành...</p> : null}
+            {!companionLoading && onlineLoading ? (
+              <p className="text-sm text-slate-500">Đang cập nhật trạng thái online...</p>
+            ) : null}
+            {!companionLoading && !onlineLoading && onlineCompanions.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Hiện chưa có người đồng hành online. Vui lòng quay lại sau ít phút.
+              </p>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-              {companions.map((item) => {
+              {onlineCompanions.map((item) => {
                 const companionUserId = item.userId?._id;
                 const active = form.companionId === companionUserId;
                 return (
