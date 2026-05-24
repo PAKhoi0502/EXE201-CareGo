@@ -1,7 +1,7 @@
 import { Button, StatusBadge } from "./Ui.jsx";
 
 const valueOrEmpty = (value) => {
-  if (value === null || value === undefined || value === "") return "Chua cap nhat";
+  if (value === null || value === undefined || value === "") return "Chưa cập nhật";
   return value;
 };
 
@@ -16,7 +16,7 @@ export const DetailItem = ({ label, value, children }) => (
   </div>
 );
 
-export const DetailTags = ({ items = [], tone = "teal", empty = "Chua cap nhat" }) => {
+export const DetailTags = ({ items = [], tone = "teal", empty = "Chưa cập nhật" }) => {
   const colors = {
     teal: "bg-teal-50 text-teal-700",
     blue: "bg-blue-50 text-blue-700",
@@ -51,7 +51,7 @@ const AdminDetailModal = ({ title, subtitle, status, children, onClose }) => {
             {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
           </div>
           <Button type="button" variant="secondary" className="min-h-9 px-3 text-xs" onClick={onClose}>
-            Dong
+            Đóng
           </Button>
         </div>
         <div className="max-h-[calc(90vh-88px)] overflow-y-auto p-5">{children}</div>

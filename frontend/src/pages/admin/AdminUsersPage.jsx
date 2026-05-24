@@ -14,27 +14,25 @@ const initials = (name = "CG") =>
     .toUpperCase();
 
 const vettingLabel = {
-  pending: "Cho xac thuc",
-  approved: "Da duyet",
-  rejected: "Tu choi",
-  suspended: "Tam khoa",
+  pending: "Chờ xác thực",
+  approved: "Đã duyệt",
+  rejected: "Từ chối",
+  suspended: "Tạm khóa",
 };
 
 const AccountLockBadge = ({ active }) => (
   <span
-    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
-      active ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-rose-50 text-rose-700 ring-rose-200"
-    }`}
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${active ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-rose-50 text-rose-700 ring-rose-200"
+      }`}
   >
-    {active ? "Tai khoan mo" : "Tai khoan bi khoa"}
+    {active ? "Tài khoản mở" : "Tài khoản bị khóa"}
   </span>
 );
 
 const OnlineBadge = ({ status }) => (
   <span
-    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
-      status?.isOnline ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
-    }`}
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${status?.isOnline ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
+      }`}
   >
     {status?.isOnline ? "Online" : "Offline"}
   </span>
@@ -42,11 +40,10 @@ const OnlineBadge = ({ status }) => (
 
 const GpsBadge = ({ status }) => (
   <span
-    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
-      status?.isGpsOn ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
-    }`}
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${status?.isGpsOn ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
+      }`}
   >
-    GPS {status?.isGpsOn ? "dang bat" : "dang tat"}
+    GPS {status?.isGpsOn ? "đang bật" : "đang tắt"}
   </span>
 );
 
@@ -137,16 +134,16 @@ const AdminUsersPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tong Quan Ly Nguoi Dung</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Tổng quản lý người dùng</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Dieu phoi tai khoan khach hang, sinh vien dong hanh va quy trinh kiem duyet.
+            Điều phối tài khoản khách hàng, sinh viên đồng hành và quy trình kiểm duyệt.
           </p>
         </div>
         <div className="relative w-full lg:w-96">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tim ten, email, so dien thoai..."
+            placeholder="Tìm tên, email, số điện thoại..."
             className="min-h-11 w-full rounded-xl border border-transparent bg-slate-100 px-4 pl-10 text-sm outline-none transition focus:border-teal-300 focus:bg-white focus:ring-2 focus:ring-teal-100"
           />
           <span className="absolute left-3 top-2.5 text-slate-400">⌕</span>
@@ -157,37 +154,37 @@ const AdminUsersPage = () => {
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <span className="block text-xs font-medium text-slate-400">Tong khach hang</span>
+          <span className="block text-xs font-medium text-slate-400">Tổng khách hàng</span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-800">{customers.length}</span>
             <span className="text-xs font-semibold text-emerald-600">active data</span>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <span className="block text-xs font-medium text-slate-400">Sinh vien onboard</span>
+          <span className="block text-xs font-medium text-slate-400">Sinh viên onboard</span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-teal-700">{approvedCompanions.length}</span>
             <span className="text-xs text-slate-400">
-              {companions.length ? Math.round((healthMajorCount / companions.length) * 100) : 0}% khoi suc khoe
+              {companions.length ? Math.round((healthMajorCount / companions.length) * 100) : 0}% khối sức khỏe
             </span>
           </div>
         </div>
         <div className="rounded-xl border-l-4 border-amber-500 bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <span className="block text-xs font-medium text-amber-600">Ho so cho xac thuc</span>
+          <span className="block text-xs font-medium text-amber-600">Hồ sơ chờ xác thực</span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-800">{pendingCompanions.length}</span>
             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-              Moi nhan
+              Mới nhận
             </span>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <span className="block text-xs font-semibold text-slate-400">Ty le hoat dong</span>
+          <span className="block text-xs font-semibold text-slate-400">Tỷ lệ hoạt động</span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-blue-600">
               {users.length ? Math.round((activeUsers / users.length) * 100) : 0}%
             </span>
-            <span className="text-xs text-slate-400">tai khoan active</span>
+            <span className="text-xs text-slate-400">tài khoản active</span>
           </div>
         </div>
       </div>
@@ -196,20 +193,18 @@ const AdminUsersPage = () => {
         <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/70 p-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex w-full rounded-xl bg-slate-200 p-1 sm:w-fit">
             <button
-              className={`rounded-lg px-4 py-2 text-xs font-bold transition ${
-                activeTab === "companions" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
-              }`}
+              className={`rounded-lg px-4 py-2 text-xs font-bold transition ${activeTab === "companions" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                }`}
               onClick={() => setActiveTab("companions")}
             >
-              Sinh vien dong hanh ({companions.length})
+              Sinh viên đồng hành ({companions.length})
             </button>
             <button
-              className={`rounded-lg px-4 py-2 text-xs font-bold transition ${
-                activeTab === "customers" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
-              }`}
+              className={`rounded-lg px-4 py-2 text-xs font-bold transition ${activeTab === "customers" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                }`}
               onClick={() => setActiveTab("customers")}
             >
-              Khach hang con cai ({customers.length})
+              Khách hàng con cái ({customers.length})
             </button>
           </div>
 
@@ -222,7 +217,7 @@ const AdminUsersPage = () => {
               >
                 {majors.map((major) => (
                   <option key={major} value={major}>
-                    {major === "all" ? "Chuyen nganh: Tat ca" : major}
+                    {major === "all" ? "Chuyên ngành: Tất cả" : major}
                   </option>
                 ))}
               </select>
@@ -232,18 +227,18 @@ const AdminUsersPage = () => {
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
-              <option value="all">Trang thai: Tat ca</option>
+              <option value="all">Trạng thái: Tất cả</option>
               {activeTab === "companions" ? (
                 <>
-                  <option value="approved">Da duyet</option>
-                  <option value="pending">Cho xac thuc</option>
-                  <option value="rejected">Tu choi</option>
-                  <option value="suspended">Tam khoa</option>
+                  <option value="approved">Đã duyệt</option>
+                  <option value="pending">Chờ xác thực</option>
+                  <option value="rejected">Từ chối</option>
+                  <option value="suspended">Tạm khóa</option>
                 </>
               ) : (
                 <>
-                  <option value="active">Hoat dong</option>
-                  <option value="suspended">Tam khoa</option>
+                  <option value="active">Hoạt động</option>
+                  <option value="suspended">Tạm khóa</option>
                 </>
               )}
             </select>
@@ -257,12 +252,12 @@ const AdminUsersPage = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/50 text-xs font-semibold uppercase text-slate-400">
-                  <th className="p-4">Thong tin Companion</th>
-                  <th className="p-4">Xac thuc 3 lop</th>
-                  <th className="p-4">Ky nang chuyen mon</th>
-                  <th className="p-4">Danh gia he thong</th>
-                  <th className="p-4">Trang thai</th>
-                  <th className="p-4 text-right">Thao tac</th>
+                  <th className="p-4">Thông tin companion</th>
+                  <th className="p-4">Xác thực 3 lớp</th>
+                  <th className="p-4">Kỹ năng chuyên môn</th>
+                  <th className="p-4">Đánh giá hệ thống</th>
+                  <th className="p-4">Trạng thái</th>
+                  <th className="p-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -276,7 +271,7 @@ const AdminUsersPage = () => {
                         <div>
                           <p className="text-sm font-bold text-slate-800">{item.fullName}</p>
                           <p className="text-[11px] text-slate-400">
-                            {item.userId?.email} | {item.university || "Chua co truong"} ({item.major || "Chua co nganh"})
+                            {item.userId?.email} | {item.university || "Chưa có trường"} ({item.major || "Chưa có ngành"})
                           </p>
                           <div className="mt-2 flex flex-wrap gap-1">
                             <AccountLockBadge active={item.userId?.isActive} />
@@ -288,17 +283,16 @@ const AdminUsersPage = () => {
                     </td>
                     <td className="space-y-1 p-4">
                       <div className="flex items-center gap-1.5 font-semibold text-emerald-600">
-                        <span>●</span> <span>L1: CCCD/The SV {item.documents?.citizenId ? "da nhap" : "cho bo sung"}</span>
+                        <span>●</span> <span>L1: CCCD/Thẻ SV {item.documents?.citizenId ? "đã nhập" : "chờ bổ sung"}</span>
                       </div>
                       <div className="flex items-center gap-1.5 font-semibold text-emerald-600">
-                        <span>●</span> <span>L2: Ky nang mem</span>
+                        <span>●</span> <span>L2: Kỹ năng mềm</span>
                       </div>
                       <div
-                        className={`flex items-center gap-1.5 font-semibold ${
-                          item.vettingStatus === "approved" ? "text-emerald-600" : "text-amber-600"
-                        }`}
+                        className={`flex items-center gap-1.5 font-semibold ${item.vettingStatus === "approved" ? "text-emerald-600" : "text-amber-600"
+                          }`}
                       >
-                        <span>●</span> <span>L3: {item.vettingStatus === "approved" ? "Hoan tat" : "Cho admin duyet"}</span>
+                        <span>●</span> <span>L3: {item.vettingStatus === "approved" ? "Hoàn tất" : "Chờ admin duyệt"}</span>
                       </div>
                     </td>
                     <td className="p-4">
@@ -311,7 +305,7 @@ const AdminUsersPage = () => {
                       </div>
                     </td>
                     <td className="p-4">
-                      <p className="font-bold text-slate-700">{item.completedBookings || 0} ca hoan thanh</p>
+                      <p className="font-bold text-slate-700">{item.completedBookings || 0} ca hoàn thành</p>
                       <span className="font-medium text-amber-500">
                         ★★★★★ {Number(item.ratingAverage || 0).toFixed(1)}
                       </span>
@@ -333,19 +327,19 @@ const AdminUsersPage = () => {
                         className="min-h-8 px-2.5 text-xs"
                         onClick={() => setSelectedDetail({ type: "companion", data: item })}
                       >
-                        Chi tiet
+                        Chi tiết
                       </Button>
                       {item.vettingStatus === "pending" ? (
                         <>
                           <Button className="min-h-8 px-2.5 text-xs" onClick={() => updateCompanionStatus(item._id, "approved")}>
-                            Phe duyet
+                            Phê duyệt
                           </Button>
                           <Button
                             variant="secondary"
                             className="min-h-8 px-2.5 text-xs"
                             onClick={() => updateCompanionStatus(item._id, "rejected")}
                           >
-                            Tu choi
+                            Từ chối
                           </Button>
                         </>
                       ) : (
@@ -359,7 +353,7 @@ const AdminUsersPage = () => {
                             )
                           }
                         >
-                          {item.vettingStatus === "suspended" ? "Mo khoa" : "Tam khoa"}
+                          {item.vettingStatus === "suspended" ? "Mở khóa" : "Tạm khóa"}
                         </Button>
                       )}
                     </td>
@@ -368,7 +362,7 @@ const AdminUsersPage = () => {
                 {!filteredCompanions.length ? (
                   <tr>
                     <td colSpan="6" className="p-8 text-center text-sm text-slate-400">
-                      Khong tim thay companion phu hop.
+                      Không tìm thấy companion phù hợp.
                     </td>
                   </tr>
                 ) : null}
@@ -380,11 +374,11 @@ const AdminUsersPage = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/50 text-xs font-semibold uppercase text-slate-400">
-                  <th className="p-4">Khach hang</th>
-                  <th className="p-4">Lien he</th>
-                  <th className="p-4">Vai tro</th>
-                  <th className="p-4">Trang thai</th>
-                  <th className="p-4 text-right">Thao tac</th>
+                  <th className="p-4">Khách hàng</th>
+                  <th className="p-4">Liên hệ</th>
+                  <th className="p-4">Vai trò</th>
+                  <th className="p-4">Trạng thái</th>
+                  <th className="p-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -403,7 +397,7 @@ const AdminUsersPage = () => {
                     </td>
                     <td className="p-4 text-slate-500">
                       <p>{user.email}</p>
-                      <p className="text-xs">{user.phone || "Chua co so dien thoai"}</p>
+                      <p className="text-xs">{user.phone || "Chưa có số điện thoại"}</p>
                     </td>
                     <td className="p-4">
                       <StatusBadge status={user.role} />
@@ -421,14 +415,14 @@ const AdminUsersPage = () => {
                           className="min-h-8 px-2.5 text-xs"
                           onClick={() => setSelectedDetail({ type: "customer", data: user })}
                         >
-                          Chi tiet
+                          Chi tiết
                         </Button>
                         <Button
                           variant={user.isActive ? "danger" : "secondary"}
                           className="min-h-8 px-2.5 text-xs"
                           onClick={() => toggleUserStatus(user)}
                         >
-                          {user.isActive ? "Khoa" : "Mo khoa"}
+                          {user.isActive ? "Khóa" : "Mở khóa"}
                         </Button>
                       </div>
                     </td>
@@ -437,7 +431,7 @@ const AdminUsersPage = () => {
                 {!filteredCustomers.length ? (
                   <tr>
                     <td colSpan="5" className="p-8 text-center text-sm text-slate-400">
-                      Khong tim thay khach hang phu hop.
+                      Không tìm thấy khách hàng phù hợp.
                     </td>
                   </tr>
                 ) : null}
@@ -448,7 +442,7 @@ const AdminUsersPage = () => {
 
         <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 p-4 text-xs">
           <span className="font-medium text-slate-500">
-            Hien thi {activeTab === "companions" ? filteredCompanions.length : filteredCustomers.length} ban ghi
+            Hiển thị {activeTab === "companions" ? filteredCompanions.length : filteredCustomers.length} bản ghi
           </span>
           <div className="inline-flex rounded-xl shadow-sm">
             <button className="rounded-l-xl border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-500">
