@@ -1,4 +1,3 @@
-import { Navigate } from "react-router";
 import HeroPhonePreview from "../components/landing/HeroPhonePreview.jsx";
 import LandingButton from "../components/landing/LandingButton.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
@@ -15,10 +14,9 @@ import { useAuth } from "../context/AuthContext.jsx";
 
 const LandingPage = () => {
   const { user } = useAuth();
-
-  if (user) {
-    return <Navigate to={`/${user.role}`} replace />;
-  }
+  const isCustomer = user?.role === "customer";
+  const bookingPath = isCustomer ? "/customer/bookings/new" : "/register";
+  const servicePath = isCustomer ? "/customer/services" : null;
 
   return (
     <div className="min-h-screen bg-[#f5fbfa] text-[#12312f]">
@@ -29,24 +27,32 @@ const LandingPage = () => {
           <div className="mx-auto grid w-[min(1180px,92%)] gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
             <div>
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-700">
-                Dịch vụ chăm sóc người cao tuổi theo giờ
+                Dich vu cham soc nguoi cao tuoi theo gio
               </div>
               <h1 className="max-w-3xl text-5xl font-black leading-tight text-[#12312f] sm:text-6xl lg:text-7xl">
-                An tâm chăm sóc ba mẹ cùng <span className="text-teal-800">CareGo</span>
+                An tam cham soc ba me cung <span className="text-teal-800">CareGo</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-500">
-                CareGo kết nối con cái bận rộn với người đồng hành được xác thực, giúp hỗ trợ ba mẹ đi khám
-                bệnh, nhắc thuốc, đi dạo, trò chuyện và cập nhật tình hình theo thời gian thực.
+                CareGo ket noi con cai ban ron voi nguoi dong hanh duoc xac thuc, giup ho tro ba me di kham benh,
+                nhac thuoc, di dao, tro chuyen va cap nhat tinh hinh theo thoi gian thuc.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <LandingButton to="/register">Đặt lịch chăm sóc</LandingButton>
-                <LandingButton href="#services" variant="secondary">
-                  Xem dịch vụ
-                </LandingButton>
-                <LandingButton to="/companion-register" variant="secondary">
-                  Đăng ký người đồng hành
-                </LandingButton>
+                <LandingButton to={bookingPath}>Dat lich cham soc</LandingButton>
+                {servicePath ? (
+                  <LandingButton to={servicePath} variant="secondary">
+                    Xem dich vu
+                  </LandingButton>
+                ) : (
+                  <LandingButton href="#services" variant="secondary">
+                    Xem dich vu
+                  </LandingButton>
+                )}
+                {!user ? (
+                  <LandingButton to="/companion-register" variant="secondary">
+                    Dang ky nguoi dong hanh
+                  </LandingButton>
+                ) : null}
               </div>
 
               <div className="mt-9 grid gap-4 sm:grid-cols-3">

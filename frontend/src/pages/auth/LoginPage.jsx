@@ -18,7 +18,7 @@ const LoginPage = () => {
     setError("");
     try {
       const user = await login(form);
-      navigate(`/${user.role}`);
+      navigate(user.role === "customer" ? "/" : `/${user.role}`);
     } catch (err) {
       setError(err.message);
     } finally {
