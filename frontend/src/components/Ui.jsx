@@ -1,5 +1,5 @@
-export const Card = ({ children, className = "" }) => (
-  <div className={`rounded-lg border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
+export const Card = ({ children, className = "", ...props }) => (
+  <div className={`rounded-lg border border-slate-200 bg-white p-5 shadow-sm ${className}`} {...props}>
     {children}
   </div>
 );
@@ -66,10 +66,21 @@ export const StatusBadge = ({ status }) => {
     rejected: "bg-rose-50 text-rose-700 ring-rose-200",
     suspended: "bg-slate-100 text-slate-600 ring-slate-200",
   };
+  const labels = {
+    pending: "Chờ xử lý",
+    approved: "Đã duyệt",
+    accepted: "Đã nhận",
+    in_progress: "Đang diễn ra",
+    completed: "Hoàn thành",
+    paid: "Đã thanh toán",
+    cancelled: "Đã hủy",
+    rejected: "Từ chối",
+    suspended: "Tạm khóa",
+  };
 
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${styles[status] || styles.completed}`}>
-      {status || "unknown"}
+      {labels[status] || "Không rõ"}
     </span>
   );
 };
@@ -84,7 +95,7 @@ export const PageHeader = ({ title, subtitle, action }) => (
   </div>
 );
 
-export const EmptyState = ({ title = "Chua co du lieu", children }) => (
+export const EmptyState = ({ title = "Chưa có dữ liệu", children }) => (
   <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
     <p className="font-semibold text-slate-800">{title}</p>
     {children ? <div className="mt-2 text-sm text-slate-500">{children}</div> : null}

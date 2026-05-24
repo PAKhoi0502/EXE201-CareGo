@@ -1,21 +1,7 @@
-import { NavLink, Outlet, useNavigate } from "react-router";
+import { Link, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
-import { Button, StatusBadge } from "../components/Ui.jsx";
+import { Button } from "../components/Ui.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
-
-const navByRole = {
-  companion: [
-    ["Tong quan", "/companion"],
-    ["Ca lam", "/companion/bookings"],
-  ],
-  admin: [
-    ["Dashboard", "/admin"],
-    ["Dich vu", "/admin/services"],
-    ["Nguoi dong hanh", "/admin/companions"],
-    ["Nguoi dung", "/admin/users"],
-    ["Booking", "/admin/bookings"],
-  ],
-};
 
 const AppLayout = () => {
   const { user, logout } = useAuth();
@@ -39,46 +25,44 @@ const AppLayout = () => {
     );
   }
 
-  const navItems = navByRole[user?.role] || [];
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-md bg-teal-700 font-black text-white">
-              CG
-            </div>
-            <div>
-              <p className="font-black text-slate-950">CareGo</p>
-              <p className="text-xs text-slate-500">Can cham soc la co ngay</p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#f5fbfa] text-slate-900">
+      <header className="sticky top-0 z-40 border-b border-teal-900/10 bg-[#f5fbfa]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 w-[min(1180px,92%)] items-center justify-between gap-4">
+          <Link to="/companion" className="flex items-center gap-3 text-2xl font-black text-teal-800">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-700 text-xl font-black text-white shadow-lg shadow-teal-700/25">
+              +
+            </span>
+            <span>
+              <span className="block leading-5">CareGo</span>
+              <span className="block text-xs font-bold text-teal-700/70">Nguoi dong hanh</span>
+            </span>
+          </Link>
 
-          <nav className="flex flex-wrap gap-2">
-            {navItems.map(([label, to]) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === `/${user.role}`}
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-2 text-sm font-bold transition ${
-                    isActive ? "bg-teal-50 text-teal-800" : "text-slate-600 hover:bg-slate-100"
-                  }`
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
+          <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex">
+            <a href="#newBookingSection" className="transition hover:text-teal-800">Booking moi</a>
+            <a href="#activeShiftSection" className="transition hover:text-teal-800">GPS</a>
+            <a href="#checklistSection" className="transition hover:text-teal-800">Checklist</a>
+            <a href="#reportSection" className="transition hover:text-teal-800">Bao cao</a>
           </nav>
 
           <div className="flex items-center gap-3">
-            {vettingStatus ? <StatusBadge status={vettingStatus} /> : null}
-            <div className="text-right">
-              <p className="text-sm font-bold">{user?.name}</p>
-              <p className="text-xs text-slate-500">{user?.role}</p>
+            <Link
+              to="/companion/bookings"
+              className="hidden min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-5 text-sm font-extrabold text-teal-800 transition hover:-translate-y-0.5 hover:bg-teal-50 sm:inline-flex"
+            >
+              Lich cua toi
+            </Link>
+            <div className="flex items-center gap-3 rounded-full border border-teal-100 bg-white py-2 pl-2 pr-4 shadow-lg shadow-teal-900/5">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-teal-100 to-sky-100 text-sm font-black text-teal-800">
+                {(user?.name || "C").trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="hidden text-left sm:block">
+                <span className="block text-sm font-black text-[#12312f]">{user?.name}</span>
+                <span className="block text-xs font-semibold text-slate-500">Nguoi dong hanh</span>
+              </span>
             </div>
-            <Button variant="secondary" onClick={handleLogout}>
+            <Button variant="secondary" className="rounded-full" onClick={handleLogout}>
               Dang xuat
             </Button>
           </div>
@@ -88,11 +72,11 @@ const AppLayout = () => {
       {user?.role === "companion" && vettingStatus !== "approved" ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Ho so nguoi dong hanh cua ban dang o trang thai <b>{vettingStatus || "pending"}</b>.
-          Ban co the dang nhap de theo doi, nhung chi duoc nhan/cap nhat ca sau khi admin duyet.
+          Ban co the theo doi tai khoan, nhung chi duoc nhan va cap nhat ca sau khi admin duyet.
         </div>
       ) : null}
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto w-[min(1180px,92%)] py-7">
         <Outlet />
       </main>
     </div>
