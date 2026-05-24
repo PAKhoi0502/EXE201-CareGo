@@ -71,9 +71,6 @@ const LandingNavbar = () => {
                     <p className="mt-1 text-xs text-slate-500">{user.email}</p>
                   </div>
                   <div className="grid p-2 text-sm font-bold text-slate-600">
-                    <Link onClick={() => setOpen(false)} to={isCustomer ? "/customer" : `/${user.role}`} className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">
-                      Trang cua toi
-                    </Link>
                     {isCustomer ? (
                       <>
                         <Link onClick={() => setOpen(false)} to="/customer/bookings/new" className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">

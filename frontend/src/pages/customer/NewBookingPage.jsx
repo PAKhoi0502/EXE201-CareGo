@@ -2,15 +2,36 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../../api/client.js";
 import AddressSearchMap from "../../components/AddressSearchMap.jsx";
-import { Button, Card, Input, PageHeader, Select, Textarea } from "../../components/Ui.jsx";
+import { Button, Input, Select, Textarea } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
 
+const serviceCodes = ["01", "02", "03"];
+
+const initials = (name = "CG") =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+const StatusPill = ({ children, tone = "green" }) => {
+  const tones = {
+    green: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    blue: "bg-sky-50 text-sky-700 border-sky-200",
+    orange: "bg-orange-50 text-orange-700 border-orange-200",
+  };
+
+  return <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${tones[tone]}`}>{children}</span>;
+};
+
 const NewBookingPage = () => {
   const navigate = useNavigate();
-  const { data: elderData } = useAsync(() => api.get("/elders/my"), []);
-  const { data: serviceData } = useAsync(() => api.get("/services"), []);
-  const { data: companionData } = useAsync(() => api.get("/companions"), []);
+  const { data: elderData, loading: elderLoading } = useAsync(() => api.get("/elders/my"), []);
+  const { data: serviceData, loading: serviceLoading } = useAsync(() => api.get("/services"), []);
+  const { data: companionData, loading: companionLoading } = useAsync(() => api.get("/companions"), []);
   const [form, setForm] = useState({
     elderProfileId: "",
     serviceId: "",
@@ -23,12 +44,14 @@ const NewBookingPage = () => {
   });
   const [error, setError] = useState("");
 
-  const services = serviceData?.services || [];
   const elders = elderData?.elders || [];
+  const services = serviceData?.services || [];
   const companions = companionData?.companions || [];
-  const selectedService = useMemo(
-    () => services.find((item) => item._id === form.serviceId),
-    [services, form.serviceId],
+  const selectedService = useMemo(() => services.find((item) => item._id === form.serviceId), [services, form.serviceId]);
+  const selectedElder = useMemo(() => elders.find((item) => item._id === form.elderProfileId), [elders, form.elderProfileId]);
+  const selectedCompanion = useMemo(
+    () => companions.find((item) => item.userId?._id === form.companionId),
+    [companions, form.companionId],
   );
   const total = (selectedService?.pricePerHour || 0) * Number(form.durationHours || 0);
 
@@ -36,7 +59,7 @@ const NewBookingPage = () => {
     event.preventDefault();
     setError("");
     if (!form.addressLocation?.lat || !form.addressLocation?.lng) {
-      setError("Vui long tim dia chi tren ban do hoac bam vao ban do de ghim vi tri truoc khi dat lich");
+      setError("Vui long tim dia chi tren ban do hoac bam vao ban do de ghim vi tri truoc khi dat lich.");
       return;
     }
 
@@ -53,42 +76,241 @@ const NewBookingPage = () => {
   };
 
   return (
-    <>
-      <PageHeader title="Dat lich moi" subtitle="Chon nguoi than, dich vu va nguoi dong hanh phu hop." />
-      <Card>
-        <form className="grid gap-4" onSubmit={submit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Select label="Nguoi than" value={form.elderProfileId} onChange={(e) => setForm({ ...form, elderProfileId: e.target.value })}>
-              <option value="">Chon ho so</option>
-              {elders.map((elder) => <option key={elder._id} value={elder._id}>{elder.fullName}</option>)}
-            </Select>
-            <Select label="Dich vu" value={form.serviceId} onChange={(e) => setForm({ ...form, serviceId: e.target.value })}>
-              <option value="">Chon dich vu</option>
-              {services.map((service) => <option key={service._id} value={service._id}>{service.name} - {money(service.pricePerHour)}/h</option>)}
-            </Select>
-            <Select label="Nguoi dong hanh" value={form.companionId} onChange={(e) => setForm({ ...form, companionId: e.target.value })}>
-              <option value="">Chon nguoi dong hanh</option>
-              {companions.map((item) => <option key={item._id} value={item.userId?._id}>{item.fullName} - {item.major}</option>)}
-            </Select>
-            <Input label="Thoi gian bat dau" type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
-            <Input label="So gio" type="number" min="1" value={form.durationHours} onChange={(e) => setForm({ ...form, durationHours: e.target.value })} />
+    <form onSubmit={submit} className="space-y-7 text-[#12312f]">
+      <section className="flex flex-col gap-6 py-2 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="mb-4 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700">
+            Dat lich cham soc
           </div>
-          <AddressSearchMap
-            address={form.address}
-            location={form.addressLocation}
-            onAddressChange={(address) => setForm((current) => ({ ...current, address }))}
-            onLocationChange={(addressLocation) => setForm((current) => ({ ...current, addressLocation }))}
-          />
-          <Textarea label="Ghi chu cho nguoi dong hanh" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-          <div className="rounded-md bg-slate-50 p-4 text-sm">
-            <span className="text-slate-500">Tam tinh: </span>
-            <b className="text-teal-700">{money(total)}</b>
+          <h1 className="max-w-3xl text-4xl font-black leading-tight md:text-5xl">
+            Dat lich cham soc ba me cung <span className="text-teal-700">CareGo</span>
+          </h1>
+          <p className="mt-4 max-w-3xl text-base leading-8 text-slate-500">
+            Dien thong tin, chon nguoi dong hanh phu hop. Sau khi xac nhan, ban co the theo doi GPS realtime.
+          </p>
+        </div>
+
+        <div className="min-w-64 rounded-[24px] border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/10">
+          <small className="block text-xs font-bold uppercase text-slate-400">Trang thai hien tai</small>
+          <strong className="mt-2 block text-lg font-black text-teal-700">Dang tao don</strong>
+        </div>
+      </section>
+
+      <main className="grid items-start gap-6 xl:grid-cols-[1fr_370px]">
+        <section className="grid gap-6">
+          <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black">Chon dich vu</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Chon loai dich vu phu hop voi nhu cau cua nguoi than.</p>
+              </div>
+              <StatusPill>Bat buoc</StatusPill>
+            </div>
+
+            {serviceLoading ? <p className="text-sm text-slate-500">Dang tai dich vu...</p> : null}
+            <div className="grid gap-4 md:grid-cols-3">
+              {services.map((service, index) => {
+                const active = form.serviceId === service._id;
+                return (
+                  <button
+                    key={service._id}
+                    type="button"
+                    onClick={() => setForm((current) => ({ ...current, serviceId: service._id }))}
+                    className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${
+                      active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
+                    }`}
+                  >
+                    <div className="mb-4 grid h-14 w-14 place-items-center rounded-[20px] bg-teal-50 text-lg font-black text-teal-700">
+                      {serviceCodes[index % serviceCodes.length]}
+                    </div>
+                    <h3 className="text-lg font-black">{service.name}</h3>
+                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">{service.description}</p>
+                    <p className="mt-4 text-sm font-black text-teal-700">{money(service.pricePerHour)}/gio</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-          <Button className="w-full md:w-fit">Tao booking</Button>
-        </form>
-      </Card>
-    </>
+
+          <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black">Thong tin dat lich</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Nhap thong tin nguoi than de CareGo de xuat nguoi dong hanh phu hop.</p>
+              </div>
+              <StatusPill tone="blue">Bieu mau</StatusPill>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Select
+                label="Ho so nguoi than"
+                value={form.elderProfileId}
+                onChange={(event) => setForm({ ...form, elderProfileId: event.target.value })}
+                required
+                className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
+              >
+                <option value="">{elderLoading ? "Dang tai..." : "Chon ho so"}</option>
+                {elders.map((elder) => (
+                  <option key={elder._id} value={elder._id}>
+                    {elder.fullName} - {elder.age} tuoi
+                  </option>
+                ))}
+              </Select>
+              <Input
+                label="Thoi gian bat dau"
+                type="datetime-local"
+                value={form.startTime}
+                onChange={(event) => setForm({ ...form, startTime: event.target.value })}
+                required
+                className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
+              />
+              <Input
+                label="So gio"
+                type="number"
+                min="1"
+                value={form.durationHours}
+                onChange={(event) => setForm({ ...form, durationHours: event.target.value })}
+                required
+                className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
+              />
+              <div className="rounded-[18px] border border-teal-50 bg-teal-50/60 p-4">
+                <small className="block text-xs font-bold uppercase text-slate-400">Tam tinh</small>
+                <strong className="mt-1 block text-2xl font-black text-teal-700">{money(total)}</strong>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <AddressSearchMap
+                address={form.address}
+                location={form.addressLocation}
+                onAddressChange={(address) => setForm((current) => ({ ...current, address }))}
+                onLocationChange={(addressLocation) => setForm((current) => ({ ...current, addressLocation }))}
+              />
+            </div>
+
+            <div className="mt-5">
+              <Textarea
+                label="Ghi chu suc khoe / yeu cau dac biet"
+                value={form.note}
+                onChange={(event) => setForm({ ...form, note: event.target.value })}
+                placeholder="Vi du: di cham, can ho tro xep hang, lay so kham va ghi chu loi dan bac si."
+                className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4 py-3"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black">Chon nguoi dong hanh</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Sau khi chon nguoi dong hanh, nhan xac nhan de tao don.</p>
+              </div>
+              <StatusPill>Goi y phu hop</StatusPill>
+            </div>
+
+            {companionLoading ? <p className="text-sm text-slate-500">Dang tai nguoi dong hanh...</p> : null}
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {companions.map((item) => {
+                const companionUserId = item.userId?._id;
+                const active = form.companionId === companionUserId;
+                return (
+                  <button
+                    key={item._id}
+                    type="button"
+                    onClick={() => setForm((current) => ({ ...current, companionId: companionUserId }))}
+                    className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${
+                      active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
+                    }`}
+                  >
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[19px] bg-gradient-to-br from-teal-100 to-sky-100 text-base font-black text-teal-700">
+                        {initials(item.fullName)}
+                      </div>
+                      <div>
+                        <h3 className="font-black">{item.fullName}</h3>
+                        <small className="text-slate-500">{item.major || "Nguoi dong hanh"}</small>
+                      </div>
+                    </div>
+                    <p className="mb-3 text-sm font-black text-amber-500">4.9/5 danh gia</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(item.skills || []).slice(0, 4).map((skill) => (
+                        <span key={skill} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-teal-700">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <aside className="grid gap-5 xl:sticky xl:top-24">
+          <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-black">Tom tat don</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Thong tin don se duoc tao sau khi xac nhan.</p>
+              </div>
+              <StatusPill tone="orange">Nhap</StatusPill>
+            </div>
+
+            <div className="mb-5 rounded-[28px] bg-gradient-to-br from-teal-700 to-teal-500 p-5 text-white">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="grid h-16 w-16 shrink-0 place-items-center rounded-[22px] bg-white text-xl font-black text-teal-700">
+                  {initials(selectedElder?.fullName || "CG")}
+                </div>
+                <div>
+                  <h3 className="text-xl font-black">{selectedElder?.fullName || "Chua chon nguoi than"}</h3>
+                  <p className="text-sm text-white/75">{selectedService?.name || "Chua chon dich vu"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
+                  <small className="block text-white/70">Dich vu</small>
+                  <strong className="mt-1 block text-sm">{selectedService?.name || "Chua chon"}</strong>
+                </div>
+                <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
+                  <small className="block text-white/70">Thoi luong</small>
+                  <strong className="mt-1 block text-sm">{form.durationHours || 0} gio</strong>
+                </div>
+                <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
+                  <small className="block text-white/70">Dong hanh</small>
+                  <strong className="mt-1 block truncate text-sm">{selectedCompanion?.fullName || "Chua chon"}</strong>
+                </div>
+                <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
+                  <small className="block text-white/70">Du kien</small>
+                  <strong className="mt-1 block text-sm">{money(total)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-5 grid gap-3 text-sm">
+              <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
+                <span>Phi dich vu</span>
+                <strong className="text-[#12312f]">{money(total)}</strong>
+              </div>
+              <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
+                <span>Dia diem</span>
+                <strong className="text-[#12312f]">{form.addressLocation ? "Da ghim" : "Chua ghim"}</strong>
+              </div>
+              <div className="flex justify-between gap-3 text-2xl font-black">
+                <span>Tong</span>
+                <span>{money(total)}</span>
+              </div>
+            </div>
+
+            {error ? <p className="mb-4 rounded-[18px] border border-rose-100 bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p> : null}
+
+            <Button className="min-h-12 w-full rounded-[18px] text-base" disabled={!form.elderProfileId || !form.serviceId || !form.companionId}>
+              Xac nhan dat lich
+            </Button>
+          </div>
+        </aside>
+      </main>
+    </form>
   );
 };
 
