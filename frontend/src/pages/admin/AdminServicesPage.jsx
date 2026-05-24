@@ -30,6 +30,10 @@ const AdminServicesPage = () => {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+  const [editError, setEditError] = useState("");
   const [selectedService, setSelectedService] = useState(null);
   const services = data?.services || [];
 
@@ -49,6 +53,25 @@ const AdminServicesPage = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setSubmitError("");
+  };
+
+  const openEditModal = (service) => {
+    setEditingService(service);
+    setEditForm({
+      name: service.name || "",
+      code: service.code || "",
+      description: service.description || "",
+      pricePerHour: service.pricePerHour ?? 0,
+      checklistText: (service.defaultChecklist || []).join(", "),
+    });
+    setEditError("");
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingService(null);
+    setEditError("");
   };
 
   const submit = async (event) => {
@@ -73,6 +96,28 @@ const AdminServicesPage = () => {
   const disable = async (id) => {
     await api.delete(`/services/${id}`);
     reload();
+  };
+
+  const submitEdit = async (event) => {
+    event.preventDefault();
+    if (!editingService) return;
+    setEditError("");
+    try {
+      await api.put(`/services/${editingService._id}`, {
+        name: editForm.name,
+        code: editForm.code,
+        description: editForm.description,
+        pricePerHour: Number(editForm.pricePerHour),
+        defaultChecklist: editForm.checklistText
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      });
+      closeEditModal();
+      reload();
+    } catch (err) {
+      setEditError(err.message);
+    }
   };
 
   return (
@@ -189,6 +234,13 @@ const AdminServicesPage = () => {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-1">
+                        <Button
+                          variant="secondary"
+                          className="min-h-8 px-2.5 text-xs"
+                          onClick={() => openEditModal(service)}
+                        >
+                          Chỉnh sửa
+                        </Button>
                         <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedService(service)}>
                           Chi tiết
                         </Button>
@@ -249,6 +301,64 @@ const AdminServicesPage = () => {
                   Hủy
                 </Button>
                 <Button>Tạo dịch vụ</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isEditModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-5">
+              <div>
+                <h2 className="font-bold text-slate-900">Chỉnh sửa dịch vụ</h2>
+                <p className="mt-1 text-xs text-slate-400">Cập nhật thông tin gói dịch vụ CareGo.</p>
+              </div>
+              <button
+                className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200"
+                onClick={closeEditModal}
+                type="button"
+              >
+                Đóng
+              </button>
+            </div>
+
+            <form className="grid gap-4 p-5" onSubmit={submitEdit}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Tên dịch vụ"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                />
+                <Input
+                  label="Mã dịch vụ"
+                  value={editForm.code}
+                  onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                />
+              </div>
+              <Input
+                label="Giá theo giờ"
+                type="number"
+                value={editForm.pricePerHour}
+                onChange={(e) => setEditForm({ ...editForm, pricePerHour: e.target.value })}
+              />
+              <Textarea
+                label="Mô tả"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              />
+              <Input
+                label="Checklist mặc định, cách nhau bằng dấu phẩy"
+                value={editForm.checklistText}
+                onChange={(e) => setEditForm({ ...editForm, checklistText: e.target.value })}
+              />
+              {editError ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{editError}</p> : null}
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <Button type="button" variant="secondary" onClick={closeEditModal}>
+                  Hủy
+                </Button>
+                <Button>Cập nhật</Button>
               </div>
             </form>
           </div>
