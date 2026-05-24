@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { Button } from "../components/Ui.jsx";
@@ -8,9 +9,11 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const vettingStatus = user?.companionProfile?.vettingStatus;
   const isCustomer = user?.role === "customer";
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
+    setMenuOpen(false);
     navigate("/login");
   };
 
@@ -53,18 +56,71 @@ const AppLayout = () => {
             >
               Lich cua toi
             </Link>
-            <div className="flex items-center gap-3 rounded-full border border-teal-100 bg-white py-2 pl-2 pr-4 shadow-lg shadow-teal-900/5">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-teal-100 to-sky-100 text-sm font-black text-teal-800">
-                {(user?.name || "C").trim().charAt(0).toUpperCase()}
-              </span>
-              <span className="hidden text-left sm:block">
-                <span className="block text-sm font-black text-[#12312f]">{user?.name}</span>
-                <span className="block text-xs font-semibold text-slate-500">Nguoi dong hanh</span>
-              </span>
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
+                className="flex items-center gap-3 rounded-full border border-teal-100 bg-white py-2 pl-2 pr-4 shadow-lg shadow-teal-900/5 transition hover:border-teal-300"
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-teal-100 to-sky-100 text-sm font-black text-teal-800">
+                  {(user?.name || "C").trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="hidden text-left sm:block">
+                  <span className="block text-sm font-black text-[#12312f]">{user?.name}</span>
+                  <span className="block text-xs font-semibold text-slate-500">Nguoi dong hanh</span>
+                </span>
+                <span className={`grid h-6 w-6 place-items-center rounded-full bg-teal-50 text-teal-700 transition ${menuOpen ? "rotate-180" : "rotate-0"}`}>
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </button>
+
+              {menuOpen ? (
+                <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-[28px] border border-teal-100 bg-white shadow-2xl shadow-teal-900/15">
+                  <div className="border-b border-teal-50 bg-gradient-to-r from-teal-50 to-sky-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-base font-black text-teal-700 shadow-sm">
+                        {(user?.name || "C").trim().charAt(0).toUpperCase()}
+                      </span>
+                      <div>
+                        <p className="font-black text-[#12312f]">{user?.name || "Nguoi dong hanh"}</p>
+                        <p className="mt-1 text-xs text-slate-500">{user?.email || ""}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-1 p-2 text-sm font-bold text-slate-600">
+                    <Link
+                      onClick={() => setMenuOpen(false)}
+                      to="/companion/profile"
+                      className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                    >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">👤</span>
+                      Trang cá nhân
+                    </Link>
+                    <Link
+                      onClick={() => setMenuOpen(false)}
+                      to="/companion/bookings"
+                      className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                    >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">🗓</span>
+                      Lịch của tôi
+                    </Link>
+                    <div className="my-1 h-px bg-teal-50" />
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 rounded-2xl px-4 py-3 text-left font-bold text-rose-600 transition hover:bg-rose-50"
+                    >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-rose-50 text-rose-600">⎋</span>
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
-            <Button variant="secondary" className="rounded-full" onClick={handleLogout}>
-              Dang xuat
-            </Button>
           </div>
         </div>
       </header>
