@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router";
 import HeroPhonePreview from "../components/landing/HeroPhonePreview.jsx";
 import LandingButton from "../components/landing/LandingButton.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
@@ -13,10 +15,22 @@ import { trustItems } from "../components/landing/landingData.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const LandingPage = () => {
+  const location = useLocation();
   const { user } = useAuth();
   const isCustomer = user?.role === "customer";
   const bookingPath = isCustomer ? "/customer/bookings/new" : "/register";
   const servicePath = isCustomer ? "/customer/services" : null;
+
+  useEffect(() => {
+    if (!location.hash) return;
+
+    const section = document.querySelector(location.hash);
+    if (!section) return;
+
+    window.setTimeout(() => {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }, [location.hash]);
 
   return (
     <div className="min-h-screen bg-[#f5fbfa] text-[#12312f]">
