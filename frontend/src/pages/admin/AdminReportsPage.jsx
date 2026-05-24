@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
+import * as XLSX from "xlsx";
 import { api } from "../../api/client.js";
 import { StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
@@ -73,6 +74,8 @@ const topCompanions = (bookings) => {
   return Object.values(stats).sort((a, b) => b.count - a.count).slice(0, 6);
 };
 
+const formatDateTime = (value) => (value ? new Date(value).toLocaleString("vi-VN") : "");
+
 const AdminReportsPage = () => {
   const { data: bookingsData, loading, error } = useAsync(() => api.get("/admin/bookings"), []);
   const { data: companionsData } = useAsync(() => api.get("/companions/admin/all"), []);
@@ -88,6 +91,57 @@ const AdminReportsPage = () => {
   const completionRate = bookings.length ? Math.round((completed / bookings.length) * 100) : 0;
   const missingGps = bookings.filter((item) => !item.addressLocation?.lat).length;
   const pendingCompanions = companions.filter((item) => item.vettingStatus === "pending").length;
+
+  const exportExcel = () => {
+    const workbook = XLSX.utils.book_new();
+
+    const summaryRows = [
+      { label: "Doanh thu paid", value: paidRevenue },
+      { label: "Phi nen tang", value: platformFee },
+      { label: "Ty le hoan thanh", value: `${completionRate}%` },
+      { label: "Thieu GPS diem den", value: missingGps },
+      { label: "Ho so cho duyet", value: pendingCompanions },
+    ];
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Tong quan");
+
+    const monthlyRows = monthly.map((item) => ({
+      thang: item.label,
+      so_booking: item.count,
+      doanh_thu_paid: item.revenue,
+    }));
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(monthlyRows), "Doanh thu theo thang");
+
+    const serviceRows = services.map((item) => ({
+      dich_vu: item.name,
+      so_booking: item.count,
+      tong_gia_tri: item.revenue,
+    }));
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(serviceRows), "Top dich vu");
+
+    const companionRowsExport = companionRows.map((item) => ({
+      companion: item.name,
+      so_ca: item.count,
+      paid: item.paid,
+      doanh_thu: item.revenue,
+    }));
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(companionRowsExport), "Hieu suat companion");
+
+    const bookingRows = bookings.map((booking) => ({
+      booking_id: booking._id,
+      khach_hang: booking.customerId?.name || "",
+      email_khach_hang: booking.customerId?.email || "",
+      companion: booking.companionId?.name || "",
+      dich_vu: booking.serviceId?.name || "",
+      trang_thai: booking.status,
+      tong_tien: booking.totalAmount || 0,
+      phi_nen_tang: booking.platformFee || 0,
+      ngay_tao: formatDateTime(booking.createdAt),
+    }));
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings");
+
+    const fileName = `admin-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
 
   const chartOptions = {
     responsive: true,
@@ -127,9 +181,18 @@ const AdminReportsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Báo cáo vận hành</h1>
-        <p className="mt-1 text-sm text-slate-500">Tổng hợp doanh thu, booking, companion và cảnh báo chất lượng.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Báo cáo vận hành</h1>
+          <p className="mt-1 text-sm text-slate-500">Tổng hợp doanh thu, booking, companion và cảnh báo chất lượng.</p>
+        </div>
+        <button
+          type="button"
+          onClick={exportExcel}
+          className="inline-flex items-center justify-center rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 transition hover:border-teal-300 hover:bg-teal-100"
+        >
+          Xuất Excel
+        </button>
       </div>
 
       {loading ? <p className="text-sm text-slate-500">Đang tải báo cáo...</p> : null}
