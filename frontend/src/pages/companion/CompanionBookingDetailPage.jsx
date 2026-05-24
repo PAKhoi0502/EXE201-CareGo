@@ -93,8 +93,14 @@ const CompanionBookingDetailPage = () => {
   const savedCheckInPhotoUrl = shiftLog?.checkInPhotoUrl || "";
   const hasSavedCheckInPhoto = Boolean(savedCheckInPhotoUrl);
   const hasCheckInPhoto = Boolean(savedCheckInPhotoUrl || shift.checkInPhotoUrl);
-  const hasCheckOutPhoto = Boolean(shiftLog?.checkOutPhotoUrl || shift.checkOutPhotoUrl);
+  const savedCheckOutPhotoUrl = shiftLog?.checkOutPhotoUrl || "";
+  const hasSavedCheckOutPhoto = Boolean(savedCheckOutPhotoUrl);
+  const hasCheckOutPhoto = Boolean(savedCheckOutPhotoUrl || shift.checkOutPhotoUrl);
   const hasRealtimeNote = Boolean(shift.companionNote?.trim());
+  const hasSavedRealtimeNote = Boolean(shiftLog?.companionNote?.trim());
+  const hasChecklist = checklist.length > 0;
+  const isChecklistDone = !hasChecklist || checklist.every((item) => item.done);
+  const canEditRealtimeNote = booking?.status === "in_progress" && isChecklistDone;
   const allLocations = useMemo(
     () => [...(shiftLog?.locations || []), ...liveLocations],
     [shiftLog?.locations, liveLocations],
@@ -232,13 +238,13 @@ const CompanionBookingDetailPage = () => {
   };
 
   const completeShift = async () => {
-    if (!shift.checkOutPhotoUrl) {
-      setSubmitError("Bạn cần tải ảnh sau ca trước khi hoàn thành.");
+    if (!hasSavedCheckOutPhoto) {
+      setSubmitError("Bạn cần lưu ảnh sau ca trước khi hoàn thành.");
       return;
     }
 
-    if (!shift.companionNote?.trim()) {
-      setSubmitError("Bạn cần nhập ghi chú sau ca cho gia đình.");
+    if (!hasSavedRealtimeNote) {
+      setSubmitError("Bạn cần lưu ghi chú trước khi hoàn thành ca.");
       return;
     }
 
@@ -470,11 +476,11 @@ const CompanionBookingDetailPage = () => {
                           ? "Cần lưu ảnh check-in trước ca"
                           : !canUseChecklist
                             ? "Cần bấm Đã đến nơi trước khi chọn checklist"
-                          : !previousDone
-                            ? "Hoàn thành bước trước để mở bước này"
-                            : item.done
-                              ? "Đã hoàn thành"
-                              : "Gạt để xác nhận hoàn thành"}
+                            : !previousDone
+                              ? "Hoàn thành bước trước để mở bước này"
+                              : item.done
+                                ? "Đã hoàn thành"
+                                : "Gạt để xác nhận hoàn thành"}
                       </p>
                     </div>
                     <button
@@ -503,21 +509,28 @@ const CompanionBookingDetailPage = () => {
                 Bạn cần nhận đơn trước khi nhập ghi chú thời gian thực.
               </div>
             ) : null}
-            <div className="grid gap-4 md:grid-cols-3">
-              <Input label="Huyết áp" value={shift.bloodPressure} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, bloodPressure: event.target.value })} />
-              <Input label="Nhịp tim" type="number" value={shift.heartRate} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, heartRate: event.target.value })} />
-              <Input label="Tâm trạng" value={shift.mood} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, mood: event.target.value })} />
-            </div>
-            <Textarea
-              label="Ghi chú trong ca / lời dặn bác sĩ"
-              className="mt-4"
-              value={shift.companionNote}
-              disabled={booking.status === "pending"}
-              onChange={(event) => setShift({ ...shift, companionNote: event.target.value })}
-            />
-            <Button className="mt-4 min-h-12 rounded-full px-6 font-black" onClick={() => updateShift(checklist)} disabled={!gpsReady || booking.status === "pending"}>
-              Lưu ghi chú
-            </Button>
+            {booking.status !== "pending" && !isChecklistDone ? (
+              <div className="mb-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                Bạn cần hoàn thành toàn bộ checklist trước khi nhập ghi chú thời gian thực.
+              </div>
+            ) : null}
+            <fieldset disabled={!canEditRealtimeNote} className="contents">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Input label="Huyết áp" value={shift.bloodPressure} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, bloodPressure: event.target.value })} />
+                <Input label="Nhịp tim" type="number" value={shift.heartRate} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, heartRate: event.target.value })} />
+                <Input label="Tâm trạng" value={shift.mood} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, mood: event.target.value })} />
+              </div>
+              <Textarea
+                label="Ghi chú trong ca / lời dặn bác sĩ"
+                className="mt-4"
+                value={shift.companionNote}
+                disabled={booking.status === "pending"}
+                onChange={(event) => setShift({ ...shift, companionNote: event.target.value })}
+              />
+              <Button className="mt-4 min-h-12 rounded-full px-6 font-black" onClick={() => updateShift(checklist)} disabled={!gpsReady || booking.status === "pending"}>
+                Lưu ghi chú
+              </Button>
+            </fieldset>
           </Card>
 
           <Card className="rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
@@ -535,9 +548,19 @@ const CompanionBookingDetailPage = () => {
                   Bạn cần nhận đơn trước khi chụp hoặc tải ảnh sau ca.
                 </div>
               ) : null}
-              {booking.status !== "pending" && !hasRealtimeNote ? (
+              {booking.status !== "pending" && !hasSavedRealtimeNote ? (
                 <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                  Bạn cần điền Ghi chú thời gian thực trong ca trước khi chụp hoặc tải ảnh sau ca.
+                  Bạn cần bấm Lưu ghi chú trước khi chụp hoặc tải ảnh sau ca.
+                </div>
+              ) : null}
+              {hasSavedRealtimeNote && shift.checkOutPhotoUrl && !hasSavedCheckOutPhoto ? (
+                <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                  Ảnh sau ca đã tải tạm thời. Hãy bấm Lưu báo cáo để lưu ảnh vào ca làm trước khi hoàn thành.
+                </div>
+              ) : null}
+              {hasSavedCheckOutPhoto ? (
+                <div className="mb-4 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
+                  Ảnh sau ca đã được lưu. Bạn có thể bấm Hoàn thành ca.
                 </div>
               ) : null}
               <ImageUpload
@@ -545,14 +568,22 @@ const CompanionBookingDetailPage = () => {
                 folder="carego/check-out"
                 value={shift.checkOutPhotoUrl}
                 onUploaded={(url) => setShift({ ...shift, checkOutPhotoUrl: url })}
-                locked={booking.status === "pending" || !hasRealtimeNote}
+                locked={booking.status === "pending" || !hasSavedRealtimeNote || hasSavedCheckOutPhoto}
+                compact={hasSavedCheckOutPhoto}
               />
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist)} disabled={!gpsReady || !hasRealtimeNote || !hasCheckOutPhoto}>
-                Lưu báo cáo
-              </Button>
-              <Button className="min-h-12 rounded-full font-black" onClick={completeShift} disabled={!gpsReady || booking.status !== "in_progress"}>
+              {!hasSavedCheckOutPhoto ? (
+                <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist)} disabled={!gpsReady || !hasSavedRealtimeNote || !hasCheckOutPhoto}>
+                  Lưu ảnh
+                </Button>
+              ) : null}
+              {hasSavedCheckOutPhoto ? (
+                <a href={savedCheckOutPhotoUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-4 text-sm font-black text-teal-800 transition hover:bg-teal-50">
+                  Xem ảnh đã lưu
+                </a>
+              ) : null}
+              <Button className="min-h-12 rounded-full font-black" onClick={completeShift} disabled={!gpsReady || booking.status !== "in_progress" || !hasSavedCheckOutPhoto}>
                 Hoàn thành ca
               </Button>
               <Button className="min-h-12 rounded-full font-black" variant="muted" disabled>
