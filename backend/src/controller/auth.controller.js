@@ -347,6 +347,45 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
+export const updateCurrentUser = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { name, phone } = req.body;
+
+    const updates = {};
+    if (name !== undefined) {
+      const cleanName = String(name).trim();
+      if (!cleanName) {
+        return res.status(400).json({ message: "name is required" });
+      }
+      updates.name = cleanName;
+    }
+    if (phone !== undefined) {
+      updates.phone = String(phone).trim();
+    }
+
+    const user = await User.findByIdAndUpdate(userId, updates, {
+      new: true,
+      runValidators: true,
+    }).select("-password -refreshToken -__V");
+
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+
+    const companionProfile =
+      user.role === "companion"
+        ? await CompanionProfile.findOne({ userId }).select(
+            "vettingStatus fullName university major skills serviceAreas",
+          )
+        : null;
+
+    return res.status(200).json({ message: "profile updated", user, companionProfile });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
+  }
+};
+
 // forget password
 export const forgetpasswordController = async (req, res) => {
   try {

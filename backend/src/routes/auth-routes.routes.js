@@ -8,6 +8,7 @@ import {
   resendEmailOtpController,
   resetPasswordController,
   signupController,
+  updateCurrentUser,
   verifyEmailOtpController,
 } from "../controller/auth.controller.js";
 import { verifyToken } from "../middlleware/auth.middleware.js";
@@ -23,6 +24,7 @@ router.post("/login", loginController);
 router.post("/logout", verifyToken, logoutController);
 router.post("/refresh-token", refreshTokenController);
 router.get("/current-user", verifyToken, getCurrentUser);
+router.patch("/current-user", verifyToken, updateCurrentUser);
 router.post("/forget-password", forgetpasswordController);
 router.post("/reset-password/:token", resetPasswordController);
 export default router;

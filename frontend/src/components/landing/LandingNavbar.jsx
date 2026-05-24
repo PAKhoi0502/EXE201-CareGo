@@ -91,6 +91,14 @@ const LandingNavbar = () => {
                       <>
                         <Link
                           onClick={() => setOpen(false)}
+                          to="/customer/profile"
+                          className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                        >
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">👤</span>
+                          Hồ sơ cá nhân
+                        </Link>
+                        <Link
+                          onClick={() => setOpen(false)}
                           to="/customer/bookings/new"
                           className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                         >

@@ -19,6 +19,7 @@ import CustomerBookingDetailPage from "./pages/customer/CustomerBookingDetailPag
 import CustomerBookingsPage from "./pages/customer/CustomerBookingsPage.jsx";
 import CustomerCompanionsPage from "./pages/customer/CustomerCompanionsPage.jsx";
 import CustomerEldersPage from "./pages/customer/CustomerEldersPage.jsx";
+import CustomerProfilePage from "./pages/customer/CustomerProfilePage.jsx";
 import CustomerServicesPage from "./pages/customer/CustomerServicesPage.jsx";
 import NewBookingPage from "./pages/customer/NewBookingPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
@@ -63,6 +64,7 @@ const App = () => {
         }
       >
         <Route index element={<Navigate to="/" replace />} />
+        <Route path="profile" element={<CustomerProfilePage />} />
         <Route path="services" element={<CustomerServicesPage />} />
         <Route path="elders" element={<CustomerEldersPage />} />
         <Route path="companions" element={<CustomerCompanionsPage />} />

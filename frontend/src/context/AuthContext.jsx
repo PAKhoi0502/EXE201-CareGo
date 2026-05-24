@@ -55,6 +55,13 @@ export const AuthProvider = ({ children }) => {
     return api.post("/companions/register", payload);
   };
 
+  const updateProfile = async (payload) => {
+    const data = await api.patch("/auth/current-user", payload);
+    const nextUser = normalizeUser(data);
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const verifyEmail = async (payload) => {
     return api.post("/auth/verify-email", payload);
   };
@@ -102,6 +109,7 @@ export const AuthProvider = ({ children }) => {
       login,
       registerCustomer,
       registerCompanion,
+      updateProfile,
       verifyEmail,
       resendOtp,
       logout,
