@@ -7,12 +7,75 @@ import { useAsync } from "../../hooks/useAsync.js";
 import { locationSocket } from "../../socket/locationSocket.js";
 import { dateTime, money } from "../../utils/format.js";
 
+const getCloudinaryPhotoSources = (url = "") => {
+  const cleanUrl = String(url || "").trim();
+  if (!cleanUrl) {
+    return [];
+  }
+
+  const sources = [cleanUrl];
+  if (cleanUrl.includes("/image/upload/")) {
+    sources.push(cleanUrl.replace("/image/upload/", "/image/upload/f_auto,q_auto/"));
+    sources.push(cleanUrl.replace(/\.(jpg|jpeg|png|webp|heic|heif)$/i, ""));
+  }
+
+  return [...new Set(sources)];
+};
+
+const ShiftPhoto = ({ label, url, onPreview }) => {
+  const sources = useMemo(() => getCloudinaryPhotoSources(url), [url]);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const currentSource = sources[sourceIndex];
+  const hasUrl = sources.length > 0;
+
+  useEffect(() => {
+    setSourceIndex(0);
+  }, [url]);
+
+  return (
+    <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-3">
+      <p className="text-sm font-bold text-[#12312f]">{label}</p>
+      {hasUrl ? (
+        <div className="mt-3 grid gap-2">
+          {currentSource ? (
+            <button
+              type="button"
+              className="block w-full cursor-zoom-in text-left"
+              onClick={() => onPreview?.({ label, url: currentSource, originalUrl: url })}
+            >
+              <img
+                src={currentSource}
+                alt={label}
+                className="h-40 w-full rounded-2xl border border-teal-100 object-cover shadow-lg shadow-teal-900/5"
+                onError={() => setSourceIndex((index) => Math.min(index + 1, sources.length))}
+              />
+            </button>
+          ) : null}
+          {sourceIndex >= sources.length ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-700"
+            >
+              Không tải được ảnh preview. Bấm để mở ảnh gốc.
+            </a>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Chưa có ảnh</p>
+      )}
+    </div>
+  );
+};
+
 const CustomerBookingDetailPage = () => {
   const { id } = useParams();
   const { data, loading, error, reload } = useAsync(() => api.get(`/bookings/${id}`), [id]);
   const [review, setReview] = useState({ rating: 5, comment: "" });
   const [submitError, setSubmitError] = useState("");
   const [liveLocations, setLiveLocations] = useState([]);
+  const [previewPhoto, setPreviewPhoto] = useState(null);
 
   const booking = data?.booking;
   const shiftLog = data?.shiftLog;
@@ -198,9 +261,11 @@ const CustomerBookingDetailPage = () => {
             <div className="grid gap-6 lg:grid-cols-2">
               <Card className="rounded-[32px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
                 <h2 className="text-2xl font-black">Nhật ký ca làm</h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <ShiftPhoto label="Ảnh check-in" url={shiftLog?.checkInPhotoUrl} onPreview={setPreviewPhoto} />
+                  <ShiftPhoto label="Ảnh check-out" url={shiftLog?.checkOutPhotoUrl} onPreview={setPreviewPhoto} />
+                </div>
                 <div className="mt-4 space-y-3 text-sm">
-                  <p><b>Ảnh check-in:</b> {shiftLog?.checkInPhotoUrl || "Chưa có"}</p>
-                  <p><b>Ảnh check-out:</b> {shiftLog?.checkOutPhotoUrl || "Chưa có"}</p>
                   <p><b>Huyết áp:</b> {shiftLog?.healthMetrics?.bloodPressure || "Chưa có"}</p>
                   <p><b>Nhịp tim:</b> {shiftLog?.healthMetrics?.heartRate || "Chưa có"}</p>
                   <p><b>Tâm trạng:</b> {shiftLog?.healthMetrics?.mood || "Chưa có"}</p>
@@ -316,6 +381,21 @@ const CustomerBookingDetailPage = () => {
           </aside>
         </main>
       </div>
+      {previewPhoto ? (
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center bg-transparent p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <img
+            src={previewPhoto.url}
+            alt={previewPhoto.label}
+            className="max-h-[92vh] max-w-[94vw] rounded-2xl object-contain shadow-2xl shadow-slate-950/50"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      ) : null}
     </div>
   );
 };

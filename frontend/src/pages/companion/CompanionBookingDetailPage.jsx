@@ -328,7 +328,7 @@ const CompanionBookingDetailPage = () => {
           <Card id="newBookingSection" className="scroll-mt-24 rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-2xl font-black">Đơn cần phản hồi</h2>
+                <h2 className="text-2xl font-black">Lịch đặt cần phản hồi</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">Kiểm tra thông tin trước khi nhận hoặc từ chối ca làm.</p>
               </div>
               <StatusBadge status={booking.status} />
@@ -369,6 +369,27 @@ const CompanionBookingDetailPage = () => {
                 <DetailItem number="3" title="Lưu ý sức khỏe">
                   {booking.note || "Không có ghi chú đặc biệt từ gia đình."}
                 </DetailItem>
+              </div>
+
+              <div className="mt-5 rounded-3xl border border-teal-100 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-black text-[#12312f]">Địa chỉ khách đã chọn</h3>
+                  <span className={`rounded-full px-3 py-1 text-xs font-black ${serviceLocation ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                    {serviceLocation ? "Đã ghim" : "Chưa có tọa độ"}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Đây là vị trí khách hàng đã tìm kiếm hoặc bấm ghim trên bản đồ khi đặt lịch.
+                </p>
+                {serviceLocation ? (
+                  <div className="mt-4">
+                    <LiveLocationMap location={serviceLocation} locations={[]} height="320px" />
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                    Đơn này chưa có tọa độ trên bản đồ.
+                  </div>
+                )}
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -628,7 +649,7 @@ const CompanionBookingDetailPage = () => {
             </div>
           </Card>
 
-          <Card className="rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
+          <Card className="hidden rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-black">Địa chỉ khách đã chọn</h2>
               <span className={`rounded-full px-3 py-1 text-xs font-black ${serviceLocation ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
