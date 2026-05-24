@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
+import { api } from "../api/client.js";
 import { Button } from "../components/Ui.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
+import { useAsync } from "../hooks/useAsync.js";
+import { money } from "../utils/format.js";
 
 const AppLayout = () => {
   const { user, logout } = useAuth();
@@ -10,6 +13,13 @@ const AppLayout = () => {
   const vettingStatus = user?.companionProfile?.vettingStatus;
   const isCustomer = user?.role === "customer";
   const [menuOpen, setMenuOpen] = useState(false);
+  const { data: bookingsData } = useAsync(() => api.get("/bookings/my"), []);
+  const totalEarnings = useMemo(() => {
+    const bookings = bookingsData?.bookings || [];
+    return bookings
+      .filter((booking) => booking.status === "paid")
+      .reduce((sum, booking) => sum + (booking.totalAmount - booking.platformFee), 0);
+  }, [bookingsData]);
 
   const handleLogout = () => {
     logout();
@@ -42,12 +52,11 @@ const AppLayout = () => {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex">
-            <a href="#newBookingSection" className="transition hover:text-teal-800">Booking moi</a>
-            <a href="#activeShiftSection" className="transition hover:text-teal-800">GPS</a>
-            <a href="#checklistSection" className="transition hover:text-teal-800">Checklist</a>
-            <a href="#reportSection" className="transition hover:text-teal-800">Bao cao</a>
-          </nav>
+          {/* <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex">
+            <Link to="/companion/bookings" className="transition hover:text-teal-800">
+              Ca làm
+            </Link>
+          </nav> */}
 
           <div className="flex items-center gap-3">
             <Link
@@ -89,6 +98,12 @@ const AppLayout = () => {
                         <p className="mt-1 text-xs text-slate-500">{user?.email || ""}</p>
                       </div>
                     </div>
+                    <div className="mt-3 rounded-2xl border border-teal-100 bg-white/80 px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase text-slate-400">Thu nhập ví</p>
+                      <p className="mt-1 text-sm font-black text-emerald-700">
+                        {money(totalEarnings)}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="grid gap-1 p-2 text-sm font-bold text-slate-600">
@@ -107,6 +122,14 @@ const AppLayout = () => {
                     >
                       <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">🗓</span>
                       Lịch của tôi
+                    </Link>
+                    <Link
+                      onClick={() => setMenuOpen(false)}
+                      to="/companion/bookings/history"
+                      className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                    >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">✅</span>
+                      Lịch sử hoàn thành
                     </Link>
                     <div className="my-1 h-px bg-teal-50" />
                     <button

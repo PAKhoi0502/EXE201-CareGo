@@ -27,7 +27,7 @@ const CompanionBookingsPage = () => {
               Theo dõi trạng thái, cập nhật checklist và ghi chú sức khỏe cho từng ca.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-[18px] border border-teal-100 bg-[#f7fffe] px-4 py-3 text-sm">
               <p className="text-xs font-semibold text-slate-400">Đang diễn ra</p>
               <p className="mt-1 text-lg font-black text-teal-700">{activeCount}</p>
@@ -35,10 +35,6 @@ const CompanionBookingsPage = () => {
             <div className="rounded-[18px] border border-teal-100 bg-[#f7fffe] px-4 py-3 text-sm">
               <p className="text-xs font-semibold text-slate-400">Hoàn thành</p>
               <p className="mt-1 text-lg font-black text-slate-900">{completedCount}</p>
-            </div>
-            <div className="rounded-[18px] border border-teal-100 bg-[#f7fffe] px-4 py-3 text-sm">
-              <p className="text-xs font-semibold text-slate-400">Thu nhập</p>
-              <p className="mt-1 text-lg font-black text-emerald-700">{money(totalEarnings)}</p>
             </div>
           </div>
         </div>
