@@ -59,7 +59,7 @@ const NewBookingPage = () => {
     event.preventDefault();
     setError("");
     if (!form.addressLocation?.lat || !form.addressLocation?.lng) {
-      setError("Vui long tim dia chi tren ban do hoac bam vao ban do de ghim vi tri truoc khi dat lich.");
+      setError("Vui lòng tìm địa chỉ trên bản đồ hoặc bấm vào bản đồ để ghim vị trí trước khi đặt lịch.");
       return;
     }
 
@@ -80,20 +80,20 @@ const NewBookingPage = () => {
       <section className="flex flex-col gap-6 py-2 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-4 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700">
-            Dat lich cham soc
+            Đặt lịch chăm sóc
           </div>
           <h1 className="max-w-3xl text-4xl font-black leading-tight md:text-5xl">
-            Dat lich cham soc ba me cung <span className="text-teal-700">CareGo</span>
+            Đặt lịch chăm sóc ba mẹ cùng <span className="text-teal-700">CareGo</span>
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-8 text-slate-500">
-            Dien thong tin, chon nguoi dong hanh phu hop. Sau khi xac nhan, ban co the theo doi GPS realtime.
+            Điền thông tin, chọn người đồng hành phù hợp. Sau khi xác nhận, bạn có thể theo dõi GPS realtime.
           </p>
         </div>
 
-        <div className="min-w-64 rounded-[24px] border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/10">
-          <small className="block text-xs font-bold uppercase text-slate-400">Trang thai hien tai</small>
-          <strong className="mt-2 block text-lg font-black text-teal-700">Dang tao don</strong>
-        </div>
+        {/* <div className="min-w-64 rounded-[24px] border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/10">
+          <small className="block text-xs font-bold uppercase text-slate-400">Trạng thái hiện tại</small>
+          <strong className="mt-2 block text-lg font-black text-teal-700">Đang tạo đơn</strong>
+        </div> */}
       </section>
 
       <main className="grid items-start gap-6 xl:grid-cols-[1fr_370px]">
@@ -101,13 +101,13 @@ const NewBookingPage = () => {
           <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-2xl font-black">Chon dich vu</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Chon loai dich vu phu hop voi nhu cau cua nguoi than.</p>
+                <h2 className="text-2xl font-black">Chọn dịch vụ</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Chọn loại dịch vụ phù hợp với nhu cầu của người thân.</p>
               </div>
-              <StatusPill>Bat buoc</StatusPill>
+              <StatusPill>Bắt buộc</StatusPill>
             </div>
 
-            {serviceLoading ? <p className="text-sm text-slate-500">Dang tai dich vu...</p> : null}
+            {serviceLoading ? <p className="text-sm text-slate-500">Đang tải dịch vụ...</p> : null}
             <div className="grid gap-4 md:grid-cols-3">
               {services.map((service, index) => {
                 const active = form.serviceId === service._id;
@@ -116,16 +116,15 @@ const NewBookingPage = () => {
                     key={service._id}
                     type="button"
                     onClick={() => setForm((current) => ({ ...current, serviceId: service._id }))}
-                    className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${
-                      active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
-                    }`}
+                    className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
+                      }`}
                   >
                     <div className="mb-4 grid h-14 w-14 place-items-center rounded-[20px] bg-teal-50 text-lg font-black text-teal-700">
                       {serviceCodes[index % serviceCodes.length]}
                     </div>
                     <h3 className="text-lg font-black">{service.name}</h3>
                     <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">{service.description}</p>
-                    <p className="mt-4 text-sm font-black text-teal-700">{money(service.pricePerHour)}/gio</p>
+                    <p className="mt-4 text-sm font-black text-teal-700">{money(service.pricePerHour)}/giờ</p>
                   </button>
                 );
               })}
@@ -135,10 +134,10 @@ const NewBookingPage = () => {
           <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-2xl font-black">Thong tin dat lich</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Nhap thong tin nguoi than de CareGo de xuat nguoi dong hanh phu hop.</p>
+                <h2 className="text-2xl font-black">Thông tin đặt lịch</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Nhập thông tin người thân để CareGo đề xuất người đồng hành phù hợp.</p>
               </div>
-              <StatusPill tone="blue">Bieu mau</StatusPill>
+              <StatusPill tone="blue">Biểu mẫu</StatusPill>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -149,15 +148,15 @@ const NewBookingPage = () => {
                 required
                 className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
               >
-                <option value="">{elderLoading ? "Dang tai..." : "Chon ho so"}</option>
+                <option value="">{elderLoading ? "Đang tải..." : "Chọn hồ sơ"}</option>
                 {elders.map((elder) => (
                   <option key={elder._id} value={elder._id}>
-                    {elder.fullName} - {elder.age} tuoi
+                    {elder.fullName} - {elder.age} tuổi
                   </option>
                 ))}
               </Select>
               <Input
-                label="Thoi gian bat dau"
+                label="Thời gian bắt đầu"
                 type="datetime-local"
                 value={form.startTime}
                 onChange={(event) => setForm({ ...form, startTime: event.target.value })}
@@ -165,7 +164,7 @@ const NewBookingPage = () => {
                 className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
               />
               <Input
-                label="So gio"
+                label="Số giờ"
                 type="number"
                 min="1"
                 value={form.durationHours}
@@ -174,7 +173,7 @@ const NewBookingPage = () => {
                 className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
               />
               <div className="rounded-[18px] border border-teal-50 bg-teal-50/60 p-4">
-                <small className="block text-xs font-bold uppercase text-slate-400">Tam tinh</small>
+                <small className="block text-xs font-bold uppercase text-slate-400">Tạm tính</small>
                 <strong className="mt-1 block text-2xl font-black text-teal-700">{money(total)}</strong>
               </div>
             </div>
@@ -190,10 +189,10 @@ const NewBookingPage = () => {
 
             <div className="mt-5">
               <Textarea
-                label="Ghi chu suc khoe / yeu cau dac biet"
+                label="Ghi chú sức khỏe / yêu cầu đặc biệt"
                 value={form.note}
                 onChange={(event) => setForm({ ...form, note: event.target.value })}
-                placeholder="Vi du: di cham, can ho tro xep hang, lay so kham va ghi chu loi dan bac si."
+                placeholder="Ví dụ: đi chậm, cần hỗ trợ xếp hàng, lấy số khám và ghi chú lời dặn bác sĩ."
                 className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4 py-3"
               />
             </div>
@@ -202,13 +201,13 @@ const NewBookingPage = () => {
           <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-2xl font-black">Chon nguoi dong hanh</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Sau khi chon nguoi dong hanh, nhan xac nhan de tao don.</p>
+                <h2 className="text-2xl font-black">Chọn người đồng hành</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Sau khi chọn người đồng hành, nhấn xác nhận để tạo đơn.</p>
               </div>
-              <StatusPill>Goi y phu hop</StatusPill>
+              <StatusPill>Gợi ý phù hợp</StatusPill>
             </div>
 
-            {companionLoading ? <p className="text-sm text-slate-500">Dang tai nguoi dong hanh...</p> : null}
+            {companionLoading ? <p className="text-sm text-slate-500">Đang tải người đồng hành...</p> : null}
             <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {companions.map((item) => {
                 const companionUserId = item.userId?._id;
@@ -218,9 +217,8 @@ const NewBookingPage = () => {
                     key={item._id}
                     type="button"
                     onClick={() => setForm((current) => ({ ...current, companionId: companionUserId }))}
-                    className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${
-                      active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
-                    }`}
+                    className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
+                      }`}
                   >
                     <div className="mb-4 flex items-center gap-3">
                       <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[19px] bg-gradient-to-br from-teal-100 to-sky-100 text-base font-black text-teal-700">
@@ -228,10 +226,10 @@ const NewBookingPage = () => {
                       </div>
                       <div>
                         <h3 className="font-black">{item.fullName}</h3>
-                        <small className="text-slate-500">{item.major || "Nguoi dong hanh"}</small>
+                        <small className="text-slate-500">{item.major || "Người đồng hành"}</small>
                       </div>
                     </div>
-                    <p className="mb-3 text-sm font-black text-amber-500">4.9/5 danh gia</p>
+                    <p className="mb-3 text-sm font-black text-amber-500">4.9/5 đánh giá</p>
                     <div className="flex flex-wrap gap-2">
                       {(item.skills || []).slice(0, 4).map((skill) => (
                         <span key={skill} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-teal-700">
@@ -250,10 +248,10 @@ const NewBookingPage = () => {
           <div className="rounded-[32px] border border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-black">Tom tat don</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Thong tin don se duoc tao sau khi xac nhan.</p>
+                <h2 className="text-2xl font-black">Tóm tắt đơn</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Thông tin đơn sẽ được tạo sau khi xác nhận.</p>
               </div>
-              <StatusPill tone="orange">Nhap</StatusPill>
+              <StatusPill tone="orange">Nháp</StatusPill>
             </div>
 
             <div className="mb-5 rounded-[28px] bg-gradient-to-br from-teal-700 to-teal-500 p-5 text-white">
@@ -262,26 +260,26 @@ const NewBookingPage = () => {
                   {initials(selectedElder?.fullName || "CG")}
                 </div>
                 <div>
-                  <h3 className="text-xl font-black">{selectedElder?.fullName || "Chua chon nguoi than"}</h3>
-                  <p className="text-sm text-white/75">{selectedService?.name || "Chua chon dich vu"}</p>
+                  <h3 className="text-xl font-black">{selectedElder?.fullName || "Chưa chọn người thân"}</h3>
+                  <p className="text-sm text-white/75">{selectedService?.name || "Chưa chọn dịch vụ"}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
-                  <small className="block text-white/70">Dich vu</small>
-                  <strong className="mt-1 block text-sm">{selectedService?.name || "Chua chon"}</strong>
+                  <small className="block text-white/70">Dịch vụ</small>
+                  <strong className="mt-1 block text-sm">{selectedService?.name || "Chưa chọn"}</strong>
                 </div>
                 <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
-                  <small className="block text-white/70">Thoi luong</small>
-                  <strong className="mt-1 block text-sm">{form.durationHours || 0} gio</strong>
+                  <small className="block text-white/70">Thời lượng</small>
+                  <strong className="mt-1 block text-sm">{form.durationHours || 0} giờ</strong>
                 </div>
                 <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
-                  <small className="block text-white/70">Dong hanh</small>
-                  <strong className="mt-1 block truncate text-sm">{selectedCompanion?.fullName || "Chua chon"}</strong>
+                  <small className="block text-white/70">Đồng hành</small>
+                  <strong className="mt-1 block truncate text-sm">{selectedCompanion?.fullName || "Chưa chọn"}</strong>
                 </div>
                 <div className="rounded-[17px] border border-white/20 bg-white/15 p-3">
-                  <small className="block text-white/70">Du kien</small>
+                  <small className="block text-white/70">Dự kiến</small>
                   <strong className="mt-1 block text-sm">{money(total)}</strong>
                 </div>
               </div>
@@ -289,15 +287,15 @@ const NewBookingPage = () => {
 
             <div className="mb-5 grid gap-3 text-sm">
               <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
-                <span>Phi dich vu</span>
+                <span>Phí dịch vụ</span>
                 <strong className="text-[#12312f]">{money(total)}</strong>
               </div>
               <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
-                <span>Dia diem</span>
-                <strong className="text-[#12312f]">{form.addressLocation ? "Da ghim" : "Chua ghim"}</strong>
+                <span>Địa điểm</span>
+                <strong className="text-[#12312f]">{form.addressLocation ? "Đã ghim" : "Chưa ghim"}</strong>
               </div>
               <div className="flex justify-between gap-3 text-2xl font-black">
-                <span>Tong</span>
+                <span>Tổng</span>
                 <span>{money(total)}</span>
               </div>
             </div>
@@ -305,7 +303,7 @@ const NewBookingPage = () => {
             {error ? <p className="mb-4 rounded-[18px] border border-rose-100 bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p> : null}
 
             <Button className="min-h-12 w-full rounded-[18px] text-base" disabled={!form.elderProfileId || !form.serviceId || !form.companionId}>
-              Xac nhan dat lich
+              Xác nhận đặt lịch
             </Button>
           </div>
         </aside>

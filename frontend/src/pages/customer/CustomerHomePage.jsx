@@ -2,34 +2,34 @@ import { Link } from "react-router";
 import { Button, Card, PageHeader } from "../../components/Ui.jsx";
 
 const CustomerHomePage = () => (
-  <>
+  <div className="space-y-6">
     <PageHeader
-      title="Tong quan gia dinh"
-      subtitle="Dat lich, theo doi va nhan bao cao cham soc trong mot noi."
+      title="Tổng quan gia đình"
+      subtitle="Đặt lịch, theo dõi và nhận báo cáo chăm sóc trong một nơi."
       action={
         <Link to="/customer/bookings/new">
-          <Button>Dat lich moi</Button>
+          <Button>Đặt lịch mới</Button>
         </Link>
       }
     />
     <div className="grid gap-4 md:grid-cols-3">
-      <Card>
-        <p className="text-sm text-slate-500">Buoc 1</p>
-        <h2 className="mt-1 font-bold text-slate-950">Tao ho so nguoi than</h2>
-        <p className="mt-2 text-sm text-slate-500">Luu dia chi, benh nen, thuoc va lien he khan cap.</p>
+      <Card className="border-teal-100 bg-[#f7fffe]">
+        <p className="text-sm text-slate-500">Bước 1</p>
+        <h2 className="mt-1 font-bold text-slate-950">Tạo hồ sơ người thân</h2>
+        <p className="mt-2 text-sm text-slate-500">Lưu địa chỉ, bệnh nền, thuốc và liên hệ khẩn cấp.</p>
       </Card>
-      <Card>
-        <p className="text-sm text-slate-500">Buoc 2</p>
-        <h2 className="mt-1 font-bold text-slate-950">Chon dich vu va nguoi dong hanh</h2>
-        <p className="mt-2 text-sm text-slate-500">Chi hien thi cac ho so companion da duoc admin duyet.</p>
+      <Card className="border-teal-100 bg-[#f7fffe]">
+        <p className="text-sm text-slate-500">Bước 2</p>
+        <h2 className="mt-1 font-bold text-slate-950">Chọn dịch vụ và người đồng hành</h2>
+        <p className="mt-2 text-sm text-slate-500">Chỉ hiển thị hồ sơ đã được admin duyệt.</p>
       </Card>
-      <Card>
-        <p className="text-sm text-slate-500">Buoc 3</p>
-        <h2 className="mt-1 font-bold text-slate-950">Theo doi ca lam</h2>
-        <p className="mt-2 text-sm text-slate-500">Xem trang thai, GPS, anh xac nhan, checklist va ghi chu.</p>
+      <Card className="border-teal-100 bg-[#f7fffe]">
+        <p className="text-sm text-slate-500">Bước 3</p>
+        <h2 className="mt-1 font-bold text-slate-950">Theo dõi ca làm</h2>
+        <p className="mt-2 text-sm text-slate-500">Xem trạng thái, GPS, ảnh xác nhận, checklist và ghi chú.</p>
       </Card>
     </div>
-  </>
+  </div>
 );
 
 export default CustomerHomePage;

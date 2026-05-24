@@ -7,14 +7,14 @@ const CustomerCompanionsPage = () => {
   const companions = data?.companions || [];
 
   return (
-    <>
-      <PageHeader title="Nguoi dong hanh" subtitle="Chi hien thi cac ho so da duoc admin duyet." />
-      {loading ? <p>Dang tai...</p> : null}
+    <div className="space-y-4">
+      <PageHeader title="Người đồng hành" subtitle="Chỉ hiển thị hồ sơ đã được admin duyệt." />
+      {loading ? <p>Đang tải...</p> : null}
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      {!loading && companions.length === 0 ? <EmptyState title="Chua co nguoi dong hanh da duyet" /> : null}
+      {!loading && companions.length === 0 ? <EmptyState title="Chưa có người đồng hành đã duyệt" /> : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {companions.map((item) => (
-          <Card key={item._id}>
+          <Card key={item._id} className="border-teal-100">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="font-bold text-slate-950">{item.fullName}</h2>
@@ -33,7 +33,7 @@ const CustomerCompanionsPage = () => {
           </Card>
         ))}
       </div>
-    </>
+    </div>
   );
 };
 

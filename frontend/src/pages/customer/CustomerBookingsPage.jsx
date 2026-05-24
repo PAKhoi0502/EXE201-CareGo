@@ -9,18 +9,18 @@ const CustomerBookingsPage = () => {
   const bookings = data?.bookings || [];
 
   return (
-    <>
+    <div className="space-y-4">
       <PageHeader
-        title="Lich cua toi"
-        subtitle="Theo doi tat ca ca cham soc da dat."
-        action={<Link to="/customer/bookings/new"><Button>Dat lich moi</Button></Link>}
+        title="Lịch của tôi"
+        subtitle="Theo dõi tất cả ca chăm sóc đã đặt."
+        action={<Link to="/customer/bookings/new"><Button>Đặt lịch mới</Button></Link>}
       />
-      {loading ? <p>Dang tai...</p> : null}
+      {loading ? <p>Đang tải...</p> : null}
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      {!loading && bookings.length === 0 ? <EmptyState title="Chua co booking" /> : null}
+      {!loading && bookings.length === 0 ? <EmptyState title="Chưa có lịch đặt" /> : null}
       <div className="grid gap-4">
         {bookings.map((booking) => (
-          <Card key={booking._id}>
+          <Card key={booking._id} className="border-teal-100">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -33,13 +33,13 @@ const CustomerBookingsPage = () => {
                 <p className="mt-1 text-sm font-semibold text-teal-700">{money(booking.totalAmount)}</p>
               </div>
               <Link to={`/customer/bookings/${booking._id}`}>
-                <Button variant="secondary">Xem chi tiet</Button>
+                <Button variant="secondary">Xem chi tiết</Button>
               </Link>
             </div>
           </Card>
         ))}
       </div>
-    </>
+    </div>
   );
 };
 

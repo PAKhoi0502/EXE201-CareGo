@@ -4,11 +4,11 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import LandingButton from "./LandingButton.jsx";
 
 const navItems = [
-  ["Dich vu", "#services"],
-  ["Quy trinh", "#steps"],
-  ["Nguoi dong hanh", "#companion-join"],
-  ["An toan", "#safety"],
-  ["Lien he", "#contact"],
+  ["Dịch vụ", "#services"],
+  ["Quy trình", "#steps"],
+  ["Người đồng hành", "#companion-join"],
+  ["An toàn", "#safety"],
+  ["Liên hệ", "#contact"],
 ];
 
 const getInitial = (name = "C") => name.trim().charAt(0).toUpperCase() || "C";
@@ -61,7 +61,7 @@ const LandingNavbar = () => {
                 <span className="hidden text-left sm:block">
                   <span className="block text-sm font-black text-[#12312f]">{user.name}</span>
                   <span className="block text-xs font-semibold text-slate-500">
-                    {isCustomer ? "Khach hang" : user.role}
+                    {isCustomer ? "Khách hàng" : user.role}
                   </span>
                 </span>
                 <span className="text-xs font-black text-teal-700">{open ? "^" : "v"}</span>
@@ -77,13 +77,13 @@ const LandingNavbar = () => {
                     {isCustomer ? (
                       <>
                         <Link onClick={() => setOpen(false)} to="/customer/bookings/new" className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">
-                          Dat lich cham soc
+                          Đặt lịch chăm sóc
                         </Link>
                         <Link onClick={() => setOpen(false)} to="/customer/bookings" className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">
-                          Lich cua toi
+                          Lịch của tôi
                         </Link>
                         <Link onClick={() => setOpen(false)} to="/customer/elders" className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">
-                          Ho so nguoi than
+                          Hồ sơ người thân
                         </Link>
                       </>
                     ) : null}
@@ -92,7 +92,7 @@ const LandingNavbar = () => {
                       onClick={handleLogout}
                       className="rounded-2xl px-4 py-3 text-left font-bold text-rose-600 hover:bg-rose-50"
                     >
-                      Dang xuat
+                      Đăng xuất
                     </button>
                   </div>
                 </div>
@@ -100,10 +100,10 @@ const LandingNavbar = () => {
             </div>
           ) : (
             <LandingButton to="/login" variant="secondary" className="hidden sm:inline-flex">
-              Dang nhap
+              Đăng nhập
             </LandingButton>
           )}
-          <LandingButton to={bookingPath}>Dat lich</LandingButton>
+          <LandingButton to={bookingPath}>Đặt lịch</LandingButton>
         </div>
       </div>
     </header>

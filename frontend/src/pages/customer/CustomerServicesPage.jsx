@@ -8,20 +8,20 @@ const CustomerServicesPage = () => {
   const services = data?.services || [];
 
   return (
-    <>
-      <PageHeader title="Dich vu CareGo" subtitle="Cac goi cham soc theo gio dang hoat dong." />
-      {loading ? <p>Dang tai...</p> : null}
+    <div className="space-y-4">
+      <PageHeader title="Dịch vụ CareGo" subtitle="Các gói chăm sóc theo giờ đang hoạt động." />
+      {loading ? <p>Đang tải...</p> : null}
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      {!loading && services.length === 0 ? <EmptyState title="Chua co dich vu" /> : null}
+      {!loading && services.length === 0 ? <EmptyState title="Chưa có dịch vụ" /> : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {services.map((service) => (
-          <Card key={service._id}>
+          <Card key={service._id} className="border-teal-100">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="font-bold text-slate-950">{service.name}</h2>
                 <p className="mt-1 text-sm text-slate-500">{service.description}</p>
               </div>
-              <p className="whitespace-nowrap text-sm font-bold text-teal-700">{money(service.pricePerHour)}/h</p>
+              <p className="whitespace-nowrap text-sm font-bold text-teal-700">{money(service.pricePerHour)}/giờ</p>
             </div>
             {service.defaultChecklist?.length ? (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -35,7 +35,7 @@ const CustomerServicesPage = () => {
           </Card>
         ))}
       </div>
-    </>
+    </div>
   );
 };
 

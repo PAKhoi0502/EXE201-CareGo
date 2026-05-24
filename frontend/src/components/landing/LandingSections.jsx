@@ -12,7 +12,7 @@ export const ServicesSection = () => (
   <section id="services" className="py-20">
     <div className="mx-auto w-[min(1180px,92%)]">
       <SectionHeader title="Dịch vụ nổi bật">
-        Homepage giới thiệu nhanh các dịch vụ chính để người dùng hiểu ngay CareGo giúp được gì cho gia đình.
+        Trang giới thiệu nêu nhanh các dịch vụ chính để gia đình hiểu ngay CareGo hỗ trợ được gì.
       </SectionHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -45,7 +45,7 @@ export const StepsSection = () => (
   <section id="steps" className="border-y border-teal-100 bg-white py-20">
     <div className="mx-auto w-[min(1180px,92%)]">
       <SectionHeader title="Quy trình đặt lịch đơn giản">
-        Luồng thao tác được thiết kế ngắn gọn để người dùng lớn tuổi hoặc con cái đều dễ sử dụng.
+        Luồng thao tác được thiết kế ngắn gọn để người lớn tuổi và con cái đều dễ sử dụng.
       </SectionHeader>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -69,7 +69,7 @@ export const SafetySection = () => (
       <div className="rounded-[34px] bg-teal-700 p-8 text-white shadow-2xl shadow-teal-800/20 lg:p-10">
         <h2 className="text-3xl font-black sm:text-4xl">An toàn là ưu tiên số 1</h2>
         <p className="mt-4 leading-7 text-white/85">
-          Vì CareGo liên quan trực tiếp đến người cao tuổi và sức khỏe, homepage cần nhấn mạnh sự tin cậy,
+          Vì CareGo liên quan trực tiếp đến người cao tuổi và sức khỏe, trang giới thiệu cần nhấn mạnh sự tin cậy,
           minh bạch và kiểm soát rủi ro.
         </p>
         <LandingButton href="#contact" variant="light" className="mt-7">
@@ -144,7 +144,7 @@ export const LandingFooter = () => (
           CareGo
         </div>
         <p className="mt-4 max-w-md text-sm leading-6 text-slate-500">
-          Nền tảng kết nối chăm sóc người cao tuổi theo giờ, giúp gia đình an tâm hơn trong giờ hành chính.
+          Nền tảng chăm sóc người cao tuổi theo giờ, giúp gia đình an tâm hơn trong giờ hành chính.
         </p>
       </div>
 

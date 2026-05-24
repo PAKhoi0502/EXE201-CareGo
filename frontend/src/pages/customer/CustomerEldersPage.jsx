@@ -44,40 +44,40 @@ const CustomerEldersPage = () => {
   };
 
   return (
-    <>
-      <PageHeader title="Ho so nguoi than" subtitle="Quan ly thong tin cham soc cua cha me/nguoi cao tuoi." />
+    <div className="space-y-6">
+      <PageHeader title="Hồ sơ người thân" subtitle="Quản lý thông tin chăm sóc của cha mẹ/người cao tuổi." />
       <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card>
-          <h2 className="mb-4 font-bold text-slate-950">Them ho so</h2>
+        <Card className="border-teal-100">
+          <h2 className="mb-4 font-bold text-slate-950">Thêm hồ sơ</h2>
           <form className="grid gap-4" onSubmit={submit}>
-            <Input label="Ho ten" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-            <Input label="Tuoi" type="number" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} />
-            <Input label="Dia chi" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            <Textarea label="Ghi chu y te" value={form.medicalNotes} onChange={(e) => setForm({ ...form, medicalNotes: e.target.value })} />
-            <Input label="Benh nen, cach nhau bang dau phay" value={form.chronicConditionsText} onChange={(e) => setForm({ ...form, chronicConditionsText: e.target.value })} />
+            <Input label="Họ tên" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+            <Input label="Tuổi" type="number" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} />
+            <Input label="Địa chỉ" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Textarea label="Ghi chú y tế" value={form.medicalNotes} onChange={(e) => setForm({ ...form, medicalNotes: e.target.value })} />
+            <Input label="Bệnh nền, cách nhau bằng dấu phẩy" value={form.chronicConditionsText} onChange={(e) => setForm({ ...form, chronicConditionsText: e.target.value })} />
             <div className="grid gap-3 sm:grid-cols-3">
-              <Input label="Lien he khan cap" value={form.emergencyName} onChange={(e) => setForm({ ...form, emergencyName: e.target.value })} />
-              <Input label="So dien thoai" value={form.emergencyPhone} onChange={(e) => setForm({ ...form, emergencyPhone: e.target.value })} />
-              <Input label="Quan he" value={form.emergencyRelationship} onChange={(e) => setForm({ ...form, emergencyRelationship: e.target.value })} />
+              <Input label="Liên hệ khẩn cấp" value={form.emergencyName} onChange={(e) => setForm({ ...form, emergencyName: e.target.value })} />
+              <Input label="Số điện thoại" value={form.emergencyPhone} onChange={(e) => setForm({ ...form, emergencyPhone: e.target.value })} />
+              <Input label="Quan hệ" value={form.emergencyRelationship} onChange={(e) => setForm({ ...form, emergencyRelationship: e.target.value })} />
             </div>
             {submitError ? <p className="text-sm text-rose-600">{submitError}</p> : null}
-            <Button>Them ho so</Button>
+            <Button>Thêm hồ sơ</Button>
           </form>
         </Card>
         <div className="grid gap-4">
-          {loading ? <p>Dang tai...</p> : null}
+          {loading ? <p>Đang tải...</p> : null}
           {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-          {!loading && elders.length === 0 ? <EmptyState title="Chua co ho so nguoi than" /> : null}
+          {!loading && elders.length === 0 ? <EmptyState title="Chưa có hồ sơ người thân" /> : null}
           {elders.map((elder) => (
-            <Card key={elder._id}>
+            <Card key={elder._id} className="border-teal-100">
               <h2 className="font-bold text-slate-950">{elder.fullName}</h2>
-              <p className="mt-1 text-sm text-slate-500">{elder.age} tuoi - {elder.address}</p>
-              <p className="mt-3 text-sm text-slate-600">{elder.medicalNotes || "Chua co ghi chu y te"}</p>
+              <p className="mt-1 text-sm text-slate-500">{elder.age} tuổi - {elder.address}</p>
+              <p className="mt-3 text-sm text-slate-600">{elder.medicalNotes || "Chưa có ghi chú y tế"}</p>
             </Card>
           ))}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

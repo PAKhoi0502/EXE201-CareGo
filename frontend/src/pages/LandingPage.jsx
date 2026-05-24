@@ -41,30 +41,30 @@ const LandingPage = () => {
           <div className="mx-auto grid w-[min(1180px,92%)] gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
             <div>
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-700">
-                Dich vu cham soc nguoi cao tuoi theo gio
+                Dịch vụ chăm sóc người cao tuổi theo giờ
               </div>
               <h1 className="max-w-3xl text-5xl font-black leading-tight text-[#12312f] sm:text-6xl lg:text-7xl">
-                An tam cham soc ba me cung <span className="text-teal-800">CareGo</span>
+                An tâm chăm sóc ba mẹ cùng <span className="text-teal-800">CareGo</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-500">
-                CareGo ket noi con cai ban ron voi nguoi dong hanh duoc xac thuc, giup ho tro ba me di kham benh,
-                nhac thuoc, di dao, tro chuyen va cap nhat tinh hinh theo thoi gian thuc.
+                CareGo kết nối con cái bận rộn với người đồng hành đã được xác thực, hỗ trợ ba mẹ đi khám bệnh,
+                nhắc thuốc, đi dạo, trò chuyện và cập nhật tình hình theo thời gian thực.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <LandingButton to={bookingPath}>Dat lich cham soc</LandingButton>
+                <LandingButton to={bookingPath}>Đặt lịch chăm sóc</LandingButton>
                 {servicePath ? (
                   <LandingButton to={servicePath} variant="secondary">
-                    Xem dich vu
+                    Xem dịch vụ
                   </LandingButton>
                 ) : (
                   <LandingButton href="#services" variant="secondary">
-                    Xem dich vu
+                    Xem dịch vụ
                   </LandingButton>
                 )}
                 {!user ? (
                   <LandingButton to="/companion-register" variant="secondary">
-                    Dang ky nguoi dong hanh
+                    Đăng ký người đồng hành
                   </LandingButton>
                 ) : null}
               </div>

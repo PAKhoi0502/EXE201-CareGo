@@ -65,15 +65,15 @@ const CustomerBookingDetailPage = () => {
     }
   };
 
-  if (loading) return <p>Dang tai...</p>;
+  if (loading) return <p>Đang tải...</p>;
   if (error) return <p className="text-sm text-rose-600">{error}</p>;
   if (!booking) return null;
 
   return (
     <>
-      <PageHeader title="Chi tiet ca cham soc" subtitle={`${booking.serviceId?.name} - ${dateTime(booking.startTime)}`} />
+      <PageHeader title="Chi tiết ca chăm sóc" subtitle={`${booking.serviceId?.name} - ${dateTime(booking.startTime)}`} />
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card>
+        <Card className="border-teal-100">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-bold text-slate-950">{booking.elderProfileId?.fullName}</h2>
@@ -82,48 +82,48 @@ const CustomerBookingDetailPage = () => {
             <StatusBadge status={booking.status} />
           </div>
           <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
-            <p><b>Nguoi dong hanh:</b> {booking.companionId?.name}</p>
-            <p><b>So gio:</b> {booking.durationHours}</p>
-            <p><b>Tong tien:</b> {money(booking.totalAmount)}</p>
-            <p><b>Phi nen tang:</b> {money(booking.platformFee)}</p>
+            <p><b>Người đồng hành:</b> {booking.companionId?.name}</p>
+            <p><b>Số giờ:</b> {booking.durationHours}</p>
+            <p><b>Tổng tiền:</b> {money(booking.totalAmount)}</p>
+            <p><b>Phí nền tảng:</b> {money(booking.platformFee)}</p>
           </div>
           <p className="mt-4 text-sm text-slate-600">{booking.note}</p>
           {booking.status !== "paid" ? (
-            <Button className="mt-5" onClick={pay}>Thanh toan prototype</Button>
+            <Button className="mt-5" onClick={pay}>Thanh toán (prototype)</Button>
           ) : null}
           {submitError ? <p className="mt-3 text-sm text-rose-600">{submitError}</p> : null}
         </Card>
 
-        <Card>
-          <h2 className="font-bold text-slate-950">Nhat ky ca lam</h2>
+        <Card className="border-teal-100">
+          <h2 className="font-bold text-slate-950">Nhật ký ca làm</h2>
           <div className="mt-4 space-y-3 text-sm">
-            <p><b>Anh check-in:</b> {shiftLog?.checkInPhotoUrl || "Chua co"}</p>
-            <p><b>Anh check-out:</b> {shiftLog?.checkOutPhotoUrl || "Chua co"}</p>
-            <p><b>Huyet ap:</b> {shiftLog?.healthMetrics?.bloodPressure || "Chua co"}</p>
-            <p><b>Nhip tim:</b> {shiftLog?.healthMetrics?.heartRate || "Chua co"}</p>
-            <p><b>Tam trang:</b> {shiftLog?.healthMetrics?.mood || "Chua co"}</p>
-            <p><b>Ghi chu:</b> {shiftLog?.companionNote || "Chua co"}</p>
+            <p><b>Ảnh check-in:</b> {shiftLog?.checkInPhotoUrl || "Chưa có"}</p>
+            <p><b>Ảnh check-out:</b> {shiftLog?.checkOutPhotoUrl || "Chưa có"}</p>
+            <p><b>Huyết áp:</b> {shiftLog?.healthMetrics?.bloodPressure || "Chưa có"}</p>
+            <p><b>Nhịp tim:</b> {shiftLog?.healthMetrics?.heartRate || "Chưa có"}</p>
+            <p><b>Tâm trạng:</b> {shiftLog?.healthMetrics?.mood || "Chưa có"}</p>
+            <p><b>Ghi chú:</b> {shiftLog?.companionNote || "Chưa có"}</p>
           </div>
         </Card>
 
-        <Card>
+        <Card className="border-teal-100">
           <h2 className="font-bold text-slate-950">Checklist</h2>
           <div className="mt-4 grid gap-2">
             {shiftLog?.checklist?.map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-md bg-slate-50 p-3 text-sm">
                 <span>{item.label}</span>
-                <span className={item.done ? "text-teal-700" : "text-slate-400"}>{item.done ? "Da xong" : "Chua"}</span>
+                <span className={item.done ? "text-teal-700" : "text-slate-400"}>{item.done ? "Đã xong" : "Chưa"}</span>
               </div>
             ))}
           </div>
         </Card>
 
-        <Card>
+        <Card className="border-teal-100">
           <h2 className="font-bold text-slate-950">GPS realtime</h2>
           <p className="mt-1 text-sm text-slate-500">
             {latestLocation
-              ? `Vi tri moi nhat: ${Number(latestLocation.lat).toFixed(6)}, ${Number(latestLocation.lng).toFixed(6)}`
-              : "Chua co vi tri."}
+              ? `Vị trí mới nhất: ${Number(latestLocation.lat).toFixed(6)}, ${Number(latestLocation.lng).toFixed(6)}`
+              : "Chưa có vị trí."}
           </p>
           <div className="mt-4">
             <LiveLocationMap location={latestLocation || serviceLocation} locations={allLocations} />
@@ -133,19 +133,19 @@ const CustomerBookingDetailPage = () => {
               <div key={`${location.lat}-${location.lng}-${location.recordedAt}`} className="rounded-md bg-slate-50 p-3">
                 {location.lat}, {location.lng} - {dateTime(location.recordedAt)}
               </div>
-            )) : <p className="text-slate-500">Chua co vi tri.</p>}
+            )) : <p className="text-slate-500">Chưa có vị trí.</p>}
           </div>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <h2 className="font-bold text-slate-950">Danh gia nguoi dong hanh</h2>
+        <Card className="lg:col-span-2 border-teal-100">
+          <h2 className="font-bold text-slate-950">Đánh giá người đồng hành</h2>
           {data?.review ? (
-            <p className="mt-3 text-sm text-slate-600">Ban da danh gia {data.review.rating}/5: {data.review.comment}</p>
+            <p className="mt-3 text-sm text-slate-600">Bạn đã đánh giá {data.review.rating}/5: {data.review.comment}</p>
           ) : (
             <form className="mt-4 grid gap-4" onSubmit={submitReview}>
-              <Input label="So sao" type="number" min="1" max="5" value={review.rating} onChange={(e) => setReview({ ...review, rating: e.target.value })} />
-              <Textarea label="Nhan xet" value={review.comment} onChange={(e) => setReview({ ...review, comment: e.target.value })} />
-              <Button className="w-fit">Gui danh gia</Button>
+              <Input label="Số sao" type="number" min="1" max="5" value={review.rating} onChange={(e) => setReview({ ...review, rating: e.target.value })} />
+              <Textarea label="Nhận xét" value={review.comment} onChange={(e) => setReview({ ...review, comment: e.target.value })} />
+              <Button className="w-fit">Gửi đánh giá</Button>
             </form>
           )}
         </Card>
