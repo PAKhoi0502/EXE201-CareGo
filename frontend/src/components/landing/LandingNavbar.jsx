@@ -52,6 +52,7 @@ const LandingNavbar = () => {
             <div className="relative">
               <button
                 type="button"
+                aria-expanded={open}
                 onClick={() => setOpen((current) => !current)}
                 className="flex items-center gap-3 rounded-full border border-teal-100 bg-white py-2 pl-2 pr-4 shadow-lg shadow-teal-900/5 transition hover:border-teal-300"
               >
@@ -64,34 +65,63 @@ const LandingNavbar = () => {
                     {isCustomer ? "Khách hàng" : user.role}
                   </span>
                 </span>
-                <span className="text-xs font-black text-teal-700">{open ? "^" : "v"}</span>
+                <span className={`grid h-6 w-6 place-items-center rounded-full bg-teal-50 text-teal-700 transition ${open ? "rotate-180" : "rotate-0"}`}>
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
               </button>
 
               {open ? (
-                <div className="absolute right-0 mt-3 w-64 overflow-hidden rounded-3xl border border-teal-100 bg-white shadow-2xl shadow-teal-900/15">
-                  <div className="border-b border-teal-50 p-4">
-                    <p className="font-black text-[#12312f]">{user.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{user.email}</p>
+                <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-[28px] border border-teal-100 bg-white shadow-2xl shadow-teal-900/15">
+                  <div className="border-b border-teal-50 bg-gradient-to-r from-teal-50 to-sky-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-base font-black text-teal-700 shadow-sm">
+                        {getInitial(user.name)}
+                      </span>
+                      <div>
+                        <p className="font-black text-[#12312f]">{user.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{user.email}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid p-2 text-sm font-bold text-slate-600">
+
+                  <div className="grid gap-1 p-2 text-sm font-bold text-slate-600">
                     {isCustomer ? (
                       <>
-                        <Link onClick={() => setOpen(false)} to="/customer/bookings/new" className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">
+                        <Link
+                          onClick={() => setOpen(false)}
+                          to="/customer/bookings/new"
+                          className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                        >
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">+</span>
                           Đặt lịch chăm sóc
                         </Link>
-                        <Link onClick={() => setOpen(false)} to="/customer/bookings" className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">
+                        <Link
+                          onClick={() => setOpen(false)}
+                          to="/customer/bookings"
+                          className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                        >
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">🗓</span>
                           Lịch của tôi
                         </Link>
-                        <Link onClick={() => setOpen(false)} to="/customer/elders" className="rounded-2xl px-4 py-3 hover:bg-teal-50 hover:text-teal-800">
+                        <Link
+                          onClick={() => setOpen(false)}
+                          to="/customer/elders"
+                          className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                        >
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">👪</span>
                           Hồ sơ người thân
                         </Link>
                       </>
                     ) : null}
+                    <div className="my-1 h-px bg-teal-50" />
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="rounded-2xl px-4 py-3 text-left font-bold text-rose-600 hover:bg-rose-50"
+                      className="flex items-center gap-2 rounded-2xl px-4 py-3 text-left font-bold text-rose-600 transition hover:bg-rose-50"
                     >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-rose-50 text-rose-600">⎋</span>
                       Đăng xuất
                     </button>
                   </div>
