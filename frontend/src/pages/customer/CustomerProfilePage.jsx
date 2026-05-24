@@ -153,7 +153,7 @@ const CustomerProfilePage = () => {
             </div>
           )}
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          {/* <div className="mt-5 flex flex-wrap gap-3">
             <Link to="/customer/bookings/new">
               <Button>Đặt lịch chăm sóc</Button>
             </Link>
@@ -163,7 +163,7 @@ const CustomerProfilePage = () => {
             <Link to="/customer/bookings">
               <Button variant="secondary">Xem lịch của tôi</Button>
             </Link>
-          </div>
+          </div> */}
         </Card>
       </div>
     </div>
