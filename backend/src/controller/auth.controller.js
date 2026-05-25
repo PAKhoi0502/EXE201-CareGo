@@ -386,6 +386,85 @@ export const updateCurrentUser = async (req, res) => {
   }
 };
 
+export const requestCurrentUserPasswordOtp = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "currentPassword and newPassword are required" });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: "new password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+
+    const isMatched = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatched) {
+      return res.status(400).json({ message: "current password is incorrect" });
+    }
+
+    const otpPayload = await createOtpPayload();
+    user.pendingPasswordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordChangeOtpHash = otpPayload.emailOtpHash;
+    user.passwordChangeOtpExpires = otpPayload.emailOtpExpires;
+    await user.save();
+
+    await sendOtpEmail({ to: user.email, name: user.name, otp: otpPayload.otp });
+
+    return res.status(200).json({
+      message: "otp has been sent to your email",
+      email: user.email,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
+  }
+};
+
+export const changeCurrentUserPassword = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { otp } = req.body;
+
+    if (!otp) {
+      return res.status(400).json({ message: "otp is required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+
+    if (!user.pendingPasswordHash || !user.passwordChangeOtpHash || !user.passwordChangeOtpExpires) {
+      return res.status(400).json({ message: "please request a password change otp first" });
+    }
+
+    if (user.passwordChangeOtpExpires < new Date()) {
+      return res.status(400).json({ message: "otp expired, please request a new otp" });
+    }
+
+    const isMatched = await verifyOtp(otp, user.passwordChangeOtpHash);
+    if (!isMatched) {
+      return res.status(400).json({ message: "invalid otp" });
+    }
+
+    user.password = user.pendingPasswordHash;
+    user.pendingPasswordHash = undefined;
+    user.passwordChangeOtpHash = undefined;
+    user.passwordChangeOtpExpires = undefined;
+    await user.save();
+
+    return res.status(200).json({ message: "password changed successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
+  }
+};
+
 // forget password
 export const forgetpasswordController = async (req, res) => {
   try {

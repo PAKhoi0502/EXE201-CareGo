@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
+import { api } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Button, Card, Input, PageHeader } from "../../components/Ui.jsx";
 import { dateTime } from "../../utils/format.js";
@@ -19,6 +20,16 @@ const CustomerProfilePage = () => {
   const [form, setForm] = useState({ name: "", phone: "" });
   const [submitError, setSubmitError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+    otp: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordOtpSent, setPasswordOtpSent] = useState(false);
 
   useEffect(() => {
     setForm({
@@ -41,6 +52,56 @@ const CustomerProfilePage = () => {
       setSubmitError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const requestPasswordOtp = async (event) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.post("/auth/current-user/password/request-otp", {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordOtpSent(true);
+      setPasswordSuccess("Mã OTP đã được gửi đến email của bạn.");
+    } catch (err) {
+      setPasswordError(err.message);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const confirmPasswordChange = async (event) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    setChangingPassword(true);
+    try {
+      await api.patch("/auth/current-user/password", {
+        otp: passwordForm.otp,
+      });
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+        otp: "",
+      });
+      setPasswordOtpSent(false);
+      setPasswordSuccess("Đổi mật khẩu thành công.");
+    } catch (err) {
+      setPasswordError(err.message);
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -169,6 +230,65 @@ const CustomerProfilePage = () => {
           </div> */}
         </Card>
       </div>
+
+      <Card className="border-emerald-100 bg-white/95 p-6 shadow-xl shadow-emerald-900/10">
+        <div className="mb-5 rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-sky-50 p-4">
+          <h2 className="text-xl font-black text-[#12312f]">Đổi mật khẩu</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Nhập mật khẩu hiện tại để đặt mật khẩu mới cho tài khoản customer.
+          </p>
+        </div>
+
+        <form className="grid gap-4" onSubmit={passwordOtpSent ? confirmPasswordChange : requestPasswordOtp}>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Input
+              label="Mật khẩu hiện tại"
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(event) => setPasswordForm({ ...passwordForm, currentPassword: event.target.value })}
+              required
+            />
+            <Input
+              label="Mật khẩu mới"
+              type="password"
+              minLength="6"
+              value={passwordForm.newPassword}
+              onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })}
+              required
+            />
+            <Input
+              label="Nhập lại mật khẩu mới"
+              type="password"
+              minLength="6"
+              value={passwordForm.confirmPassword}
+              onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })}
+              required
+            />
+          </div>
+
+          {passwordOtpSent ? (
+            <div className="rounded-[18px] border border-emerald-100 bg-emerald-50 p-4">
+              <Input
+                label="Mã OTP xác nhận"
+                value={passwordForm.otp}
+                onChange={(event) => setPasswordForm({ ...passwordForm, otp: event.target.value })}
+                placeholder="Nhập mã OTP trong email"
+                required
+              />
+              <p className="mt-2 text-xs font-semibold text-emerald-700">
+                Chúng tôi đã gửi OTP đến email {user?.email}. Nhập OTP để hoàn tất đổi mật khẩu.
+              </p>
+            </div>
+          ) : null}
+
+          {passwordError ? <p className="text-sm font-semibold text-rose-600">{passwordError}</p> : null}
+          {passwordSuccess ? <p className="text-sm font-semibold text-emerald-700">{passwordSuccess}</p> : null}
+
+          <Button type="submit" className="w-fit" disabled={changingPassword}>
+            {changingPassword ? "Đang đổi..." : "Đổi mật khẩu"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 };

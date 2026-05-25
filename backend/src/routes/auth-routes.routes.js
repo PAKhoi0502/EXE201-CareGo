@@ -1,10 +1,12 @@
 import express from "express";
 import {
+  changeCurrentUserPassword,
   forgetpasswordController,
   getCurrentUser,
   loginController,
   logoutController,
   refreshTokenController,
+  requestCurrentUserPasswordOtp,
   resendEmailOtpController,
   resetPasswordController,
   signupController,
@@ -25,6 +27,8 @@ router.post("/logout", verifyToken, logoutController);
 router.post("/refresh-token", refreshTokenController);
 router.get("/current-user", verifyToken, getCurrentUser);
 router.patch("/current-user", verifyToken, updateCurrentUser);
+router.post("/current-user/password/request-otp", verifyToken, requestCurrentUserPasswordOtp);
+router.patch("/current-user/password", verifyToken, changeCurrentUserPassword);
 router.post("/forget-password", forgetpasswordController);
 router.post("/reset-password/:token", resetPasswordController);
 export default router;

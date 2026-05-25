@@ -52,6 +52,15 @@ const UserSchema = new mongoose.Schema(
     emailOtpExpires: {
       type: Date,
     },
+    passwordChangeOtpHash: {
+      type: String,
+    },
+    passwordChangeOtpExpires: {
+      type: Date,
+    },
+    pendingPasswordHash: {
+      type: String,
+    },
     refreshToken: {
       type: String,
     },
