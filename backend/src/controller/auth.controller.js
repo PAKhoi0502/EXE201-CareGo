@@ -350,7 +350,7 @@ export const getCurrentUser = async (req, res) => {
 export const updateCurrentUser = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { name, phone } = req.body;
+    const { name, phone, avatarUrl } = req.body;
 
     const updates = {};
     if (name !== undefined) {
@@ -362,6 +362,12 @@ export const updateCurrentUser = async (req, res) => {
     }
     if (phone !== undefined) {
       updates.phone = String(phone).trim();
+    }
+    if (avatarUrl !== undefined) {
+      updates.avatar = {
+        url: String(avatarUrl).trim(),
+        alt: "user avatar",
+      };
     }
 
     const user = await User.findByIdAndUpdate(userId, updates, {

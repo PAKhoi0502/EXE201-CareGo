@@ -13,6 +13,19 @@ const navItems = [
 
 const getInitial = (name = "C") => name.trim().charAt(0).toUpperCase() || "C";
 
+const UserAvatar = ({ user, className = "h-10 w-10", fallbackClassName = "" }) =>
+  user?.avatar?.url ? (
+    <img
+      src={user.avatar.url}
+      alt={user.avatar.alt || user.name || "Avatar"}
+      className={`${className} rounded-full object-cover ${fallbackClassName}`}
+    />
+  ) : (
+    <span className={`grid ${className} place-items-center rounded-full bg-gradient-to-br from-teal-100 to-sky-100 text-sm font-black text-teal-800 ${fallbackClassName}`}>
+      {getInitial(user?.name)}
+    </span>
+  );
+
 const LandingNavbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -56,9 +69,7 @@ const LandingNavbar = () => {
                 onClick={() => setOpen((current) => !current)}
                 className="flex items-center gap-3 rounded-full border border-teal-100 bg-white py-2 pl-2 pr-4 shadow-lg shadow-teal-900/5 transition hover:border-teal-300"
               >
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-teal-100 to-sky-100 text-sm font-black text-teal-800">
-                  {getInitial(user.name)}
-                </span>
+                <UserAvatar user={user} />
                 <span className="hidden text-left sm:block">
                   <span className="block text-sm font-black text-[#12312f]">{user.name}</span>
                   <span className="block text-xs font-semibold text-slate-500">
@@ -76,9 +87,7 @@ const LandingNavbar = () => {
                 <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-[28px] border border-teal-100 bg-white shadow-2xl shadow-teal-900/15">
                   <div className="border-b border-teal-50 bg-gradient-to-r from-teal-50 to-sky-50 p-4">
                     <div className="flex items-center gap-3">
-                      <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-base font-black text-teal-700 shadow-sm">
-                        {getInitial(user.name)}
-                      </span>
+                      <UserAvatar user={user} className="h-11 w-11" fallbackClassName="bg-white text-base text-teal-700 shadow-sm" />
                       <div>
                         <p className="font-black text-[#12312f]">{user.name}</p>
                         <p className="mt-1 text-xs text-slate-500">{user.email}</p>

@@ -1,8 +1,9 @@
 import { Link } from "react-router";
-import { useEffect, useState } from "react";
-import { api } from "../../api/client.js";
+import { useEffect, useRef, useState } from "react";
+import { api, uploadImage } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Button, Card, Input, PageHeader } from "../../components/Ui.jsx";
+import ImageUpload from "../../components/ImageUpload.jsx";
 import { dateTime } from "../../utils/format.js";
 
 const getInitials = (name = "CG") =>
@@ -17,7 +18,7 @@ const getInitials = (name = "CG") =>
 const CustomerProfilePage = () => {
   const { user, updateProfile } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [form, setForm] = useState({ name: "", phone: "", avatarUrl: "" });
   const [submitError, setSubmitError] = useState("");
   const [saving, setSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -30,11 +31,15 @@ const CustomerProfilePage = () => {
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordOtpSent, setPasswordOtpSent] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const avatarInputRef = useRef(null);
 
   useEffect(() => {
     setForm({
       name: user?.name || "",
       phone: user?.phone || "",
+      avatarUrl: user?.avatar?.url || "",
     });
   }, [user]);
 
@@ -46,12 +51,34 @@ const CustomerProfilePage = () => {
       await updateProfile({
         name: form.name,
         phone: form.phone,
+        avatarUrl: form.avatarUrl,
       });
       setEditing(false);
     } catch (err) {
       setSubmitError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const updateAvatar = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    setAvatarError("");
+    try {
+      const data = await uploadImage({ file, folder: "carego/avatars" });
+      await updateProfile({
+        name: user?.name,
+        phone: user?.phone || "",
+        avatarUrl: data.url,
+      });
+    } catch (err) {
+      setAvatarError(err.message);
+    } finally {
+      setAvatarUploading(false);
+      event.target.value = "";
     }
   };
 
@@ -129,9 +156,35 @@ const CustomerProfilePage = () => {
             <div className="absolute -right-8 top-6 h-24 w-24 rounded-full bg-white/10" />
             <div className="absolute -left-10 bottom-0 h-28 w-28 rounded-full bg-white/10" />
             <div className="relative flex items-center gap-4">
-              <div className="grid h-20 w-20 place-items-center rounded-[26px] bg-white text-2xl font-black text-emerald-700 shadow-lg shadow-emerald-950/10">
-                {getInitials(user?.name)}
-              </div>
+              <button
+                type="button"
+                className="group relative h-20 w-20 overflow-hidden rounded-[26px] bg-white text-2xl font-black text-emerald-700 shadow-lg shadow-emerald-950/10 ring-4 ring-white/80 transition hover:scale-[1.02]"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarUploading}
+                title="Đổi ảnh đại diện"
+              >
+                {user?.avatar?.url ? (
+                  <img
+                    src={user.avatar.url}
+                    alt={user.avatar.alt || user?.name || "Avatar"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="grid h-full w-full place-items-center">{getInitials(user?.name)}</span>
+                )}
+                <span className="absolute inset-x-0 bottom-0 bg-slate-950/60 px-1 py-1 text-center text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">
+                  {avatarUploading ? "Đang tải..." : "Đổi ảnh"}
+                </span>
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={updateAvatar}
+              />
+              
               <div>
                 <p className="text-sm font-semibold text-white/80">Khách hàng CareGo</p>
                 <h2 className="mt-1 text-2xl font-black">{user?.name || "Khách hàng"}</h2>
