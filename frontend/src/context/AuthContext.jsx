@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const userId = user?.id || user?._id;
+  const isCompanion = user?.role === "companion";
 
   useEffect(() => {
     const loadMe = async () => {
@@ -72,6 +73,9 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     if (userId) {
+      if (isCompanion) {
+        locationSocket.emit("companion:gps:stop", { companionId: userId });
+      }
       locationSocket.emit("user:offline");
       locationSocket.disconnect();
     }
@@ -101,6 +105,47 @@ export const AuthProvider = ({ children }) => {
       locationSocket.emit("user:offline");
     };
   }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !isCompanion) return undefined;
+
+    locationSocket.connect();
+
+    if (!navigator.geolocation) {
+      locationSocket.emit("companion:gps:stop", { companionId: userId });
+      return undefined;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        locationSocket.emit("companion:gps:update", {
+          companionId: userId,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        locationSocket.emit("companion:gps:stop", { companionId: userId });
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 15000,
+      },
+    );
+
+    const stopGps = () => {
+      locationSocket.emit("companion:gps:stop", { companionId: userId });
+    };
+
+    window.addEventListener("beforeunload", stopGps);
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      window.removeEventListener("beforeunload", stopGps);
+      stopGps();
+    };
+  }, [userId, isCompanion]);
 
   const value = useMemo(
     () => ({

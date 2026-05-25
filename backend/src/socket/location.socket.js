@@ -164,6 +164,26 @@ export const setupLocationSocket = (io) => {
       }
     });
 
+    socket.on("companion:gps:update", ({ companionId, lat, lng }) => {
+      if (!companionId || lat === undefined || lng === undefined) {
+        return;
+      }
+
+      setCompanionGpsStatus(socket, companionId, {
+        isGpsOn: true,
+        lat: Number(lat),
+        lng: Number(lng),
+        lastSeenAt: new Date(),
+      });
+    });
+
+    socket.on("companion:gps:stop", ({ companionId }) => {
+      setCompanionGpsStatus(socket, companionId, {
+        isGpsOn: false,
+        lastSeenAt: new Date(),
+      });
+    });
+
     socket.on("location:stop", async ({ bookingId, companionId }) => {
       const resolvedCompanionId = await resolveCompanionId(bookingId, companionId);
       setCompanionGpsStatus(socket, resolvedCompanionId, {

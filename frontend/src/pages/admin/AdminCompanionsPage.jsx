@@ -52,6 +52,23 @@ const OnlineBadge = ({ status }) => (
   </span>
 );
 
+const RealtimeStatusCard = ({ gpsStatus, onlineStatus }) => (
+  <div className="min-w-44 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+    <div className="flex flex-wrap gap-1.5">
+      <OnlineBadge status={onlineStatus} />
+      <GpsBadge status={gpsStatus} />
+    </div>
+    <p className="mt-2 text-[11px] font-semibold text-slate-500">
+      {gpsStatus?.lastSeenAt ? `GPS cập nhật: ${dateTime(gpsStatus.lastSeenAt)}` : "Chưa có tín hiệu GPS"}
+    </p>
+    {gpsStatus?.isGpsOn && gpsStatus?.lat && gpsStatus?.lng ? (
+      <p className="mt-1 text-[11px] text-slate-400">
+        {Number(gpsStatus.lat).toFixed(5)}, {Number(gpsStatus.lng).toFixed(5)}
+      </p>
+    ) : null}
+  </div>
+);
+
 const AdminCompanionsPage = () => {
   const { data, reload, error } = useAsync(() => api.get("/companions/admin/all"), []);
   const [form, setForm] = useState(emptyForm);
@@ -104,6 +121,8 @@ const AdminCompanionsPage = () => {
   const pendingCount = companions.filter((item) => item.vettingStatus === "pending").length;
   const approvedCount = companions.filter((item) => item.vettingStatus === "approved").length;
   const suspendedCount = companions.filter((item) => item.vettingStatus === "suspended").length;
+  const onlineCount = companions.filter((item) => getOnlineStatus(item)?.isOnline).length;
+  const gpsOnCount = companions.filter((item) => getGpsStatus(item)?.isGpsOn).length;
 
   const closeCreateModal = () => {
     setIsCreateModalOpen(false);
@@ -159,7 +178,7 @@ const AdminCompanionsPage = () => {
 
       {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Tổng companion</span>
           <p className="mt-2 text-2xl font-bold text-slate-900">{companions.length}</p>
@@ -175,6 +194,10 @@ const AdminCompanionsPage = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Tạm khóa</span>
           <p className="mt-2 text-2xl font-bold text-rose-600">{suspendedCount}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
+          <span className="block text-xs font-medium text-emerald-600">GPS đang bật / Online</span>
+          <p className="mt-2 text-2xl font-bold text-emerald-700">{gpsOnCount} / {onlineCount}</p>
         </div>
       </div>
 
@@ -214,6 +237,7 @@ const AdminCompanionsPage = () => {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/50 text-xs font-semibold uppercase text-slate-400">
                 <th className="p-4">Companion</th>
+                <th className="p-4">Online / GPS</th>
                 <th className="p-4">Hồ sơ đào tạo</th>
                 <th className="p-4">Kỹ năng / Khu vực</th>
                 <th className="p-4">Hiệu suất</th>
@@ -235,11 +259,12 @@ const AdminCompanionsPage = () => {
                         <p className="text-[11px] text-slate-400">{item.phone || "Chua co SDT"}</p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           <AccountLockBadge active={item.userId?.isActive} />
-                          <OnlineBadge status={getOnlineStatus(item)} />
-                          <GpsBadge status={getGpsStatus(item)} />
                         </div>
                       </div>
                     </div>
+                  </td>
+                  <td className="p-4">
+                    <RealtimeStatusCard gpsStatus={getGpsStatus(item)} onlineStatus={getOnlineStatus(item)} />
                   </td>
                   <td className="p-4">
                     <p className="font-semibold text-slate-700">{item.university || "Chua cap nhat truong"}</p>
@@ -303,7 +328,7 @@ const AdminCompanionsPage = () => {
               ))}
               {!filteredCompanions.length ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-sm text-slate-400">
+                  <td colSpan="7" className="p-8 text-center text-sm text-slate-400">
                     Không tìm thấy người đồng hành phù hợp.
                   </td>
                 </tr>
@@ -383,7 +408,19 @@ const AdminCompanionsPage = () => {
                 <OnlineBadge status={getOnlineStatus(selectedCompanion)} />
               </DetailItem>
               <DetailItem label="Trang thai GPS">
-                <GpsBadge status={getGpsStatus(selectedCompanion)} />
+                <div className="space-y-2">
+                  <GpsBadge status={getGpsStatus(selectedCompanion)} />
+                  <p className="text-xs text-slate-500">
+                    {getGpsStatus(selectedCompanion)?.lastSeenAt
+                      ? `Cập nhật cuối: ${dateTime(getGpsStatus(selectedCompanion).lastSeenAt)}`
+                      : "Chưa có tín hiệu GPS"}
+                  </p>
+                  {getGpsStatus(selectedCompanion)?.isGpsOn && getGpsStatus(selectedCompanion)?.lat ? (
+                    <p className="text-xs text-slate-500">
+                      Tọa độ: {Number(getGpsStatus(selectedCompanion).lat).toFixed(6)}, {Number(getGpsStatus(selectedCompanion).lng).toFixed(6)}
+                    </p>
+                  ) : null}
+                </div>
               </DetailItem>
               <DetailItem
                 label="Danh gia"
