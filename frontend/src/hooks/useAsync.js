@@ -22,5 +22,5 @@ export const useAsync = (loader, deps = []) => {
     reload();
   }, [reload]);
 
-  return { data, loading, error, reload };
+  return { data, setData, loading, error, reload };
 };

@@ -70,7 +70,7 @@ const DetailItem = ({ number, title, children }) => (
 
 const CompanionBookingDetailPage = () => {
   const { id } = useParams();
-  const { data, loading, error, reload } = useAsync(() => api.get(`/bookings/${id}`), [id]);
+  const { data, setData, loading, error } = useAsync(() => api.get(`/bookings/${id}`), [id]);
   const [shift, setShift] = useState({
     checkInPhotoUrl: "",
     checkOutPhotoUrl: "",
@@ -185,16 +185,48 @@ const CompanionBookingDetailPage = () => {
     return false;
   };
 
-  const updateStatus = async (nextStatus) => {
-    if (!ensureGps()) return false;
+  const keepScrollPosition = () => {
+    const scrollY = window.scrollY;
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const activeTop = activeElement?.getBoundingClientRect().top;
 
+    return () => {
+      requestAnimationFrame(() => {
+        if (activeElement && activeTop !== undefined && document.contains(activeElement)) {
+          const nextTop = activeElement.getBoundingClientRect().top;
+          window.scrollBy({ top: nextTop - activeTop, behavior: "auto" });
+          return;
+        }
+
+        window.scrollTo({ top: scrollY, behavior: "auto" });
+      });
+    };
+  };
+
+  const updateStatus = async (nextStatus, { requireGps = true } = {}) => {
+    if (requireGps && !ensureGps()) return false;
+
+    const restoreScroll = keepScrollPosition();
     setSubmitError("");
     try {
-      await api.patch(`/bookings/${id}/status`, { status: nextStatus });
-      await reload();
+      const response = await api.patch(`/bookings/${id}/status`, { status: nextStatus });
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              booking: {
+                ...current.booking,
+                status: response.booking?.status || nextStatus,
+                updatedAt: response.booking?.updatedAt || current.booking?.updatedAt,
+              },
+            }
+          : current,
+      );
+      restoreScroll();
       return true;
     } catch (err) {
       setSubmitError(err.message);
+      restoreScroll();
       return false;
     }
   };
@@ -202,9 +234,10 @@ const CompanionBookingDetailPage = () => {
   const updateShift = async (nextChecklist = checklist, nextShift = shift) => {
     if (!ensureGps()) return false;
 
+    const restoreScroll = keepScrollPosition();
     setSubmitError("");
     try {
-      await api.patch(`/bookings/${id}/shift-log`, {
+      const response = await api.patch(`/bookings/${id}/shift-log`, {
         checkInPhotoUrl: nextShift.checkInPhotoUrl,
         checkOutPhotoUrl: nextShift.checkOutPhotoUrl,
         checklist: nextChecklist,
@@ -215,15 +248,36 @@ const CompanionBookingDetailPage = () => {
         },
         companionNote: nextShift.companionNote,
       });
-      await reload();
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              shiftLog: {
+                ...(current.shiftLog || {}),
+                ...(response.shiftLog || {}),
+                checkInPhotoUrl: response.shiftLog?.checkInPhotoUrl ?? nextShift.checkInPhotoUrl,
+                checkOutPhotoUrl: response.shiftLog?.checkOutPhotoUrl ?? nextShift.checkOutPhotoUrl,
+                checklist: response.shiftLog?.checklist || nextChecklist,
+                healthMetrics: response.shiftLog?.healthMetrics || {
+                  bloodPressure: nextShift.bloodPressure,
+                  heartRate: Number(nextShift.heartRate || 0),
+                  mood: nextShift.mood,
+                },
+                companionNote: response.shiftLog?.companionNote ?? nextShift.companionNote,
+              },
+            }
+          : current,
+      );
+      restoreScroll();
       return true;
     } catch (err) {
       setSubmitError(err.message);
+      restoreScroll();
       return false;
     }
   };
 
-  const acceptBooking = () => updateStatus("accepted");
+  const acceptBooking = () => updateStatus("accepted", { requireGps: false });
 
   const checkInShift = async () => {
     if (!hasSavedCheckInPhoto) {
@@ -393,7 +447,7 @@ const CompanionBookingDetailPage = () => {
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <Button className="min-h-12 rounded-full font-black" onClick={acceptBooking} disabled={booking.status !== "pending" || !gpsReady}>
+                <Button className="min-h-12 rounded-full font-black" onClick={acceptBooking} disabled={booking.status !== "pending"}>
                   Nhận đơn
                 </Button>
                 {booking.status === "pending" ? (
@@ -409,7 +463,7 @@ const CompanionBookingDetailPage = () => {
                     Mở chỉ đường
                   </a>
                 )}
-                <Button className="min-h-12 rounded-full font-black" variant="danger" onClick={() => updateStatus("cancelled")} disabled={booking.status !== "pending"}>
+                <Button className="min-h-12 rounded-full font-black" variant="danger" onClick={() => updateStatus("cancelled", { requireGps: false })} disabled={booking.status !== "pending"}>
                   Từ chối
                 </Button>
               </div>
