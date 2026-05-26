@@ -266,7 +266,7 @@ const CustomerBookingDetailPage = () => {
             <Card className="rounded-[32px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-black">GPS realtime</h2>
+                  <h2 className="text-2xl font-black">GPS Người Đồng Hành</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     {latestLocation
                       ? `Vị trí mới nhất: ${Number(latestLocation.lat).toFixed(6)}, ${Number(latestLocation.lng).toFixed(6)}`
