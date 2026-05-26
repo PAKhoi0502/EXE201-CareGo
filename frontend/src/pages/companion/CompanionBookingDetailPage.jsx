@@ -72,8 +72,8 @@ const CompanionBookingDetailPage = () => {
   const { id } = useParams();
   const { data, setData, loading, error } = useAsync(() => api.get(`/bookings/${id}`), [id]);
   const [shift, setShift] = useState({
-    checkInPhotoUrl: "",
-    checkOutPhotoUrl: "",
+    checkInPhotoUrl: [],
+    checkOutPhotoUrl: [],
     bloodPressure: "",
     heartRate: "",
     mood: "",
@@ -90,12 +90,12 @@ const CompanionBookingDetailPage = () => {
   const companionUserId = booking?.companionId?._id || booking?.companionId;
   const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
   const checklist = useMemo(() => shiftLog?.checklist || [], [shiftLog]);
-  const savedCheckInPhotoUrl = shiftLog?.checkInPhotoUrl || "";
-  const hasSavedCheckInPhoto = Boolean(savedCheckInPhotoUrl);
-  const hasCheckInPhoto = Boolean(savedCheckInPhotoUrl || shift.checkInPhotoUrl);
-  const savedCheckOutPhotoUrl = shiftLog?.checkOutPhotoUrl || "";
-  const hasSavedCheckOutPhoto = Boolean(savedCheckOutPhotoUrl);
-  const hasCheckOutPhoto = Boolean(savedCheckOutPhotoUrl || shift.checkOutPhotoUrl);
+  const savedCheckInPhotoUrls = Array.isArray(shiftLog?.checkInPhotoUrl) ? shiftLog.checkInPhotoUrl : [];
+  const hasSavedCheckInPhoto = savedCheckInPhotoUrls.length > 0;
+  const hasCheckInPhoto = hasSavedCheckInPhoto || shift.checkInPhotoUrl.length > 0;
+  const savedCheckOutPhotoUrls = Array.isArray(shiftLog?.checkOutPhotoUrl) ? shiftLog.checkOutPhotoUrl : [];
+  const hasSavedCheckOutPhoto = savedCheckOutPhotoUrls.length > 0;
+  const hasCheckOutPhoto = hasSavedCheckOutPhoto || shift.checkOutPhotoUrl.length > 0;
   const hasRealtimeNote = Boolean(shift.companionNote?.trim());
   const hasSavedRealtimeNote = Boolean(shiftLog?.companionNote?.trim());
   const hasChecklist = checklist.length > 0;
@@ -170,8 +170,8 @@ const CompanionBookingDetailPage = () => {
     if (!shiftLog) return;
 
     setShift({
-      checkInPhotoUrl: shiftLog.checkInPhotoUrl || "",
-      checkOutPhotoUrl: shiftLog.checkOutPhotoUrl || "",
+      checkInPhotoUrl: Array.isArray(shiftLog.checkInPhotoUrl) ? shiftLog.checkInPhotoUrl : [],
+      checkOutPhotoUrl: Array.isArray(shiftLog.checkOutPhotoUrl) ? shiftLog.checkOutPhotoUrl : [],
       bloodPressure: shiftLog.healthMetrics?.bloodPressure || "",
       heartRate: shiftLog.healthMetrics?.heartRate || "",
       mood: shiftLog.healthMetrics?.mood || "",
@@ -213,13 +213,13 @@ const CompanionBookingDetailPage = () => {
       setData((current) =>
         current
           ? {
-              ...current,
-              booking: {
-                ...current.booking,
-                status: response.booking?.status || nextStatus,
-                updatedAt: response.booking?.updatedAt || current.booking?.updatedAt,
-              },
-            }
+            ...current,
+            booking: {
+              ...current.booking,
+              status: response.booking?.status || nextStatus,
+              updatedAt: response.booking?.updatedAt || current.booking?.updatedAt,
+            },
+          }
           : current,
       );
       restoreScroll();
@@ -251,21 +251,21 @@ const CompanionBookingDetailPage = () => {
       setData((current) =>
         current
           ? {
-              ...current,
-              shiftLog: {
-                ...(current.shiftLog || {}),
-                ...(response.shiftLog || {}),
-                checkInPhotoUrl: response.shiftLog?.checkInPhotoUrl ?? nextShift.checkInPhotoUrl,
-                checkOutPhotoUrl: response.shiftLog?.checkOutPhotoUrl ?? nextShift.checkOutPhotoUrl,
-                checklist: response.shiftLog?.checklist || nextChecklist,
-                healthMetrics: response.shiftLog?.healthMetrics || {
-                  bloodPressure: nextShift.bloodPressure,
-                  heartRate: Number(nextShift.heartRate || 0),
-                  mood: nextShift.mood,
-                },
-                companionNote: response.shiftLog?.companionNote ?? nextShift.companionNote,
+            ...current,
+            shiftLog: {
+              ...(current.shiftLog || {}),
+              ...(response.shiftLog || {}),
+              checkInPhotoUrl: response.shiftLog?.checkInPhotoUrl ?? nextShift.checkInPhotoUrl,
+              checkOutPhotoUrl: response.shiftLog?.checkOutPhotoUrl ?? nextShift.checkOutPhotoUrl,
+              checklist: response.shiftLog?.checklist || nextChecklist,
+              healthMetrics: response.shiftLog?.healthMetrics || {
+                bloodPressure: nextShift.bloodPressure,
+                heartRate: Number(nextShift.heartRate || 0),
+                mood: nextShift.mood,
               },
-            }
+              companionNote: response.shiftLog?.companionNote ?? nextShift.companionNote,
+            },
+          }
           : current,
       );
       restoreScroll();
@@ -499,7 +499,7 @@ const CompanionBookingDetailPage = () => {
               <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
                 Ảnh check-in đã được lưu. Bạn có thể bấm Đã đến nơi để bắt đầu ca làm.
               </div>
-            ) : shift.checkInPhotoUrl ? (
+            ) : shift.checkInPhotoUrl.length > 0 ? (
               <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
                 Ảnh đã tải tạm thời. Hãy bấm Lưu ảnh check-in để lưu vào ca làm trước.
               </div>
@@ -507,7 +507,7 @@ const CompanionBookingDetailPage = () => {
 
             <div className={`mt-5 grid gap-3 ${hasSavedCheckInPhoto ? "sm:grid-cols-2" : ""}`}>
               {!hasSavedCheckInPhoto ? (
-                <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist)} disabled={!gpsReady || !shift.checkInPhotoUrl}>
+                <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist)} disabled={!gpsReady || shift.checkInPhotoUrl.length === 0}>
                   Lưu ảnh check-in
                 </Button>
               ) : null}
@@ -516,9 +516,9 @@ const CompanionBookingDetailPage = () => {
                   {booking.status === "accepted" ? "Đã đến nơi" : "Đã check-in"}
                 </Button>
               ) : null}
-              {hasSavedCheckInPhoto ? (
-                <a href={savedCheckInPhotoUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-4 text-sm font-black text-teal-800 transition hover:bg-teal-50">
-                  Xem ảnh đã lưu
+              {hasSavedCheckInPhoto && savedCheckInPhotoUrls.length > 0 ? (
+                <a href={savedCheckInPhotoUrls[0]} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-4 text-sm font-black text-teal-800 transition hover:bg-teal-50">
+                  Xem ảnh đã lưu ({savedCheckInPhotoUrls.length})
                 </a>
               ) : null}
             </div>
@@ -628,7 +628,7 @@ const CompanionBookingDetailPage = () => {
                   Bạn cần bấm Lưu ghi chú trước khi chụp hoặc tải ảnh sau ca.
                 </div>
               ) : null}
-              {hasSavedRealtimeNote && shift.checkOutPhotoUrl && !hasSavedCheckOutPhoto ? (
+              {hasSavedRealtimeNote && shift.checkOutPhotoUrl.length > 0 && !hasSavedCheckOutPhoto ? (
                 <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
                   Ảnh sau ca đã tải tạm thời. Hãy bấm Lưu báo cáo để lưu ảnh vào ca làm trước khi hoàn thành.
                 </div>
@@ -653,9 +653,9 @@ const CompanionBookingDetailPage = () => {
                   Lưu ảnh
                 </Button>
               ) : null}
-              {hasSavedCheckOutPhoto ? (
-                <a href={savedCheckOutPhotoUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-4 text-sm font-black text-teal-800 transition hover:bg-teal-50">
-                  Xem ảnh đã lưu
+              {hasSavedCheckOutPhoto && savedCheckOutPhotoUrls.length > 0 ? (
+                <a href={savedCheckOutPhotoUrls[0]} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-4 text-sm font-black text-teal-800 transition hover:bg-teal-50">
+                  Xem ảnh đã lưu ({savedCheckOutPhotoUrls.length})
                 </a>
               ) : null}
               <Button className="min-h-12 rounded-full font-black" onClick={completeShift} disabled={!gpsReady || booking.status !== "in_progress" || !hasSavedCheckOutPhoto}>

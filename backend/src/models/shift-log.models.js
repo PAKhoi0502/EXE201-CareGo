@@ -9,12 +9,12 @@ const ShiftLogSchema = new mongoose.Schema(
       unique: true,
     },
     checkInPhotoUrl: {
-      type: String,
-      default: "",
+      type: [String],
+      default: [],
     },
     checkOutPhotoUrl: {
-      type: String,
-      default: "",
+      type: [String],
+      default: [],
     },
     locations: [
       {

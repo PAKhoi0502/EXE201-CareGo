@@ -7,64 +7,91 @@ import { useAsync } from "../../hooks/useAsync.js";
 import { locationSocket } from "../../socket/locationSocket.js";
 import { dateTime, money } from "../../utils/format.js";
 
-const getCloudinaryPhotoSources = (url = "") => {
-  const cleanUrl = String(url || "").trim();
-  if (!cleanUrl) {
-    return [];
-  }
-
-  const sources = [cleanUrl];
-  if (cleanUrl.includes("/image/upload/")) {
-    sources.push(cleanUrl.replace("/image/upload/", "/image/upload/f_auto,q_auto/"));
-    sources.push(cleanUrl.replace(/\.(jpg|jpeg|png|webp|heic|heif)$/i, ""));
-  }
-
-  return [...new Set(sources)];
-};
-
 const ShiftPhoto = ({ label, url, onPreview }) => {
-  const sources = useMemo(() => getCloudinaryPhotoSources(url), [url]);
-  const [sourceIndex, setSourceIndex] = useState(0);
-  const currentSource = sources[sourceIndex];
-  const hasUrl = sources.length > 0;
+  // Normalize to array
+  const urls = Array.isArray(url) ? url : (url ? [url] : []);
+  const [sourceIndices, setSourceIndices] = useState({});
+
+  const getCloudinarySources = (imageUrl = "") => {
+    const cleanUrl = String(imageUrl || "").trim();
+    if (!cleanUrl) {
+      return [];
+    }
+
+    const sources = [cleanUrl];
+    if (cleanUrl.includes("/image/upload/")) {
+      sources.push(cleanUrl.replace("/image/upload/", "/image/upload/f_auto,q_auto/"));
+      sources.push(cleanUrl.replace(/\.(jpg|jpeg|png|webp|heic|heif)$/i, ""));
+    }
+
+    return [...new Set(sources)];
+  };
 
   useEffect(() => {
-    setSourceIndex(0);
+    setSourceIndices({});
   }, [url]);
+
+  if (urls.length === 0) {
+    return (
+      <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-3">
+        <p className="text-sm font-bold text-[#12312f]">{label}</p>
+        <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Chưa có ảnh</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-3">
-      <p className="text-sm font-bold text-[#12312f]">{label}</p>
-      {hasUrl ? (
-        <div className="mt-3 grid gap-2">
-          {currentSource ? (
-            <button
-              type="button"
-              className="block w-full cursor-zoom-in text-left"
-              onClick={() => onPreview?.({ label, url: currentSource, originalUrl: url })}
-            >
-              <img
-                src={currentSource}
-                alt={label}
-                className="h-40 w-full rounded-2xl border border-teal-100 object-cover shadow-lg shadow-teal-900/5"
-                onError={() => setSourceIndex((index) => Math.min(index + 1, sources.length))}
-              />
-            </button>
-          ) : null}
-          {sourceIndex >= sources.length ? (
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-700"
-            >
-              Không tải được ảnh preview. Bấm để mở ảnh gốc.
-            </a>
-          ) : null}
-        </div>
-      ) : (
-        <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Chưa có ảnh</p>
-      )}
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold text-[#12312f]">{label}</p>
+        {urls.length > 1 && <p className="text-xs font-bold text-teal-600">({urls.length} ảnh)</p>}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {urls.map((imageUrl, idx) => {
+          const sources = getCloudinarySources(imageUrl);
+          const currentSourceIndex = sourceIndices[idx] || 0;
+          const currentSource = sources[currentSourceIndex];
+          const hasUrl = sources.length > 0;
+
+          return (
+            <div key={imageUrl} className="relative">
+              {hasUrl ? (
+                <div className="grid gap-2">
+                  {currentSource ? (
+                    <button
+                      type="button"
+                      className="block w-full cursor-zoom-in text-left"
+                      onClick={() => onPreview?.({ label: `${label} #${idx + 1}`, url: currentSource, originalUrl: imageUrl })}
+                    >
+                      <img
+                        src={currentSource}
+                        alt={`${label} ${idx + 1}`}
+                        className="h-32 w-full rounded-2xl border border-teal-100 object-cover shadow-lg shadow-teal-900/5"
+                        onError={() =>
+                          setSourceIndices((prev) => ({
+                            ...prev,
+                            [idx]: Math.min((prev[idx] || 0) + 1, sources.length),
+                          }))
+                        }
+                      />
+                    </button>
+                  ) : null}
+                  {currentSourceIndex >= sources.length ? (
+                    <a
+                      href={imageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-2xl border border-amber-200 bg-amber-50 p-2 text-center text-xs font-bold text-amber-700"
+                    >
+                      Mở gốc
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
