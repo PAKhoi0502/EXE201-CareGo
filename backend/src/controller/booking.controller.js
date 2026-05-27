@@ -21,6 +21,39 @@ const toIdString = (value) => {
   return (value._id || value).toString();
 };
 
+const ACTIVE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
+const CONFIRMED_BOOKING_STATUSES = ["accepted", "in_progress"];
+
+const getBookingEndTime = (booking) =>
+  new Date(new Date(booking.startTime).getTime() + Number(booking.durationHours || 0) * 60 * 60 * 1000);
+
+const isTimeOverlapped = (firstStart, firstEnd, secondStart, secondEnd) =>
+  firstStart < secondEnd && secondStart < firstEnd;
+
+const findCompanionTimeConflict = async ({
+  companionId,
+  startTime,
+  durationHours,
+  statuses = ACTIVE_BOOKING_STATUSES,
+  excludeBookingId,
+}) => {
+  const requestedStart = new Date(startTime);
+  const requestedEnd = new Date(requestedStart.getTime() + Number(durationHours) * 60 * 60 * 1000);
+  const query = {
+    companionId,
+    status: { $in: statuses },
+  };
+
+  if (excludeBookingId) {
+    query._id = { $ne: excludeBookingId };
+  }
+
+  const bookings = await Booking.find(query).select("startTime durationHours status");
+  return bookings.find((booking) =>
+    isTimeOverlapped(requestedStart, requestedEnd, new Date(booking.startTime), getBookingEndTime(booking)),
+  );
+};
+
 const canAccessBooking = (booking, user) => {
   return (
     user.role === "admin" ||
@@ -48,6 +81,12 @@ export const createBooking = async (req, res) => {
       });
     }
 
+    const parsedStartTime = new Date(startTime);
+    const parsedDurationHours = Number(durationHours);
+    if (Number.isNaN(parsedStartTime.getTime()) || Number.isNaN(parsedDurationHours) || parsedDurationHours <= 0) {
+      return res.status(400).json({ message: "Thời gian đặt lịch hoặc thời lượng không hợp lệ" });
+    }
+
     const elder = await ElderProfile.findOne({
       _id: elderProfileId,
       customerId: req.user.userId,
@@ -69,7 +108,18 @@ export const createBooking = async (req, res) => {
       return res.status(404).json({ message: "approved companion not found" });
     }
 
-    const totalAmount = service.pricePerHour * durationHours;
+    const conflictingBooking = await findCompanionTimeConflict({
+      companionId,
+      startTime: parsedStartTime,
+      durationHours: parsedDurationHours,
+    });
+    if (conflictingBooking) {
+      return res.status(409).json({
+        message: "Người đồng hành này đã có lịch trong khung giờ bạn chọn. Vui lòng chọn giờ khác hoặc người đồng hành khác.",
+      });
+    }
+
+    const totalAmount = service.pricePerHour * parsedDurationHours;
     const platformFee = Math.round(totalAmount * 0.2);
 
     const booking = await Booking.create({
@@ -77,8 +127,8 @@ export const createBooking = async (req, res) => {
       elderProfileId,
       serviceId,
       companionId,
-      startTime,
-      durationHours,
+      startTime: parsedStartTime,
+      durationHours: parsedDurationHours,
       address,
       addressLocation,
       note,
@@ -143,6 +193,22 @@ export const updateBookingStatus = async (req, res) => {
 
     if (req.user.role === "companion" && toIdString(booking.companionId) !== req.user.userId) {
       return res.status(403).json({ message: "permission denied" });
+    }
+
+    if (["accepted", "in_progress"].includes(status)) {
+      const conflictingBooking = await findCompanionTimeConflict({
+        companionId: booking.companionId,
+        startTime: booking.startTime,
+        durationHours: booking.durationHours,
+        statuses: CONFIRMED_BOOKING_STATUSES,
+        excludeBookingId: booking._id,
+      });
+
+      if (conflictingBooking) {
+        return res.status(409).json({
+          message: "Người đồng hành đang có ca khác trùng thời gian nên không thể nhận ca này.",
+        });
+      }
     }
 
     booking.status = status;

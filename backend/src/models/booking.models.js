@@ -70,5 +70,7 @@ const BookingSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+BookingSchema.index({ companionId: 1, startTime: 1, status: 1 });
+
 const Booking = mongoose.model("booking", BookingSchema);
 export default Booking;
