@@ -276,15 +276,15 @@ const CustomerBookingDetailPage = () => {
                 <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">Live</span>
               </div>
               <div className="mt-4">
-                <LiveLocationMap location={latestLocation || serviceLocation} locations={allLocations} />
+                <LiveLocationMap location={latestLocation || serviceLocation} locations={allLocations} markerVariant="person" />
               </div>
-              {/* <div className="mt-4 max-h-64 space-y-2 overflow-auto text-sm">
+              <div className="mt-4 max-h-64 space-y-2 overflow-auto text-sm">
                 {allLocations.length ? allLocations.map((location) => (
                   <div key={`${location.lat}-${location.lng}-${location.recordedAt}`} className="rounded-md bg-slate-50 p-3">
                     {location.lat}, {location.lng} - {dateTime(location.recordedAt)}
                   </div>
                 )) : <p className="text-slate-500">Chưa có vị trí.</p>}
-              </div> */}
+              </div>
             </Card>
 
             <div className="grid gap-6">
