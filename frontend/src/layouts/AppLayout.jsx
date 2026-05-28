@@ -59,12 +59,12 @@ const AppLayout = () => {
           </nav> */}
 
           <div className="flex items-center gap-3">
-            <Link
+            {/* <Link
               to="/companion/bookings"
               className="hidden min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-5 text-sm font-extrabold text-teal-800 transition hover:-translate-y-0.5 hover:bg-teal-50 sm:inline-flex"
             >
               Lich cua toi
-            </Link>
+            </Link> */}
             <div className="relative">
               <button
                 type="button"
