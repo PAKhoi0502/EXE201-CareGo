@@ -118,6 +118,7 @@ const CccdCameraCapture = ({ label, value, onChange }) => {
 const RegisterCompanionPage = () => {
   const { registerCompanion } = useAuth();
   const navigate = useNavigate();
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     name: "",
     fullName: "",
@@ -135,11 +136,42 @@ const RegisterCompanionPage = () => {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const validateProfileStep = () => {
+    if (!form.name || !form.fullName || !form.email || !form.password || !form.phone) {
+      return "Vui lòng nhập đủ thông tin tài khoản và số điện thoại.";
+    }
+
+    if (!form.university || !form.major || !form.skillsText || !form.serviceAreasText) {
+      return "Vui lòng nhập đủ trường, ngành, kỹ năng và khu vực hoạt động.";
+    }
+
+    return "";
+  };
+
+  const nextStep = () => {
+    const message = validateProfileStep();
+    if (message) {
+      setError(message);
+      return;
+    }
+
+    setError("");
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     if (submitting) return;
 
     setError("");
+    const profileError = validateProfileStep();
+    if (profileError) {
+      setStep(1);
+      setError(profileError);
+      return;
+    }
+
     if (!form.citizenIdFrontUrl || !form.citizenIdBackUrl) {
       setError("Vui lòng chụp đủ CCCD mặt trước và mặt sau trước khi gửi hồ sơ.");
       return;
@@ -169,49 +201,82 @@ const RegisterCompanionPage = () => {
   return (
     <AuthShell
       title="Đăng ký người đồng hành"
-      subtitle="Hồ sơ sẽ được admin kiểm duyệt trước khi nhận ca."
-      badge="Hồ sơ người đồng hành"
+      subtitle={step === 1 ? "Điền thông tin hồ sơ trước, sau đó chụp CCCD để admin kiểm duyệt." : "Chụp CCCD mặt trước và mặt sau để hoàn tất hồ sơ."}
+      badge={`Bước ${step}/2`}
       footer={<Link className="font-black text-teal-700" to="/login">Đã có tài khoản</Link>}
     >
       <form className="grid gap-4" onSubmit={submit}>
-        <Input label="Tên hiển thị" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên hiển thị" />
-        <Input label="Họ tên đầy đủ" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập họ tên đầy đủ" />
-        <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập email" />
-        <Input label="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập mật khẩu" />
-        <Input label="Số điện thoại" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập số điện thoại" />
-        <Select label="Giới tính" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="min-h-12 rounded-2xl border-teal-100">
-          <option value="other">Khác</option>
-          <option value="male">Nam</option>
-          <option value="female">Nữ</option>
-        </Select>
-        <Input label="Trường đại học" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên trường đại học" />
-        <Input label="Ngành học" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên ngành học" />
-        <Input label="Kỹ năng, cách nhau bằng dấu phẩy" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập các kỹ năng" />
-        <Input label="Khu vực hoạt động" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập các khu vực hoạt động" />
-
-        <div className="grid gap-4 rounded-[28px] border border-teal-100 bg-white/70 p-4">
-          <div>
-            <h3 className="text-base font-black text-[#12312f]">Chụp CCCD trực tiếp</h3>
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              Ảnh CCCD dùng để admin kiểm duyệt hồ sơ người đồng hành. Hãy chụp rõ mặt trước và mặt sau.
-            </p>
-          </div>
-          <CccdCameraCapture
-            label="CCCD mặt trước"
-            value={form.citizenIdFrontUrl}
-            onChange={(value) => setForm((current) => ({ ...current, citizenIdFrontUrl: value }))}
-          />
-          <CccdCameraCapture
-            label="CCCD mặt sau"
-            value={form.citizenIdBackUrl}
-            onChange={(value) => setForm((current) => ({ ...current, citizenIdBackUrl: value }))}
-          />
+        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-teal-50 p-1 text-sm font-black">
+          <button
+            type="button"
+            className={`rounded-xl px-3 py-2 ${step === 1 ? "bg-white text-teal-700 shadow-sm" : "text-slate-500"}`}
+            onClick={() => setStep(1)}
+          >
+            Hồ sơ
+          </button>
+          <button
+            type="button"
+            className={`rounded-xl px-3 py-2 ${step === 2 ? "bg-white text-teal-700 shadow-sm" : "text-slate-500"}`}
+            onClick={nextStep}
+          >
+            Chụp CCCD
+          </button>
         </div>
 
+        {step === 1 ? (
+          <>
+            <Input label="Tên hiển thị" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên hiển thị" />
+            <Input label="Họ tên đầy đủ" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập họ tên đầy đủ" />
+            <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập email" />
+            <Input label="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập mật khẩu" />
+            <Input label="Số điện thoại" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập số điện thoại" />
+            <Select label="Giới tính" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="min-h-12 rounded-2xl border-teal-100">
+              <option value="other">Khác</option>
+              <option value="male">Nam</option>
+              <option value="female">Nữ</option>
+            </Select>
+            <Input label="Trường đại học" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên trường đại học" />
+            <Input label="Ngành học" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên ngành học" />
+            <Input label="Kỹ năng, cách nhau bằng dấu phẩy" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Ví dụ: sơ cứu, đo huyết áp, đi khám" />
+            <Input label="Khu vực hoạt động" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Ví dụ: Quận 1, Quận 7, Thủ Đức" />
+          </>
+        ) : (
+          <div className="grid gap-4 rounded-[28px] border border-teal-100 bg-white/70 p-4">
+            <div>
+              <h3 className="text-base font-black text-[#12312f]">Chụp CCCD trực tiếp</h3>
+              <p className="mt-1 text-sm leading-6 text-slate-500">
+                Ảnh CCCD dùng để admin kiểm duyệt hồ sơ người đồng hành. Hãy chụp rõ mặt trước và mặt sau.
+              </p>
+            </div>
+            <CccdCameraCapture
+              label="CCCD mặt trước"
+              value={form.citizenIdFrontUrl}
+              onChange={(value) => setForm((current) => ({ ...current, citizenIdFrontUrl: value }))}
+            />
+            <CccdCameraCapture
+              label="CCCD mặt sau"
+              value={form.citizenIdBackUrl}
+              onChange={(value) => setForm((current) => ({ ...current, citizenIdBackUrl: value }))}
+            />
+          </div>
+        )}
+
         {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
-        <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
-          {submitting ? "Đang gửi OTP..." : "Gửi hồ sơ"}
-        </Button>
+
+        {step === 1 ? (
+          <Button type="button" className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" onClick={nextStep}>
+            Tiếp tục chụp CCCD
+          </Button>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
+            <Button type="button" variant="secondary" className="min-h-14 rounded-2xl px-5 text-base font-black" onClick={() => setStep(1)}>
+              Quay lại
+            </Button>
+            <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
+              {submitting ? "Đang gửi OTP..." : "Gửi hồ sơ"}
+            </Button>
+          </div>
+        )}
       </form>
     </AuthShell>
   );
