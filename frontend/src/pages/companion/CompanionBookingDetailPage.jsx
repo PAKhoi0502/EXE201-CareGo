@@ -448,7 +448,7 @@ const CompanionBookingDetailPage = () => {
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <Button className="min-h-12 rounded-full font-black" onClick={acceptBooking} disabled={booking.status !== "pending"}>
-                  Nhận đơn
+                  Chấp nhận
                 </Button>
                 {booking.status === "pending" ? (
                   <button
