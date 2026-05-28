@@ -42,7 +42,7 @@ const AppLayout = () => {
     <div className="min-h-screen bg-[#f5fbfa] text-slate-900">
       <header className="sticky top-0 z-40 border-b border-teal-900/10 bg-[#f5fbfa]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-20 w-[min(1180px,92%)] items-center justify-between gap-4">
-          <Link to="/companion" className="flex items-center gap-3 text-2xl font-black text-teal-800">
+          <Link to="/companion/bookings" className="flex items-center gap-3 text-2xl font-black text-teal-800">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-700 text-xl font-black text-white shadow-lg shadow-teal-700/25">
               +
             </span>
