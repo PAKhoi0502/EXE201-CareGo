@@ -42,6 +42,14 @@ const CompanionProfileSchema = new mongoose.Schema(
         type: String,
         default: "",
       },
+      citizenIdFrontUrl: {
+        type: String,
+        default: "",
+      },
+      citizenIdBackUrl: {
+        type: String,
+        default: "",
+      },
       studentCardUrl: {
         type: String,
         default: "",

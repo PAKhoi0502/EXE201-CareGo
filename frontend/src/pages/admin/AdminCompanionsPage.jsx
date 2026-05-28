@@ -69,6 +69,19 @@ const RealtimeStatusCard = ({ gpsStatus, onlineStatus }) => (
   </div>
 );
 
+const DocumentImage = ({ label, src }) => (
+  <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+    {src ? (
+      <a href={src} target="_blank" rel="noreferrer" className="mt-2 block overflow-hidden rounded-xl border border-teal-100 bg-white">
+        <img src={src} alt={label} className="h-40 w-full object-cover" />
+      </a>
+    ) : (
+      <p className="mt-2 text-sm font-semibold text-slate-500">Chưa bổ sung</p>
+    )}
+  </div>
+);
+
 const AdminCompanionsPage = () => {
   const { data, reload, error } = useAsync(() => api.get("/companions/admin/all"), []);
   const [form, setForm] = useState(emptyForm);
@@ -439,9 +452,20 @@ const AdminCompanionsPage = () => {
             <section className="rounded-xl border border-slate-100 p-4">
               <h3 className="font-bold text-slate-900">Kiem duyet 3 lop</h3>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
-                <DetailItem label="Lop 1 - CCCD" value={selectedCompanion.documents?.citizenId || "Chua bo sung"} />
+                <DetailItem
+                  label="Lop 1 - CCCD"
+                  value={
+                    selectedCompanion.documents?.citizenIdFrontUrl && selectedCompanion.documents?.citizenIdBackUrl
+                      ? "Da chup du mat truoc / mat sau"
+                      : selectedCompanion.documents?.citizenId || "Chua bo sung"
+                  }
+                />
                 <DetailItem label="The sinh vien" value={selectedCompanion.documents?.studentCardUrl ? "Da co file" : "Chua bo sung"} />
                 <DetailItem label="Ly lich tu phap" value={selectedCompanion.documents?.backgroundCheckUrl ? "Da co file" : "Chua bo sung"} />
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <DocumentImage label="CCCD mat truoc" src={selectedCompanion.documents?.citizenIdFrontUrl} />
+                <DocumentImage label="CCCD mat sau" src={selectedCompanion.documents?.citizenIdBackUrl} />
               </div>
             </section>
           </div>
