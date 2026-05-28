@@ -4,13 +4,12 @@ import { Button, Card, EmptyState, PageHeader, StatusBadge } from "../../compone
 import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime, money } from "../../utils/format.js";
 
+const workStatuses = ["pending", "accepted", "in_progress"];
+
 const CompanionBookingsPage = () => {
   const { data, loading, error } = useAsync(() => api.get("/bookings/my"), []);
   const bookings = data?.bookings || [];
-  const totalEarnings = bookings.reduce(
-    (sum, booking) => sum + (booking.totalAmount - booking.platformFee),
-    0,
-  );
+  const workBookings = bookings.filter((booking) => workStatuses.includes(booking.status));
   const activeCount = bookings.filter((booking) => ["accepted", "in_progress"].includes(booking.status)).length;
   const completedCount = bookings.filter((booking) => ["completed", "paid"].includes(booking.status)).length;
 
@@ -42,10 +41,10 @@ const CompanionBookingsPage = () => {
 
       {loading ? <p>Đang tải...</p> : null}
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      {!loading && bookings.length === 0 ? <EmptyState title="Chưa có ca làm" /> : null}
+      {!loading && workBookings.length === 0 ? <EmptyState title="Chưa có ca đang làm" /> : null}
 
       <div className="grid gap-4">
-        {bookings.map((booking) => (
+        {workBookings.map((booking) => (
           <Card key={booking._id} className="border-teal-100 bg-white/95 shadow-xl shadow-teal-900/5">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
