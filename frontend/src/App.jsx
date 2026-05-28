@@ -15,6 +15,7 @@ import VerifyEmailPage from "./pages/auth/VerifyEmailPage.jsx";
 import CompanionBookingDetailPage from "./pages/companion/CompanionBookingDetailPage.jsx";
 import CompanionBookingHistoryPage from "./pages/companion/CompanionBookingHistoryPage.jsx";
 import CompanionBookingsPage from "./pages/companion/CompanionBookingsPage.jsx";
+import CompanionEarningsPage from "./pages/companion/CompanionEarningsPage.jsx";
 import CompanionProfilePage from "./pages/companion/CompanionProfilePage.jsx";
 import CustomerBookingDetailPage from "./pages/customer/CustomerBookingDetailPage.jsx";
 import CustomerBookingsPage from "./pages/customer/CustomerBookingsPage.jsx";
@@ -87,6 +88,7 @@ const App = () => {
         <Route path="bookings" element={<CompanionBookingsPage />} />
         <Route path="bookings/history" element={<CompanionBookingHistoryPage />} />
         <Route path="bookings/:id" element={<CompanionBookingDetailPage />} />
+        <Route path="earnings" element={<CompanionEarningsPage />} />
       </Route>
 
       <Route

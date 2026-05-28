@@ -131,6 +131,14 @@ const AppLayout = () => {
                       <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">✅</span>
                       Lịch sử hoàn thành
                     </Link>
+                    <Link
+                      onClick={() => setMenuOpen(false)}
+                      to="/companion/earnings"
+                      className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                    >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-50 text-emerald-700">₫</span>
+                      Thu nhập
+                    </Link>
                     <div className="my-1 h-px bg-teal-50" />
                     <button
                       type="button"
