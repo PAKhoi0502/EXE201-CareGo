@@ -1,11 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router";
-import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../api/client.js";
-import { Button } from "../components/Ui.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useAsync } from "../hooks/useAsync.js";
 import { money } from "../utils/format.js";
+
+const MenuIcon = ({ type, tone = "teal" }) => {
+  const colors = {
+    teal: "bg-teal-50 text-teal-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+    rose: "bg-rose-50 text-rose-600",
+  };
+
+  const paths = {
+    user: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />,
+    calendar: <path d="M8 3v3m8-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
+    check: <path d="m5 12 4 4L19 6" />,
+    wallet: <path d="M4 7a2 2 0 0 1 2-2h12v14H6a2 2 0 0 1-2-2V7Zm12 6h4v4h-4a2 2 0 0 1 0-4Z" />,
+    logout: <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4m5 10 5-5-5-5m5 5H9" />,
+  };
+
+  return (
+    <span className={`grid h-7 w-7 place-items-center rounded-full ${colors[tone] || colors.teal}`}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {paths[type]}
+        </g>
+      </svg>
+    </span>
+  );
+};
 
 const AppLayout = () => {
   const { user, logout } = useAuth();
@@ -15,11 +40,12 @@ const AppLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const { data: bookingsData } = useAsync(() => api.get("/bookings/my"), []);
+
   const totalEarnings = useMemo(() => {
     const bookings = bookingsData?.bookings || [];
     return bookings
       .filter((booking) => booking.status === "paid")
-      .reduce((sum, booking) => sum + (booking.totalAmount - booking.platformFee), 0);
+      .reduce((sum, booking) => sum + ((booking.totalAmount || 0) - (booking.platformFee || 0)), 0);
   }, [bookingsData]);
 
   const handleLogout = () => {
@@ -72,23 +98,11 @@ const AppLayout = () => {
             </span>
             <span>
               <span className="block leading-5">CareGo</span>
-              <span className="block text-xs font-bold text-teal-700/70">Nguoi dong hanh</span>
+              <span className="block text-xs font-bold text-teal-700/70">Người đồng hành</span>
             </span>
           </Link>
 
-          {/* <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex">
-            <Link to="/companion/bookings" className="transition hover:text-teal-800">
-              Ca làm
-            </Link>
-          </nav> */}
-
           <div className="flex items-center gap-3">
-            {/* <Link
-              to="/companion/bookings"
-              className="hidden min-h-12 items-center justify-center rounded-full border border-teal-200 bg-white px-5 text-sm font-extrabold text-teal-800 transition hover:-translate-y-0.5 hover:bg-teal-50 sm:inline-flex"
-            >
-              Lich cua toi
-            </Link> */}
             <div ref={menuRef} className="relative">
               <button
                 type="button"
@@ -101,7 +115,7 @@ const AppLayout = () => {
                 </span>
                 <span className="hidden text-left sm:block">
                   <span className="block text-sm font-black text-[#12312f]">{user?.name}</span>
-                  <span className="block text-xs font-semibold text-slate-500">Nguoi dong hanh</span>
+                  <span className="block text-xs font-semibold text-slate-500">Người đồng hành</span>
                 </span>
                 <span className={`grid h-6 w-6 place-items-center rounded-full bg-teal-50 text-teal-700 transition ${menuOpen ? "rotate-180" : "rotate-0"}`}>
                   <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -118,15 +132,13 @@ const AppLayout = () => {
                         {(user?.name || "C").trim().charAt(0).toUpperCase()}
                       </span>
                       <div>
-                        <p className="font-black text-[#12312f]">{user?.name || "Nguoi dong hanh"}</p>
+                        <p className="font-black text-[#12312f]">{user?.name || "Người đồng hành"}</p>
                         <p className="mt-1 text-xs text-slate-500">{user?.email || ""}</p>
                       </div>
                     </div>
                     <div className="mt-3 rounded-2xl border border-teal-100 bg-white/80 px-3 py-2">
                       <p className="text-[11px] font-semibold uppercase text-slate-400">Thu nhập ví</p>
-                      <p className="mt-1 text-sm font-black text-emerald-700">
-                        {money(totalEarnings)}
-                      </p>
+                      <p className="mt-1 text-sm font-black text-emerald-700">{money(totalEarnings)}</p>
                     </div>
                   </div>
 
@@ -136,7 +148,7 @@ const AppLayout = () => {
                       to="/companion/profile"
                       className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                     >
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">👤</span>
+                      <MenuIcon type="user" />
                       Trang cá nhân
                     </Link>
                     <Link
@@ -144,7 +156,7 @@ const AppLayout = () => {
                       to="/companion/bookings"
                       className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                     >
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">🗓</span>
+                      <MenuIcon type="calendar" />
                       Lịch của tôi
                     </Link>
                     <Link
@@ -152,7 +164,7 @@ const AppLayout = () => {
                       to="/companion/bookings/history"
                       className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                     >
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">✅</span>
+                      <MenuIcon type="check" />
                       Lịch sử hoàn thành
                     </Link>
                     <Link
@@ -160,7 +172,7 @@ const AppLayout = () => {
                       to="/companion/earnings"
                       className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                     >
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-50 text-emerald-700">₫</span>
+                      <MenuIcon type="wallet" tone="emerald" />
                       Thu nhập
                     </Link>
                     <div className="my-1 h-px bg-teal-50" />
@@ -169,7 +181,7 @@ const AppLayout = () => {
                       onClick={handleLogout}
                       className="flex items-center gap-2 rounded-2xl px-4 py-3 text-left font-bold text-rose-600 transition hover:bg-rose-50"
                     >
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-rose-50 text-rose-600">⎋</span>
+                      <MenuIcon type="logout" tone="rose" />
                       Đăng xuất
                     </button>
                   </div>
@@ -182,8 +194,8 @@ const AppLayout = () => {
 
       {user?.role === "companion" && vettingStatus !== "approved" ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Ho so nguoi dong hanh cua ban dang o trang thai <b>{vettingStatus || "pending"}</b>.
-          Ban co the theo doi tai khoan, nhung chi duoc nhan va cap nhat ca sau khi admin duyet.
+          Hồ sơ người đồng hành của bạn đang ở trạng thái <b>{vettingStatus || "pending"}</b>.
+          Bạn có thể theo dõi tài khoản, nhưng chỉ được nhận và cập nhật ca sau khi admin duyệt.
         </div>
       ) : null}
 

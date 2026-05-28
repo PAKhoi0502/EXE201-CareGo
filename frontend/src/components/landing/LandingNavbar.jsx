@@ -13,6 +13,31 @@ const navItems = [
 
 const getInitial = (name = "C") => name.trim().charAt(0).toUpperCase() || "C";
 
+const MenuIcon = ({ type, tone = "teal" }) => {
+  const colors = {
+    teal: "bg-teal-50 text-teal-700",
+    rose: "bg-rose-50 text-rose-600",
+  };
+
+  const paths = {
+    user: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />,
+    plus: <path d="M12 5v14M5 12h14" />,
+    calendar: <path d="M8 3v3m8-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
+    family: <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM3 20a6 6 0 0 1 12 0m-1.5-4.5A5 5 0 0 1 21 20" />,
+    logout: <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4m5 10 5-5-5-5m5 5H9" />,
+  };
+
+  return (
+    <span className={`grid h-7 w-7 place-items-center rounded-full ${colors[tone] || colors.teal}`}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {paths[type]}
+        </g>
+      </svg>
+    </span>
+  );
+};
+
 const UserAvatar = ({ user, className = "h-10 w-10", fallbackClassName = "" }) =>
   user?.avatar?.url ? (
     <img
@@ -127,7 +152,7 @@ const LandingNavbar = () => {
                           to="/customer/profile"
                           className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                         >
-                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">👤</span>
+                          <MenuIcon type="user" />
                           Hồ sơ cá nhân
                         </Link>
                         <Link
@@ -135,7 +160,7 @@ const LandingNavbar = () => {
                           to="/customer/bookings/new"
                           className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                         >
-                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">+</span>
+                          <MenuIcon type="plus" />
                           Đặt lịch chăm sóc
                         </Link>
                         <Link
@@ -143,7 +168,7 @@ const LandingNavbar = () => {
                           to="/customer/bookings"
                           className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                         >
-                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">🗓</span>
+                          <MenuIcon type="calendar" />
                           Lịch của tôi
                         </Link>
                         <Link
@@ -151,7 +176,7 @@ const LandingNavbar = () => {
                           to="/customer/elders"
                           className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
                         >
-                          <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-50 text-teal-700">👪</span>
+                          <MenuIcon type="family" />
                           Hồ sơ người thân
                         </Link>
                       </>
@@ -162,7 +187,7 @@ const LandingNavbar = () => {
                       onClick={handleLogout}
                       className="flex items-center gap-2 rounded-2xl px-4 py-3 text-left font-bold text-rose-600 transition hover:bg-rose-50"
                     >
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-rose-50 text-rose-600">⎋</span>
+                      <MenuIcon type="logout" tone="rose" />
                       Đăng xuất
                     </button>
                   </div>
