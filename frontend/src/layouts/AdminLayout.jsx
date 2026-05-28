@@ -78,7 +78,9 @@ const AdminLayout = () => {
       <aside className="hidden w-64 flex-col justify-between bg-teal-800 text-white md:flex">
         <div>
           <div className="flex items-center gap-3 border-b border-teal-700/80 p-5">
-            <div className="rounded-xl bg-white px-3 py-2 text-xl font-black text-teal-800 shadow-lg shadow-teal-900/10">CG</div>
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-700 text-xl font-black text-white shadow-lg shadow-teal-700/25">
+            +
+          </span>
             <div>
               <h1 className="text-lg font-bold leading-tight">CareGo</h1>
               <span className="text-xs text-teal-200">Nền tảng chăm sóc</span>
