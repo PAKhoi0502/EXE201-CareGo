@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
 import LandingButton from "./LandingButton.jsx";
@@ -30,6 +30,7 @@ const LandingNavbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
   const isCustomer = user?.role === "customer";
   const bookingPath = isCustomer ? "/customer/bookings/new" : "/register";
   const sectionNavItems = isCustomer
@@ -41,6 +42,29 @@ const LandingNavbar = () => {
     setOpen(false);
     navigate("/");
   };
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const closeOnOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-teal-900/10 bg-[#f5fbfa]/90 backdrop-blur-xl">
@@ -62,7 +86,7 @@ const LandingNavbar = () => {
 
         <div className="flex items-center gap-3">
           {user ? (
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 type="button"
                 aria-expanded={open}

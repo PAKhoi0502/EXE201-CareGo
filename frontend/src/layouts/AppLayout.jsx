@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../api/client.js";
@@ -13,6 +13,7 @@ const AppLayout = () => {
   const vettingStatus = user?.companionProfile?.vettingStatus;
   const isCustomer = user?.role === "customer";
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const { data: bookingsData } = useAsync(() => api.get("/bookings/my"), []);
   const totalEarnings = useMemo(() => {
     const bookings = bookingsData?.bookings || [];
@@ -26,6 +27,29 @@ const AppLayout = () => {
     setMenuOpen(false);
     navigate("/login");
   };
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    const closeOnOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
 
   if (isCustomer) {
     return (
@@ -65,7 +89,7 @@ const AppLayout = () => {
             >
               Lich cua toi
             </Link> */}
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 type="button"
                 aria-expanded={menuOpen}
