@@ -135,6 +135,7 @@ export const loginController = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
         companionProfile:
           user.role === "companion"
             ? await CompanionProfile.findOne({ userId: user._id }).select(
