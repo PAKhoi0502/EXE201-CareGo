@@ -137,11 +137,11 @@ export default function CompanionWithdrawalsPage() {
           <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-3xl font-black">Rút tiền</h1>
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-teal-50">
-                Gửi yêu cầu rút tiền từ ví thu nhập. Admin sẽ kiểm tra và xác
-                nhận chuyển khoản cho bạn.
-              </p>
-            </div>
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-teal-50">
+              Gửi yêu cầu rút tiền từ ví thu nhập. Admin sẽ kiểm tra và xác
+              nhận chuyển khoản cho bạn.
+            </p>
+          </div>
             <button
               type="button"
               onClick={reload}
@@ -171,6 +171,15 @@ export default function CompanionWithdrawalsPage() {
               {currency(summary.withdrawnAmount)}
             </p>
           </div>
+        </section>
+
+        <section className="rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-800 shadow-sm">
+          <p className="font-black">Lưu ý khi rút tiền</p>
+          <p className="mt-1 font-semibold">
+            Yêu cầu rút tiền sẽ được CareGo kiểm tra và xử lý trong khoảng 2-3
+            ngày làm việc. Vui lòng nhập đúng tên ngân hàng, số tài khoản và tên
+            chủ tài khoản để tránh bị từ chối hoặc chậm chuyển khoản.
+          </p>
         </section>
 
         {summary.totalEarned > 0 && (
