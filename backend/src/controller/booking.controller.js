@@ -24,6 +24,18 @@ const toIdString = (value) => {
 const ACTIVE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
 const CONFIRMED_BOOKING_STATUSES = ["accepted", "in_progress"];
 
+const getPlatformFeeRate = () => {
+  const rate = Number(
+    process.env.CAREGO_PLATFORM_FEE_RATE ??
+      process.env.PLATFORM_FEE_RATE ??
+      process.env.COMPANION_PLATFORM_FEE_RATE ??
+      0.2,
+  );
+
+  if (!Number.isFinite(rate) || rate < 0) return 0.2;
+  return rate > 1 ? rate / 100 : rate;
+};
+
 const getBookingEndTime = (booking) =>
   new Date(new Date(booking.startTime).getTime() + Number(booking.durationHours || 0) * 60 * 60 * 1000);
 
@@ -120,7 +132,7 @@ export const createBooking = async (req, res) => {
     }
 
     const totalAmount = service.pricePerHour * parsedDurationHours;
-    const platformFee = Math.round(totalAmount * 0.2);
+    const platformFee = Math.round(totalAmount * getPlatformFeeRate());
 
     const booking = await Booking.create({
       customerId: req.user.userId,

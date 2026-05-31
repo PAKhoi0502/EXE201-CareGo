@@ -13,7 +13,8 @@ const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
 
 const getPlatformFeeRate = () => {
   const rate = Number(
-    process.env.COMPANION_PLATFORM_FEE_RATE ??
+    process.env.CAREGO_PLATFORM_FEE_RATE ??
+      process.env.COMPANION_PLATFORM_FEE_RATE ??
       process.env.PLATFORM_FEE_RATE ??
       0.1
   );
