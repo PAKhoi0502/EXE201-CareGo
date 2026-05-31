@@ -17,6 +17,7 @@ import companionRouter from "./src/routes/companion.routes.js";
 import elderRouter from "./src/routes/elder.routes.js";
 import serviceRouter from "./src/routes/service.routes.js";
 import uploadRouter from "./src/routes/upload.routes.js";
+import withdrawalRouter from "./src/routes/withdrawal.routes.js";
 import { setupLocationSocket } from "./src/socket/location.socket.js";
 
 // import swagger
@@ -56,6 +57,7 @@ app.use("/api/elders", elderRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/withdrawals", withdrawalRouter);
 
 const io = new Server(server, {
   cors: {

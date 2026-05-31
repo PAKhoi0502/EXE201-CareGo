@@ -40,6 +40,10 @@ const AppLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const { data: bookingsData } = useAsync(() => api.get("/bookings/my"), []);
+  const { data: withdrawalSummary, reload: reloadWithdrawalSummary } = useAsync(
+    () => api.get("/withdrawals/my"),
+    []
+  );
 
   const totalEarnings = useMemo(() => {
     const bookings = bookingsData?.bookings || [];
@@ -47,6 +51,18 @@ const AppLayout = () => {
       .filter((booking) => booking.status === "paid")
       .reduce((sum, booking) => sum + ((booking.totalAmount || 0) - (booking.platformFee || 0)), 0);
   }, [bookingsData]);
+
+  const availableWalletBalance = useMemo(() => {
+    const value =
+      withdrawalSummary?.availableBalance ??
+      withdrawalSummary?.available ??
+      withdrawalSummary?.balance ??
+      withdrawalSummary?.walletBalance ??
+      withdrawalSummary?.canWithdraw;
+
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : totalEarnings;
+  }, [withdrawalSummary, totalEarnings]);
 
   const handleLogout = () => {
     logout();
@@ -76,6 +92,16 @@ const AppLayout = () => {
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (user?.role !== "companion") return undefined;
+
+    const timer = window.setInterval(() => {
+      reloadWithdrawalSummary?.();
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [reloadWithdrawalSummary, user?.role]);
 
   if (isCustomer) {
     return (
@@ -138,7 +164,14 @@ const AppLayout = () => {
                     </div>
                     <div className="mt-3 rounded-2xl border border-teal-100 bg-white/80 px-3 py-2">
                       <p className="text-[11px] font-semibold uppercase text-slate-400">Thu nhập ví</p>
-                      <p className="mt-1 text-sm font-black text-emerald-700">{money(totalEarnings)}</p>
+                      <p className="mt-1 text-sm font-black text-emerald-700">{money(availableWalletBalance)}</p>
+                      <Link
+                        to="/companion/withdrawals"
+                        onClick={() => setMenuOpen(false)}
+                        className="mt-3 flex min-h-10 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-500 px-4 text-xs font-black text-white shadow-lg shadow-teal-700/20 transition hover:-translate-y-0.5"
+                      >
+                        Rút tiền
+                      </Link>
                     </div>
                   </div>
 

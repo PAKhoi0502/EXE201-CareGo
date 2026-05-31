@@ -1,13 +1,13 @@
 import { Navigate, Route, Routes } from "react-router";
-import { useAuth } from "./context/AuthContext.jsx";
 import AdminBookingsPage from "./pages/admin/AdminBookingsPage.jsx";
 import AdminCompanionsPage from "./pages/admin/AdminCompanionsPage.jsx";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
 import AdminReportsPage from "./pages/admin/AdminReportsPage.jsx";
 import AdminServicesPage from "./pages/admin/AdminServicesPage.jsx";
 import AdminUsersPage from "./pages/admin/AdminUsersPage.jsx";
-import LoginPage from "./pages/auth/LoginPage.jsx";
+import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage.jsx";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage.jsx";
+import LoginPage from "./pages/auth/LoginPage.jsx";
 import RegisterCompanionPage from "./pages/auth/RegisterCompanionPage.jsx";
 import RegisterPage from "./pages/auth/RegisterPage.jsx";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage.jsx";
@@ -17,6 +17,7 @@ import CompanionBookingHistoryPage from "./pages/companion/CompanionBookingHisto
 import CompanionBookingsPage from "./pages/companion/CompanionBookingsPage.jsx";
 import CompanionEarningsPage from "./pages/companion/CompanionEarningsPage.jsx";
 import CompanionProfilePage from "./pages/companion/CompanionProfilePage.jsx";
+import CompanionWithdrawalsPage from "./pages/companion/CompanionWithdrawalsPage.jsx";
 import CustomerBookingDetailPage from "./pages/customer/CustomerBookingDetailPage.jsx";
 import CustomerBookingsPage from "./pages/customer/CustomerBookingsPage.jsx";
 import CustomerCompanionsPage from "./pages/customer/CustomerCompanionsPage.jsx";
@@ -25,14 +26,15 @@ import CustomerProfilePage from "./pages/customer/CustomerProfilePage.jsx";
 import CustomerServicesPage from "./pages/customer/CustomerServicesPage.jsx";
 import NewBookingPage from "./pages/customer/NewBookingPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
-import AppLayout from "./layouts/AppLayout.jsx";
 import AdminLayout from "./layouts/AdminLayout.jsx";
+import AppLayout from "./layouts/AppLayout.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
 
 const RoleRoute = ({ role, children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-500">Dang tai...</div>;
+    return <div className="p-6 text-sm text-slate-500">Đang tải...</div>;
   }
 
   if (!user) {
@@ -89,6 +91,7 @@ const App = () => {
         <Route path="bookings/history" element={<CompanionBookingHistoryPage />} />
         <Route path="bookings/:id" element={<CompanionBookingDetailPage />} />
         <Route path="earnings" element={<CompanionEarningsPage />} />
+        <Route path="withdrawals" element={<CompanionWithdrawalsPage />} />
       </Route>
 
       <Route
@@ -105,6 +108,7 @@ const App = () => {
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="bookings" element={<AdminBookingsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
+        <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
