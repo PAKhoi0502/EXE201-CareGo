@@ -43,6 +43,7 @@ const getRequests = (data) => {
 export default function AdminWithdrawalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [processingId, setProcessingId] = useState("");
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const { data, loading, error, reload } = useAsync(
     () => api.get("/withdrawals/admin"),
     []
@@ -226,6 +227,13 @@ export default function AdminWithdrawalsPage() {
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
+                            onClick={() => setSelectedRequest(request)}
+                            className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-teal-50 hover:text-teal-700"
+                          >
+                            Chi tiết
+                          </button>
+                          <button
+                            type="button"
                             disabled={processingId || request.status === "approved"}
                             onClick={() => updateStatus(request._id, "approved")}
                             className="rounded-full bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -258,6 +266,177 @@ export default function AdminWithdrawalsPage() {
           </div>
         )}
       </section>
+
+      {selectedRequest ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4"
+          onClick={() => setSelectedRequest(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[30px] border border-teal-100 bg-white p-6 shadow-2xl shadow-slate-950/20"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const companion =
+                selectedRequest.companion || selectedRequest.companionId || {};
+              const name =
+                companion.fullName ||
+                companion.name ||
+                selectedRequest.companionName ||
+                "Người đồng hành";
+
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-wide text-teal-700">
+                        Chi tiết yêu cầu rút tiền
+                      </p>
+                      <h2 className="mt-2 text-2xl font-black text-slate-950">
+                        {currency(selectedRequest.amount)}
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRequest(null)}
+                      className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
+                      <p className="text-xs font-black uppercase text-slate-400">
+                        Người đồng hành
+                      </p>
+                      <p className="mt-2 font-black text-slate-950">{name}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        {companion.email || selectedRequest.email || "-"}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        {companion.phone || selectedRequest.phone || "-"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
+                      <p className="text-xs font-black uppercase text-slate-400">
+                        Trạng thái
+                      </p>
+                      <span
+                        className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-black ${
+                          statusClasses[selectedRequest.status] ||
+                          statusClasses.pending
+                        }`}
+                      >
+                        {statusLabels[selectedRequest.status] || "Chờ xử lý"}
+                      </span>
+                      <p className="mt-3 text-sm font-semibold text-slate-500">
+                        Tạo lúc: {dateTime(selectedRequest.createdAt)}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        Xử lý lúc: {dateTime(selectedRequest.processedAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-teal-100 bg-white p-4">
+                    <p className="text-xs font-black uppercase text-slate-400">
+                      Thông tin ngân hàng
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <div>
+                        <p className="text-xs font-bold text-slate-400">
+                          Ngân hàng
+                        </p>
+                        <p className="mt-1 font-black text-slate-950">
+                          {selectedRequest.bankName || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-400">
+                          Số tài khoản
+                        </p>
+                        <p className="mt-1 font-black text-slate-950">
+                          {selectedRequest.bankAccountNumber || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-400">
+                          Chủ tài khoản
+                        </p>
+                        <p className="mt-1 font-black text-slate-950">
+                          {selectedRequest.bankAccountName || "-"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase text-slate-400">
+                      Ghi chú người đồng hành
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">
+                      {selectedRequest.note || "Không có ghi chú."}
+                    </p>
+                  </div>
+
+                  {selectedRequest.adminNote ? (
+                    <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                      <p className="text-xs font-black uppercase text-amber-700">
+                        Ghi chú admin
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-amber-800">
+                        {selectedRequest.adminNote}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      disabled={
+                        processingId || selectedRequest.status === "approved"
+                      }
+                      onClick={async () => {
+                        await updateStatus(selectedRequest._id, "approved");
+                        setSelectedRequest(null);
+                      }}
+                      className="min-h-11 rounded-full bg-blue-50 px-4 text-sm font-black text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Duyệt
+                    </button>
+                    <button
+                      type="button"
+                      disabled={processingId || selectedRequest.status === "paid"}
+                      onClick={async () => {
+                        await updateStatus(selectedRequest._id, "paid");
+                        setSelectedRequest(null);
+                      }}
+                      className="min-h-11 rounded-full bg-emerald-50 px-4 text-sm font-black text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Đã chuyển
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        processingId || selectedRequest.status === "rejected"
+                      }
+                      onClick={async () => {
+                        await updateStatus(selectedRequest._id, "rejected");
+                        setSelectedRequest(null);
+                      }}
+                      className="min-h-11 rounded-full bg-red-50 px-4 text-sm font-black text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Từ chối
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
