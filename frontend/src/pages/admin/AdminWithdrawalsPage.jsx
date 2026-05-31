@@ -2,12 +2,14 @@ import { useMemo, useState } from "react";
 import { api } from "../../api/client";
 import { useAsync } from "../../hooks/useAsync";
 
-const statusLabels = {
-  pending: "Chờ xử lý",
-  approved: "Đã duyệt",
-  paid: "Đã chuyển tiền",
-  rejected: "Từ chối",
-};
+const statusOptions = [
+  ["pending", "Chờ xử lý"],
+  ["approved", "Đã duyệt"],
+  ["paid", "Đã chuyển tiền"],
+  ["rejected", "Từ chối"],
+];
+
+const statusLabels = Object.fromEntries(statusOptions);
 
 const statusClasses = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -40,6 +42,18 @@ const getRequests = (data) => {
   return [];
 };
 
+const getCompanion = (request) => request.companion || request.companionId || {};
+
+const getCompanionName = (request) => {
+  const companion = getCompanion(request);
+  return (
+    companion.fullName ||
+    companion.name ||
+    request.companionName ||
+    "Người đồng hành"
+  );
+};
+
 export default function AdminWithdrawalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [processingId, setProcessingId] = useState("");
@@ -58,8 +72,9 @@ export default function AdminWithdrawalsPage() {
   const stats = useMemo(() => {
     return requests.reduce(
       (acc, item) => {
-        acc.total += Number(item.amount || 0);
-        acc[item.status] = (acc[item.status] || 0) + Number(item.amount || 0);
+        const amount = Number(item.amount || 0);
+        acc.total += amount;
+        acc[item.status] = (acc[item.status] || 0) + amount;
         return acc;
       },
       { total: 0, pending: 0, approved: 0, paid: 0, rejected: 0 }
@@ -71,6 +86,11 @@ export default function AdminWithdrawalsPage() {
       setProcessingId(`${id}-${status}`);
       await api.patch(`/withdrawals/admin/${id}/status`, { status });
       await reload();
+      setSelectedRequest((current) =>
+        current?._id === id
+          ? { ...current, status, processedAt: new Date().toISOString() }
+          : current
+      );
     } finally {
       setProcessingId("");
     }
@@ -86,8 +106,8 @@ export default function AdminWithdrawalsPage() {
           <div>
             <h1 className="text-3xl font-black">Yêu cầu rút tiền</h1>
             <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-teal-50">
-              Theo dõi yêu cầu rút tiền từ người đồng hành, duyệt hoặc từ chối
-              trước khi chuyển khoản.
+              Theo dõi yêu cầu rút tiền từ người đồng hành, đổi trạng thái xử
+              lý và xác nhận chuyển khoản.
             </p>
           </div>
           <button
@@ -129,13 +149,7 @@ export default function AdminWithdrawalsPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {[
-              ["all", "Tất cả"],
-              ["pending", "Chờ xử lý"],
-              ["approved", "Đã duyệt"],
-              ["paid", "Đã chuyển"],
-              ["rejected", "Từ chối"],
-            ].map(([value, label]) => (
+            {[["all", "Tất cả"], ...statusOptions].map(([value, label]) => (
               <button
                 key={value}
                 type="button"
@@ -152,11 +166,11 @@ export default function AdminWithdrawalsPage() {
           </div>
         </div>
 
-        {error && (
+        {error ? (
           <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
             {error}
           </div>
-        )}
+        ) : null}
 
         {loading ? (
           <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">
@@ -181,12 +195,7 @@ export default function AdminWithdrawalsPage() {
               </thead>
               <tbody>
                 {filteredRequests.map((request) => {
-                  const companion = request.companion || request.companionId || {};
-                  const name =
-                    companion.fullName ||
-                    companion.name ||
-                    request.companionName ||
-                    "Người đồng hành";
+                  const companion = getCompanion(request);
 
                   return (
                     <tr
@@ -194,7 +203,9 @@ export default function AdminWithdrawalsPage() {
                       className="border-b border-slate-100 align-top last:border-0"
                     >
                       <td className="px-4 py-4">
-                        <p className="font-black text-slate-950">{name}</p>
+                        <p className="font-black text-slate-950">
+                          {getCompanionName(request)}
+                        </p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
                           {companion.email || request.email || "-"}
                         </p>
@@ -217,7 +228,8 @@ export default function AdminWithdrawalsPage() {
                       <td className="px-4 py-4">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
-                            statusClasses[request.status] || statusClasses.pending
+                            statusClasses[request.status] ||
+                            statusClasses.pending
                           }`}
                         >
                           {statusLabels[request.status] || "Chờ xử lý"}
@@ -232,30 +244,20 @@ export default function AdminWithdrawalsPage() {
                           >
                             Chi tiết
                           </button>
-                          <button
-                            type="button"
-                            disabled={processingId || request.status === "approved"}
-                            onClick={() => updateStatus(request._id, "approved")}
-                            className="rounded-full bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          <select
+                            value={request.status || "pending"}
+                            disabled={Boolean(processingId)}
+                            onChange={(event) =>
+                              updateStatus(request._id, event.target.value)
+                            }
+                            className="min-h-9 rounded-full border border-teal-100 bg-white px-3 text-xs font-black text-slate-700 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            Duyệt
-                          </button>
-                          <button
-                            type="button"
-                            disabled={processingId || request.status === "paid"}
-                            onClick={() => updateStatus(request._id, "paid")}
-                            className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Đã chuyển
-                          </button>
-                          <button
-                            type="button"
-                            disabled={processingId || request.status === "rejected"}
-                            onClick={() => updateStatus(request._id, "rejected")}
-                            className="rounded-full bg-red-50 px-3 py-2 text-xs font-black text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Từ chối
-                          </button>
+                            {statusOptions.map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </td>
                     </tr>
@@ -276,164 +278,109 @@ export default function AdminWithdrawalsPage() {
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[30px] border border-teal-100 bg-white p-6 shadow-2xl shadow-slate-950/20"
             onClick={(event) => event.stopPropagation()}
           >
-            {(() => {
-              const companion =
-                selectedRequest.companion || selectedRequest.companionId || {};
-              const name =
-                companion.fullName ||
-                companion.name ||
-                selectedRequest.companionName ||
-                "Người đồng hành";
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-teal-700">
+                  Chi tiết yêu cầu rút tiền
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-slate-950">
+                  {currency(selectedRequest.amount)}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRequest(null)}
+                className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+              >
+                ×
+              </button>
+            </div>
 
-              return (
-                <>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-wide text-teal-700">
-                        Chi tiết yêu cầu rút tiền
-                      </p>
-                      <h2 className="mt-2 text-2xl font-black text-slate-950">
-                        {currency(selectedRequest.amount)}
-                      </h2>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRequest(null)}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-                    >
-                      ×
-                    </button>
-                  </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
+                <p className="text-xs font-black uppercase text-slate-400">
+                  Người đồng hành
+                </p>
+                <p className="mt-2 font-black text-slate-950">
+                  {getCompanionName(selectedRequest)}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {getCompanion(selectedRequest).email ||
+                    selectedRequest.email ||
+                    "-"}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {getCompanion(selectedRequest).phone ||
+                    selectedRequest.phone ||
+                    "-"}
+                </p>
+              </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
-                      <p className="text-xs font-black uppercase text-slate-400">
-                        Người đồng hành
-                      </p>
-                      <p className="mt-2 font-black text-slate-950">{name}</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        {companion.email || selectedRequest.email || "-"}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        {companion.phone || selectedRequest.phone || "-"}
-                      </p>
-                    </div>
+              <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
+                <p className="text-xs font-black uppercase text-slate-400">
+                  Trạng thái
+                </p>
+                <select
+                  value={selectedRequest.status || "pending"}
+                  disabled={Boolean(processingId)}
+                  onChange={(event) =>
+                    updateStatus(selectedRequest._id, event.target.value)
+                  }
+                  className="mt-2 min-h-11 w-full rounded-2xl border border-teal-100 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {statusOptions.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-3 text-sm font-semibold text-slate-500">
+                  Tạo lúc: {dateTime(selectedRequest.createdAt)}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Xử lý lúc: {dateTime(selectedRequest.processedAt)}
+                </p>
+              </div>
+            </div>
 
-                    <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
-                      <p className="text-xs font-black uppercase text-slate-400">
-                        Trạng thái
-                      </p>
-                      <span
-                        className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-black ${
-                          statusClasses[selectedRequest.status] ||
-                          statusClasses.pending
-                        }`}
-                      >
-                        {statusLabels[selectedRequest.status] || "Chờ xử lý"}
-                      </span>
-                      <p className="mt-3 text-sm font-semibold text-slate-500">
-                        Tạo lúc: {dateTime(selectedRequest.createdAt)}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        Xử lý lúc: {dateTime(selectedRequest.processedAt)}
-                      </p>
-                    </div>
-                  </div>
+            <div className="mt-4 rounded-2xl border border-teal-100 bg-white p-4">
+              <p className="text-xs font-black uppercase text-slate-400">
+                Thông tin ngân hàng
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-400">Ngân hàng</p>
+                  <p className="mt-1 font-black text-slate-950">
+                    {selectedRequest.bankName || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400">
+                    Số tài khoản
+                  </p>
+                  <p className="mt-1 font-black text-slate-950">
+                    {selectedRequest.bankAccountNumber || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400">
+                    Chủ tài khoản
+                  </p>
+                  <p className="mt-1 font-black text-slate-950">
+                    {selectedRequest.bankAccountName || "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                  <div className="mt-4 rounded-2xl border border-teal-100 bg-white p-4">
-                    <p className="text-xs font-black uppercase text-slate-400">
-                      Thông tin ngân hàng
-                    </p>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      <div>
-                        <p className="text-xs font-bold text-slate-400">
-                          Ngân hàng
-                        </p>
-                        <p className="mt-1 font-black text-slate-950">
-                          {selectedRequest.bankName || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-400">
-                          Số tài khoản
-                        </p>
-                        <p className="mt-1 font-black text-slate-950">
-                          {selectedRequest.bankAccountNumber || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-400">
-                          Chủ tài khoản
-                        </p>
-                        <p className="mt-1 font-black text-slate-950">
-                          {selectedRequest.bankAccountName || "-"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase text-slate-400">
-                      Ghi chú người đồng hành
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">
-                      {selectedRequest.note || "Không có ghi chú."}
-                    </p>
-                  </div>
-
-                  {selectedRequest.adminNote ? (
-                    <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
-                      <p className="text-xs font-black uppercase text-amber-700">
-                        Ghi chú admin
-                      </p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-amber-800">
-                        {selectedRequest.adminNote}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      disabled={
-                        processingId || selectedRequest.status === "approved"
-                      }
-                      onClick={async () => {
-                        await updateStatus(selectedRequest._id, "approved");
-                        setSelectedRequest(null);
-                      }}
-                      className="min-h-11 rounded-full bg-blue-50 px-4 text-sm font-black text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Duyệt
-                    </button>
-                    <button
-                      type="button"
-                      disabled={processingId || selectedRequest.status === "paid"}
-                      onClick={async () => {
-                        await updateStatus(selectedRequest._id, "paid");
-                        setSelectedRequest(null);
-                      }}
-                      className="min-h-11 rounded-full bg-emerald-50 px-4 text-sm font-black text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Đã chuyển
-                    </button>
-                    <button
-                      type="button"
-                      disabled={
-                        processingId || selectedRequest.status === "rejected"
-                      }
-                      onClick={async () => {
-                        await updateStatus(selectedRequest._id, "rejected");
-                        setSelectedRequest(null);
-                      }}
-                      className="min-h-11 rounded-full bg-red-50 px-4 text-sm font-black text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Từ chối
-                    </button>
-                  </div>
-                </>
-              );
-            })()}
+            <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-xs font-black uppercase text-slate-400">
+                Ghi chú người đồng hành
+              </p>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">
+                {selectedRequest.note || "Không có ghi chú."}
+              </p>
+            </div>
           </div>
         </div>
       ) : null}
