@@ -10,7 +10,7 @@ import { dateTime, money } from "../../utils/format.js";
 
 const statusCopy = {
   pending: {
-    badge: "Đơn mới từ khách hàng",
+    badge: "Lịch đặt mới từ khách hàng",
     title: "Nhận đơn chăm sóc cùng CareGo",
     desc: "Kiểm tra thông tin người cao tuổi, địa điểm, lưu ý sức khỏe và GPS trước khi nhận ca.",
     state: "Chờ nhận booking",
@@ -87,6 +87,8 @@ const CompanionBookingDetailPage = () => {
 
   const booking = data?.booking;
   const shiftLog = data?.shiftLog;
+  const elderProfile = booking?.elderProfileId || {};
+  const emergencyContact = elderProfile?.emergencyContact || {};
   const companionUserId = booking?.companionId?._id || booking?.companionId;
   const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
   const checklist = useMemo(() => shiftLog?.checklist || [], [shiftLog]);
@@ -400,7 +402,7 @@ const CompanionBookingDetailPage = () => {
                   </div>
                 </div>
                 <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-                  {booking.status === "pending" ? "Đơn mới" : "Đã ghi nhận"}
+                  {booking.status === "pending" ? "Lịch đặt mới" : "Đã ghi nhận"}
                 </span>
               </div>
 
@@ -466,6 +468,66 @@ const CompanionBookingDetailPage = () => {
                 <Button className="min-h-12 rounded-full font-black" variant="danger" onClick={() => updateStatus("cancelled", { requireGps: false })} disabled={booking.status !== "pending"}>
                   Từ chối
                 </Button>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="scroll-mt-24 rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black">Chi tiết hồ sơ người thân</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Thông tin này giúp người đồng hành nắm rõ tình trạng sức khỏe, địa chỉ và liên hệ khẩn cấp trước khi vào ca.
+                </p>
+              </div>
+              <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">
+                Hồ sơ chăm sóc
+              </span>
+            </div>
+
+            <div className="rounded-[30px] border border-teal-100 bg-gradient-to-b from-white to-[#f0fdfa] p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-gradient-to-br from-teal-100 to-sky-100 text-xl font-black text-teal-800">
+                  {(elderProfile.fullName || "CG")
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(-2)
+                    .map((part) => part[0])
+                    .join("")
+                    .toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl font-black text-[#12312f]">
+                    {elderProfile.fullName || "Người thân"}
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    {elderProfile.address || booking.address || "Chưa có địa chỉ chi tiết."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <InfoMini label="Tuổi" value={elderProfile.age ? `${elderProfile.age} tuổi` : "Chưa cập nhật"} />
+                <InfoMini label="Người đặt" value={booking.customerId?.name || "Khách hàng"} />
+                <InfoMini label="Số điện thoại khẩn cấp" value={emergencyContact.phone || "---"} />
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <DetailItem number="1" title="Ghi chú y tế">
+                  {elderProfile.medicalNotes || booking.note || "Gia đình chưa nhập ghi chú y tế."}
+                </DetailItem>
+
+                <DetailItem number="2" title="Bệnh nền / tình trạng cần lưu ý">
+                  {elderProfile.chronicConditions?.length
+                    ? elderProfile.chronicConditions.join(", ")
+                    : "Chưa có thông tin bệnh nền."}
+                </DetailItem>
+
+                <DetailItem number="3" title="Liên hệ khẩn cấp">
+                  {emergencyContact.name || emergencyContact.phone || emergencyContact.relationship
+                    ? `${emergencyContact.name || "Người liên hệ"} - ${emergencyContact.phone || "---"} - ${emergencyContact.relationship || "---"}`
+                    : "Chưa có thông tin liên hệ khẩn cấp."}
+                </DetailItem>
               </div>
             </div>
           </Card>
