@@ -21,9 +21,9 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-slate-200 bg-white lg:block">
-        <div className="flex h-20 items-center gap-3 border-b border-slate-100 px-6">
+    <div className="min-h-screen bg-[#f5fbfa] text-slate-900">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-teal-900/10 bg-white/95 shadow-xl shadow-teal-900/5 lg:block">
+        <div className="flex h-20 items-center gap-3 border-b border-teal-900/10 px-6">
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-teal-700 to-teal-400 text-2xl font-black text-white shadow-lg shadow-teal-200">
             +
           </div>
@@ -46,7 +46,7 @@ export default function AdminLayout() {
                   "flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-extrabold transition",
                   isActive
                     ? "bg-teal-50 text-teal-700 shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-teal-700",
+                  : "text-slate-600 hover:bg-teal-50/70 hover:text-teal-700",
                 ].join(" ")
               }
             >
@@ -62,7 +62,7 @@ export default function AdminLayout() {
       </aside>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-teal-900/10 bg-[#f5fbfa]/90 backdrop-blur-xl">
           <div className="flex min-h-20 flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3 lg:hidden">
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-teal-700 to-teal-400 text-xl font-black text-white">
@@ -85,7 +85,7 @@ export default function AdminLayout() {
                       "shrink-0 rounded-full px-4 py-2 text-xs font-extrabold",
                       isActive
                         ? "bg-teal-600 text-white"
-                        : "bg-slate-100 text-slate-600",
+                        : "bg-white text-slate-600 ring-1 ring-teal-100",
                     ].join(" ")
                   }
                 >
@@ -102,7 +102,7 @@ export default function AdminLayout() {
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-extrabold text-slate-600 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              className="rounded-full border border-teal-100 bg-white px-5 py-2.5 text-sm font-extrabold text-slate-600 shadow-sm shadow-teal-900/5 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
             >
               Đăng xuất
             </button>
