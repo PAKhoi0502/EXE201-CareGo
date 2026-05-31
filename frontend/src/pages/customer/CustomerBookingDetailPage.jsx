@@ -307,9 +307,6 @@ const CustomerBookingDetailPage = () => {
                   <ShiftPhoto label="Ảnh check-out" url={shiftLog?.checkOutPhotoUrl} onPreview={setPreviewPhoto} />
                 </div>
                 <div className="mt-4 space-y-3 text-sm">
-                  <p><b>Huyết áp:</b> {shiftLog?.healthMetrics?.bloodPressure || "Chưa có"}</p>
-                  <p><b>Nhịp tim:</b> {shiftLog?.healthMetrics?.heartRate || "Chưa có"}</p>
-                  <p><b>Tâm trạng:</b> {shiftLog?.healthMetrics?.mood || "Chưa có"}</p>
                   <div>
                     <p><b>Ghi chú:</b></p>
                     <p className="mt-1 whitespace-pre-wrap break-words text-slate-700">

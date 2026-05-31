@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { api } from "../../api/client.js";
-import { Button, Card, Input, StatusBadge, Textarea } from "../../components/Ui.jsx";
+import { Button, Card, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import ImageUpload from "../../components/ImageUpload.jsx";
 import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
@@ -652,14 +652,8 @@ const CompanionBookingDetailPage = () => {
               </div>
             ) : null}
             <fieldset disabled={!canEditRealtimeNote} className="contents">
-              <div className="grid gap-4 md:grid-cols-3">
-                <Input label="Huyết áp" value={shift.bloodPressure} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, bloodPressure: event.target.value })} />
-                <Input label="Nhịp tim" type="number" value={shift.heartRate} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, heartRate: event.target.value })} />
-                <Input label="Tâm trạng" value={shift.mood} disabled={booking.status === "pending"} onChange={(event) => setShift({ ...shift, mood: event.target.value })} />
-              </div>
               <Textarea
                 label="Ghi chú trong ca / lời dặn bác sĩ"
-                className="mt-4"
                 value={shift.companionNote}
                 disabled={booking.status === "pending"}
                 onChange={(event) => setShift({ ...shift, companionNote: event.target.value })}
