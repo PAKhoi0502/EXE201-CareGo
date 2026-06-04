@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+import { featuredBlogPosts } from "../blog/blogData.js";
 import CareGoLogo from "../CareGoLogo.jsx";
 import LandingButton from "./LandingButton.jsx";
 import { safetyItems, services, steps } from "./landingData.js";
@@ -52,7 +54,7 @@ export const ServicesSection = () => (
   <section id="services" className="py-20">
     <div className="mx-auto w-[min(1180px,92%)]">
       <SectionHeader title="Dịch vụ nổi bật">
-        Trang giới thiệu nêu nhanh các dịch vụ chính để gia đình hiểu ngay CareGo hỗ trợ được gì.
+        CareGo tập trung vào các nhu cầu chăm sóc quen thuộc của gia đình: đi khám, hỗ trợ tại nhà và đồng hành ngoài trời.
       </SectionHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -85,7 +87,7 @@ export const StepsSection = () => (
   <section id="steps" className="border-y border-teal-100 bg-white py-20">
     <div className="mx-auto w-[min(1180px,92%)]">
       <SectionHeader title="Quy trình đặt lịch đơn giản">
-        Luồng thao tác được thiết kế ngắn gọn để người lớn tuổi và con cái đều dễ sử dụng.
+        Luồng thao tác được thiết kế ngắn gọn để người dùng lớn tuổi hoặc con cái đều dễ sử dụng.
       </SectionHeader>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -96,37 +98,6 @@ export const StepsSection = () => (
             </div>
             <h3 className="text-lg font-black text-[#12312f]">{title}</h3>
             <p className="mt-3 text-sm leading-6 text-slate-500">{body}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-export const SafetySection = () => (
-  <section id="safety" className="py-20">
-    <div className="mx-auto grid w-[min(1180px,92%)] gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-      <div className="rounded-[34px] bg-teal-700 p-8 text-white shadow-2xl shadow-teal-800/20 lg:p-10">
-        <h2 className="text-3xl font-black sm:text-4xl">An toàn là ưu tiên số 1</h2>
-        <p className="mt-4 leading-7 text-white/85">
-          Vì CareGo liên quan trực tiếp đến người cao tuổi và sức khỏe, trang giới thiệu cần nhấn mạnh sự tin cậy,
-          minh bạch và kiểm soát rủi ro.
-        </p>
-        <LandingButton href="#contact" variant="light" className="mt-7">
-          Xem thông tin liên hệ
-        </LandingButton>
-      </div>
-
-      <div className="grid gap-4">
-        {safetyItems.map(([title, body]) => (
-          <div key={title} className="flex gap-4 rounded-3xl border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-teal-100 font-black text-teal-800">
-              ✓
-            </div>
-            <div>
-              <h3 className="font-black text-[#12312f]">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{body}</p>
-            </div>
           </div>
         ))}
       </div>
@@ -166,12 +137,8 @@ export const CompanionJoinSection = () => (
           </div>
 
           <div className="relative mt-8 flex flex-wrap gap-3">
-            <LandingButton to="/companion-register">
-              Đăng ký người đồng hành
-            </LandingButton>
-            <LandingButton href="#safety" variant="secondary">
-              Xem quy tắc an toàn
-            </LandingButton>
+            <LandingButton to="/companion-register">Đăng ký người đồng hành</LandingButton>
+            <LandingButton href="#safety" variant="secondary">Xem quy tắc an toàn</LandingButton>
           </div>
         </div>
 
@@ -226,6 +193,88 @@ export const CompanionJoinSection = () => (
     </div>
   </section>
 );
+
+export const SafetySection = () => (
+  <section id="safety" className="py-20">
+    <div className="mx-auto grid w-[min(1180px,92%)] gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+      <div className="rounded-[34px] bg-teal-700 p-8 text-white shadow-2xl shadow-teal-800/20 lg:p-10">
+        <h2 className="text-3xl font-black sm:text-4xl">An toàn là ưu tiên số 1</h2>
+        <p className="mt-4 leading-7 text-white/85">
+          Vì CareGo liên quan trực tiếp đến người cao tuổi và sức khỏe, trang giới thiệu cần nhấn mạnh sự tin cậy,
+          minh bạch và kiểm soát rủi ro.
+        </p>
+        <LandingButton href="#contact" variant="light" className="mt-7">Xem thông tin liên hệ</LandingButton>
+      </div>
+
+      <div className="grid gap-4">
+        {safetyItems.map(([title, body]) => (
+          <div key={title} className="flex gap-4 rounded-3xl border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-teal-100 font-black text-teal-800">
+              ✓
+            </div>
+            <div>
+              <h3 className="font-black text-[#12312f]">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+export const BlogPreviewSection = () => (
+  <section id="blog" className="scroll-mt-24 border-y border-teal-100 bg-white py-20">
+    <div className="mx-auto w-[min(1180px,92%)]">
+      <div className="mb-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-700">
+            Góc chăm sóc CareGo
+          </span>
+          <h2 className="mt-4 max-w-2xl text-3xl font-black text-[#12312f] sm:text-4xl">
+            Kiến thức chăm sóc giúp gia đình an tâm hơn
+          </h2>
+          <p className="mt-3 max-w-2xl leading-7 text-slate-500">
+            Những bài viết ngắn về đi khám, chăm sóc người cao tuổi, quy tắc an toàn và vai trò của người đồng hành.
+          </p>
+        </div>
+        <LandingButton to="/blog" variant="secondary" className="shrink-0">
+          Xem tất cả bài viết
+        </LandingButton>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        {featuredBlogPosts.map((post) => (
+          <Link
+            key={post.slug}
+            to={`/blog/${post.slug}`}
+            className="group overflow-hidden rounded-[30px] border border-teal-100 bg-[#f7fffe] p-5 shadow-xl shadow-teal-900/5 transition hover:-translate-y-1 hover:bg-white"
+          >
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-teal-100 to-sky-100 text-teal-800">
+              <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" aria-hidden="true">
+                <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9">
+                  <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z" />
+                  <path d="M8 8h7M8 12h8M8 16h5" />
+                </g>
+              </svg>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
+              <span className="text-teal-700">{post.category}</span>
+              <span>•</span>
+              <span>{post.readTime}</span>
+            </div>
+            <h3 className="mt-3 text-xl font-black leading-snug text-[#12312f] group-hover:text-teal-800">
+              {post.title}
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-slate-500">{post.excerpt}</p>
+            <span className="mt-5 inline-flex text-sm font-black text-teal-700">Đọc thêm</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
 export const CtaSection = () => (
   <section className="pb-12 pt-6">
     <div className="mx-auto w-[min(1180px,92%)]">
@@ -236,9 +285,7 @@ export const CtaSection = () => (
             Đặt lịch người đồng hành phù hợp, theo dõi quá trình hỗ trợ và nhận báo cáo sau mỗi ca làm.
           </p>
         </div>
-        <LandingButton to="/register" variant="light" className="shrink-0">
-          Đặt lịch ngay
-        </LandingButton>
+        <LandingButton to="/register" variant="light" className="shrink-0">Đặt lịch ngay</LandingButton>
       </div>
     </div>
   </section>
@@ -257,12 +304,8 @@ export const LandingFooter = () => (
       <div>
         <h3 className="font-black text-slate-900">Liên hệ</h3>
         <div className="mt-4 grid gap-2 text-sm text-slate-500">
-          <p>
-            Hotline: <span className="font-bold text-slate-700">1900 6868</span>
-          </p>
-          <p>
-            Email: <span className="font-bold text-slate-700">support@carego.vn</span>
-          </p>
+          <p>Hotline: <span className="font-bold text-slate-700">1900 6868</span></p>
+          <p>Email: <span className="font-bold text-slate-700">support@carego.vn</span></p>
           <p>Thời gian: 08:00 - 20:00</p>
           <p>Khu vực thử nghiệm: đô thị lớn, chung cư, bệnh viện.</p>
         </div>
@@ -275,6 +318,7 @@ export const LandingFooter = () => (
           <a href="#steps" className="hover:text-teal-800">Quy trình</a>
           <a href="#companion-join" className="hover:text-teal-800">Người đồng hành</a>
           <a href="#safety" className="hover:text-teal-800">An toàn</a>
+          <Link to="/blog" className="hover:text-teal-800">Blog</Link>
         </div>
       </div>
     </div>

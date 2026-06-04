@@ -12,6 +12,8 @@ import RegisterCompanionPage from "./pages/auth/RegisterCompanionPage.jsx";
 import RegisterPage from "./pages/auth/RegisterPage.jsx";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage.jsx";
 import VerifyEmailPage from "./pages/auth/VerifyEmailPage.jsx";
+import BlogDetailPage from "./pages/BlogDetailPage.jsx";
+import BlogPage from "./pages/BlogPage.jsx";
 import CompanionBookingDetailPage from "./pages/companion/CompanionBookingDetailPage.jsx";
 import CompanionBookingHistoryPage from "./pages/companion/CompanionBookingHistoryPage.jsx";
 import CompanionBookingsPage from "./pages/companion/CompanionBookingsPage.jsx";
@@ -52,6 +54,8 @@ const App = () => {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/blog" element={<BlogPage />} />
+      <Route path="/blog/:slug" element={<BlogDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

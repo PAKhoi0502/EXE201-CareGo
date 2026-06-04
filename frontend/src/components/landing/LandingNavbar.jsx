@@ -10,6 +10,7 @@ const navItems = [
   ["Người đồng hành", "#companion-join"],
   ["An toàn", "#safety"],
   ["Liên hệ", "#contact"],
+  ["Blog", "/blog"],
 ];
 
 const getInitial = (name = "C") => name.trim().charAt(0).toUpperCase() || "C";
@@ -60,7 +61,7 @@ const LandingNavbar = () => {
   const isCustomer = user?.role === "customer";
   const bookingPath = isCustomer ? "/customer/bookings/new" : "/register";
   const sectionNavItems = isCustomer
-    ? navItems.map(([label, href]) => [label, `/${href}`])
+    ? navItems.map(([label, href]) => [label, href.startsWith("#") ? `/${href}` : href])
     : navItems;
 
   const handleLogout = () => {
@@ -100,11 +101,17 @@ const LandingNavbar = () => {
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex">
-          {sectionNavItems.map(([label, href]) => (
-            <a key={href} href={href} className="transition hover:text-teal-800">
-              {label}
-            </a>
-          ))}
+          {sectionNavItems.map(([label, href]) =>
+            href.startsWith("/") ? (
+              <Link key={href} to={href} className="transition hover:text-teal-800">
+                {label}
+              </Link>
+            ) : (
+              <a key={href} href={href} className="transition hover:text-teal-800">
+                {label}
+              </a>
+            )
+          )}
         </nav>
 
         <div className="flex items-center gap-3">

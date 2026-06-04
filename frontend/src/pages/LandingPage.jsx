@@ -4,6 +4,7 @@ import HeroPhonePreview from "../components/landing/HeroPhonePreview.jsx";
 import LandingButton from "../components/landing/LandingButton.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 import {
+  BlogPreviewSection,
   CompanionJoinSection,
   CtaSection,
   LandingFooter,
@@ -87,6 +88,7 @@ const LandingPage = () => {
         <StepsSection />
         <CompanionJoinSection />
         <SafetySection />
+        <BlogPreviewSection />
         <CtaSection />
       </main>
 
