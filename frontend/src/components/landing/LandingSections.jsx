@@ -135,28 +135,97 @@ export const SafetySection = () => (
 );
 
 export const CompanionJoinSection = () => (
-  <section id="companion-join" className="scroll-mt-24 py-10">
+  <section id="companion-join" className="scroll-mt-24 bg-gradient-to-b from-white via-teal-50/80 to-white py-18">
     <div className="mx-auto w-[min(1180px,92%)]">
-      <div className="grid gap-6 rounded-[34px] border border-teal-100 bg-white p-7 shadow-xl shadow-teal-900/5 lg:grid-cols-[1fr_auto] lg:items-center lg:p-9">
-        <div>
-          <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800">
+      <div className="grid overflow-hidden rounded-[38px] border border-teal-100 bg-white shadow-2xl shadow-teal-900/10 lg:grid-cols-[1.03fr_0.97fr]">
+        <div className="relative p-8 lg:p-12">
+          <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-teal-100/70 blur-3xl" />
+          <span className="relative inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
             Dành cho sinh viên Y Dược, Điều dưỡng, Tâm lý
           </span>
-          <h2 className="mt-4 text-2xl font-black text-[#12312f] sm:text-3xl">
+          <h2 className="relative mt-5 max-w-2xl text-3xl font-black leading-tight text-[#12312f] sm:text-4xl lg:text-5xl">
             Trở thành người đồng hành CareGo
           </h2>
-          <p className="mt-3 max-w-3xl leading-7 text-slate-500">
+          <p className="relative mt-4 max-w-2xl text-base leading-7 text-slate-500">
             Đăng ký hồ sơ, xác thực email và chờ admin kiểm duyệt để bắt đầu nhận ca chăm sóc theo giờ.
+            Mỗi ca đều có quy trình rõ ràng, GPS theo dõi và báo cáo minh bạch cho gia đình.
           </p>
+
+          <div className="relative mt-7 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Linh hoạt", "Chọn ca phù hợp lịch học"],
+              ["Minh bạch", "Theo dõi thu nhập rõ ràng"],
+              ["An toàn", "Có quy trình từng bước"],
+            ].map(([title, body]) => (
+              <div key={title} className="rounded-3xl border border-teal-100 bg-[#f7fffe] p-4">
+                <strong className="block text-sm text-[#12312f]">{title}</strong>
+                <small className="mt-1 block leading-5 text-slate-500">{body}</small>
+              </div>
+            ))}
+          </div>
+
+          <div className="relative mt-8 flex flex-wrap gap-3">
+            <LandingButton to="/companion-register">
+              Đăng ký người đồng hành
+            </LandingButton>
+            <LandingButton href="#safety" variant="secondary">
+              Xem quy tắc an toàn
+            </LandingButton>
+          </div>
         </div>
-        <LandingButton to="/companion-register" className="w-full lg:w-auto">
-          Đăng ký người đồng hành
-        </LandingButton>
+
+        <div className="relative min-h-[420px] overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-cyan-500 p-8">
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/20 blur-3xl" />
+          <div className="absolute -bottom-24 left-10 h-72 w-72 rounded-full bg-cyan-200/25 blur-3xl" />
+
+          <div className="relative mx-auto flex h-full max-w-md flex-col justify-center">
+            <div className="rounded-[32px] border border-white/25 bg-white/95 p-5 text-[#12312f] shadow-2xl shadow-teal-950/25">
+              <div className="flex items-center gap-4">
+                <div className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-teal-100 to-sky-100 text-2xl font-black text-teal-800">
+                  CG
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-teal-700">Hồ sơ ứng tuyển</p>
+                  <h3 className="mt-1 text-xl font-black">Người đồng hành mới</h3>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">Chờ admin kiểm duyệt</p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                {[
+                  ["01", "Xác thực email", "Hoàn tất OTP để bảo vệ tài khoản"],
+                  ["02", "Chụp CCCD và selfie", "Bổ sung giấy tờ xác minh danh tính"],
+                  ["03", "Nhận ca sau duyệt", "Bắt đầu nhận lịch chăm sóc phù hợp"],
+                ].map(([step, title, body]) => (
+                  <div key={step} className="flex gap-3 rounded-2xl border border-teal-100 bg-teal-50/70 p-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-white text-xs font-black text-teal-700 shadow-sm">
+                      {step}
+                    </span>
+                    <div>
+                      <strong className="block text-sm">{title}</strong>
+                      <small className="mt-1 block leading-5 text-slate-500">{body}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-[#12312f] p-4 text-white">
+                <p className="text-xs font-bold text-white/65">Thu nhập dự kiến</p>
+                <div className="mt-1 flex items-end justify-between gap-3">
+                  <strong className="text-2xl font-black">Theo ca chăm sóc</strong>
+                  <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-black text-emerald-100">
+                    Linh hoạt
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 );
-
 export const CtaSection = () => (
   <section className="pb-12 pt-6">
     <div className="mx-auto w-[min(1180px,92%)]">
