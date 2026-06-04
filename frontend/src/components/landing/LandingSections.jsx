@@ -2,6 +2,45 @@ import CareGoLogo from "../CareGoLogo.jsx";
 import LandingButton from "./LandingButton.jsx";
 import { safetyItems, services, steps } from "./landingData.js";
 
+const serviceIconPaths = {
+  hospital: (
+    <>
+      <path d="M5 21V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v14" />
+      <path d="M3 21h18" />
+      <path d="M10 11h4" />
+      <path d="M12 9v4" />
+      <path d="M8 21v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4" />
+      <path d="M8 5V3h8v2" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="M4 11.5 12 5l8 6.5" />
+      <path d="M6.5 10.5V20h11V10.5" />
+      <path d="M10 20v-5h4v5" />
+      <path d="M9 12h1" />
+      <path d="M14 12h1" />
+    </>
+  ),
+  walk: (
+    <>
+      <path d="M13 4a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" />
+      <path d="m10 8-2.5 4 3.5 2 1.5 6" />
+      <path d="m11 14 3.5-2 2.5 3" />
+      <path d="M8 12 5 20" />
+      <path d="M13 8l2 2" />
+    </>
+  ),
+};
+
+const ServiceIcon = ({ type }) => (
+  <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" aria-hidden="true">
+    <g stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      {serviceIconPaths[type] || serviceIconPaths.hospital}
+    </g>
+  </svg>
+);
+
 export const SectionHeader = ({ title, children }) => (
   <div className="mx-auto mb-11 max-w-3xl text-center">
     <h2 className="text-3xl font-black text-[#12312f] sm:text-4xl lg:text-5xl">{title}</h2>
@@ -22,8 +61,8 @@ export const ServicesSection = () => (
             key={service.title}
             className="rounded-[30px] border border-teal-100 bg-white p-7 shadow-xl shadow-teal-900/5 transition hover:-translate-y-1"
           >
-            <div className="mb-5 grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-teal-100 to-sky-100 text-lg font-black text-teal-800">
-              {service.code}
+            <div className="mb-5 grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-teal-100 to-sky-100 text-teal-800 shadow-inner shadow-white">
+              <ServiceIcon type={service.icon} />
             </div>
             <h3 className="text-xl font-black text-[#12312f]">{service.title}</h3>
             <p className="mt-3 leading-7 text-slate-500">{service.description}</p>

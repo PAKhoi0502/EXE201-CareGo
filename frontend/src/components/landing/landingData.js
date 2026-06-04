@@ -16,6 +16,7 @@ export const trustItems = [
 export const services = [
   {
     code: "01",
+    icon: "hospital",
     title: "CareGo Hospital",
     description:
       "Hỗ trợ người cao tuổi đi khám bệnh, làm thủ tục, xếp hàng, lấy thuốc và ghi chú lời dặn của bác sĩ.",
@@ -23,6 +24,7 @@ export const services = [
   },
   {
     code: "02",
+    icon: "home",
     title: "CareGo Home",
     description:
       "Người đồng hành đến nhà trò chuyện, nhắc uống thuốc theo đơn, theo dõi tình trạng và ghi chú ca làm.",
@@ -30,6 +32,7 @@ export const services = [
   },
   {
     code: "03",
+    icon: "walk",
     title: "CareGo Walk",
     description:
       "Đồng hành cùng người cao tuổi đi dạo, tham gia câu lạc bộ, đi siêu thị hoặc hoạt động nhẹ ngoài trời.",
@@ -45,7 +48,22 @@ export const steps = [
 ];
 
 export const safetyItems = [
-  ["Xác thực người đồng hành", "Kiểm tra CCCD, thẻ sinh viên, ưu tiên sinh viên ngành Y, Dược, Điều dưỡng, Tâm lý."],
-  ["Theo dõi thời gian thực", "Gia đình có thể xem GPS, ảnh xác nhận và ghi chú trong quá trình thực hiện dịch vụ."],
-  ["Quy tắc 3 không", "Không tự ý cho thuốc ngoài đơn, không thu tiền ngoài app, không đổi lộ trình nếu chưa báo người thân."],
+  [
+    "Xác thực người đồng hành",
+    "Kiểm tra CCCD, thẻ sinh viên, ưu tiên sinh viên ngành Y, Dược, Điều dưỡng, Tâm lý.",
+  ],
+  [
+    "Theo dõi thời gian thực",
+    "Gia đình có thể xem GPS, ảnh xác nhận và ghi chú trong quá trình thực hiện dịch vụ.",
+  ],
+  [
+    "Quy tắc 3 không",
+    "Không tự ý cho thuốc ngoài đơn, không thu tiền ngoài app, không đổi lộ trình nếu chưa báo người thân.",
+  ],
+];
+
+export const homeStats = [
+  ["< 3 phút", "Tạo lịch chăm sóc"],
+  ["24/7", "Theo dõi trạng thái"],
+  ["2-3 ngày", "Xử lý ví người đồng hành"],
 ];
