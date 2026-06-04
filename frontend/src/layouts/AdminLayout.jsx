@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
+import CareGoLogo from "../components/CareGoLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const adminLinks = [
@@ -24,15 +25,11 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-[#f5fbfa] text-slate-900">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-teal-900/10 bg-gradient-to-b from-teal-100 via-teal-50 to-emerald-100 shadow-xl shadow-teal-900/10 lg:flex">
         <div className="flex h-20 items-center gap-3 border-b border-teal-900/10 px-6">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-teal-700 to-teal-400 text-2xl font-black text-white shadow-lg shadow-teal-200">
-            +
-          </div>
-          <div>
-            <p className="text-2xl font-black text-teal-700">CareGo</p>
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-              Admin
-            </p>
-          </div>
+          <CareGoLogo
+            subtitle="Admin"
+            imageClassName="h-12 w-12"
+            subtitleClassName="block text-xs font-bold uppercase tracking-wide text-slate-400"
+          />
         </div>
 
         <nav className="space-y-2 p-4">
@@ -74,14 +71,12 @@ export default function AdminLayout() {
       <div className="lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-teal-900/10 bg-[#f5fbfa]/90 backdrop-blur-xl">
           <div className="flex min-h-20 flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-3 lg:hidden">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-teal-700 to-teal-400 text-xl font-black text-white">
-                +
-              </div>
-              <div>
-                <p className="text-xl font-black text-teal-700">CareGo</p>
-                <p className="text-xs font-bold text-slate-400">Admin</p>
-              </div>
+            <div className="lg:hidden">
+              <CareGoLogo
+                subtitle="Admin"
+                className="flex items-center gap-3 text-xl font-black text-teal-700"
+                subtitleClassName="block text-xs font-bold text-slate-400"
+              />
             </div>
 
             <div className="flex gap-2 overflow-x-auto lg:hidden">

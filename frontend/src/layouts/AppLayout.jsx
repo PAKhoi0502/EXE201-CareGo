@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router";
 import { api } from "../api/client.js";
+import CareGoLogo from "../components/CareGoLogo.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useAsync } from "../hooks/useAsync.js";
@@ -118,14 +119,8 @@ const AppLayout = () => {
     <div className="min-h-screen bg-[#f5fbfa] text-slate-900">
       <header className="sticky top-0 z-40 border-b border-teal-900/10 bg-[#f5fbfa]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-20 w-[min(1180px,92%)] items-center justify-between gap-4">
-          <Link to="/companion/bookings" className="flex items-center gap-3 text-2xl font-black text-teal-800">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-700 text-xl font-black text-white shadow-lg shadow-teal-700/25">
-              +
-            </span>
-            <span>
-              <span className="block leading-5">CareGo</span>
-              <span className="block text-xs font-bold text-teal-700/70">Người đồng hành</span>
-            </span>
+          <Link to="/companion/bookings">
+            <CareGoLogo subtitle="Người đồng hành" />
           </Link>
 
           <div className="flex items-center gap-3">

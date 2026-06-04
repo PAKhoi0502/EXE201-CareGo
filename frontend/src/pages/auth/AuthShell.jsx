@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import CareGoLogo from "../../components/CareGoLogo.jsx";
 
 const features = [
   ["GPS realtime", "Xem vị trí người thân và người đồng hành trong quá trình thực hiện dịch vụ."],
@@ -11,11 +12,8 @@ const AuthShell = ({ title, subtitle, children, footer, badge = "Đăng nhập a
   <main className="grid min-h-screen bg-[#f4fbfa] text-[#12312f] lg:grid-cols-[1.05fr_0.95fr]">
     <section className="flex flex-col justify-between px-5 py-8 sm:px-10 lg:px-[7%] lg:py-11">
       <div>
-        <Link to="/" className="flex items-center gap-3 text-2xl font-black text-teal-800">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-teal-700 text-2xl font-black text-white shadow-lg shadow-teal-700/25">
-            +
-          </span>
-          CareGo
+        <Link to="/">
+          <CareGoLogo imageClassName="h-12 w-12" />
         </Link>
 
         <div className="mt-12 max-w-2xl lg:mt-20">

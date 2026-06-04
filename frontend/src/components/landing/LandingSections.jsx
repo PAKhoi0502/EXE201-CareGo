@@ -1,3 +1,4 @@
+import CareGoLogo from "../CareGoLogo.jsx";
 import LandingButton from "./LandingButton.jsx";
 import { safetyItems, services, steps } from "./landingData.js";
 
@@ -139,10 +140,7 @@ export const LandingFooter = () => (
   <footer id="contact" className="scroll-mt-24 border-t border-teal-100 bg-white">
     <div className="mx-auto grid w-[min(1180px,92%)] gap-8 py-10 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
       <div>
-        <div className="flex items-center gap-3 text-2xl font-black text-teal-800">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-700 text-xl text-white">+</span>
-          CareGo
-        </div>
+        <CareGoLogo />
         <p className="mt-4 max-w-md text-sm leading-6 text-slate-500">
           Nền tảng chăm sóc người cao tuổi theo giờ, giúp gia đình an tâm hơn trong giờ hành chính.
         </p>
