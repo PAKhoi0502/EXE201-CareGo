@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { api } from "../../api/client.js";
 import { Button, Card, Input, PageHeader, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import LiveLocationMap from "../../components/LiveLocationMap.jsx";
@@ -96,17 +96,33 @@ const ShiftPhoto = ({ label, url, onPreview }) => {
   );
 };
 
+const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
+const waitingPaymentStatuses = ["pending", "accepted", "in_progress"];
+
 const CustomerBookingDetailPage = () => {
   const { id } = useParams();
-  const { data, loading, error, reload } = useAsync(() => api.get(`/bookings/${id}`), [id]);
+  const location = useLocation();
+  const { data, setData, loading, error, reload } = useAsync(() => api.get(`/bookings/${id}`), [id]);
   const [review, setReview] = useState({ rating: 5, comment: "" });
   const [submitError, setSubmitError] = useState("");
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [liveLocations, setLiveLocations] = useState([]);
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [showCompanionPhone, setShowCompanionPhone] = useState(false);
   const [showHotline, setShowHotline] = useState(false);
 
   const booking = data?.booking;
+  const payosStatus = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get("payosStatus") || "";
+  }, [location.search]);
+  const payosOrderCode = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get("orderCode") || "";
+  }, [location.search]);
+  const isPayOSReturn = payosStatus === "return";
+  const isPayOSCancel = payosStatus === "cancel";
   const shiftLog = data?.shiftLog;
   const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
   const allLocations = useMemo(
@@ -124,6 +140,20 @@ const CustomerBookingDetailPage = () => {
   }[booking?.status] || "Đang cập nhật";
   const statusSteps = ["Đặt lịch", "Xác nhận", "Di chuyển", "Hoàn thành"];
   const statusIndex = Math.max(0, ["pending", "accepted", "in_progress", "completed"].indexOf(booking?.status));
+  const paymentDueAt = booking?.paymentDueAt ? new Date(booking.paymentDueAt) : null;
+  const hasValidPaymentDueAt = paymentDueAt && !Number.isNaN(paymentDueAt.getTime());
+  const isPaymentOverdue = Boolean(booking?.status === "completed" && hasValidPaymentDueAt && paymentDueAt < currentTime);
+  const penaltyAmount = isPaymentOverdue ? OVERDUE_PAYMENT_PENALTY_AMOUNT : 0;
+  const payableAmount = Number(booking?.totalAmount || 0) + penaltyAmount;
+  const canPay = booking?.status === "completed";
+  const isWaitingForPayment = waitingPaymentStatuses.includes(booking?.status);
+  const paymentBadge = booking?.status === "paid"
+    ? { label: "Đã thanh toán", className: "bg-emerald-50 text-emerald-700" }
+    : isPaymentOverdue
+      ? { label: "Quá hạn", className: "bg-rose-50 text-rose-700" }
+      : canPay
+        ? { label: "Sẵn sàng", className: "bg-teal-50 text-teal-700" }
+        : { label: "Chưa đến hạn", className: "bg-orange-50 text-orange-700" };
 
   useEffect(() => {
     locationSocket.connect();
@@ -143,13 +173,76 @@ const CustomerBookingDetailPage = () => {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (booking?.status !== "completed") return undefined;
+
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [booking?.status]);
+
+  useEffect(() => {
+    if (!isPayOSReturn && !isPayOSCancel) return undefined;
+
+    let active = true;
+    const refreshBooking = async () => {
+      try {
+        if (isPayOSReturn && payosOrderCode) {
+          await api.post("/payments/payos/sync", { bookingId: id, orderCode: payosOrderCode });
+        }
+        const nextData = await api.get(`/bookings/${id}`);
+        if (active) {
+          setData(nextData);
+        }
+      } catch (err) {
+        if (active) {
+          setSubmitError(err.message);
+        }
+      }
+    };
+
+    setPaymentLoading(false);
+    setSubmitError("");
+    setCurrentTime(new Date());
+    refreshBooking();
+
+    if (!isPayOSReturn) {
+      return () => {
+        active = false;
+      };
+    }
+
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      refreshBooking();
+      if (attempts >= 5) {
+        clearInterval(timer);
+      }
+    }, 2500);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [id, isPayOSReturn, isPayOSCancel, payosOrderCode, setData]);
+
   const pay = async () => {
     setSubmitError("");
+    setPaymentLoading(true);
     try {
-      await api.post(`/bookings/${id}/pay`, { method: "prototype" });
-      reload();
+      const paymentData = await api.post(`/bookings/${id}/pay`, { method: "payos" });
+      if (!paymentData.checkoutUrl) {
+        throw new Error("Không nhận được link thanh toán PayOS.");
+      }
+      window.location.href = paymentData.checkoutUrl;
     } catch (err) {
       setSubmitError(err.message);
+      setPaymentLoading(false);
     }
   };
 
@@ -336,9 +429,9 @@ const CustomerBookingDetailPage = () => {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-black">Thanh toán</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">Thanh toán dịch vụ sau khi đơn được xác nhận.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">Thanh toán sau khi companion hoàn thành ca chăm sóc.</p>
                 </div>
-                <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">Chờ</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-black ${paymentBadge.className}`}>{paymentBadge.label}</span>
               </div>
 
               <div className="mt-5 grid gap-3 text-sm">
@@ -350,19 +443,59 @@ const CustomerBookingDetailPage = () => {
                   <span>Phí nền tảng</span>
                   <strong className="text-[#12312f]">{money(booking.platformFee)}</strong>
                 </div>
+                {hasValidPaymentDueAt ? (
+                  <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
+                    <span>Hạn thanh toán</span>
+                    <strong className="text-[#12312f]">{dateTime(paymentDueAt)}</strong>
+                  </div>
+                ) : null}
+                {penaltyAmount > 0 ? (
+                  <div className="flex justify-between gap-3 border-b border-rose-100 pb-3 text-rose-600">
+                    <span>Phí quá hạn</span>
+                    <strong>{money(penaltyAmount)}</strong>
+                  </div>
+                ) : null}
                 <div className="flex justify-between gap-3 text-2xl font-black">
                   <span>Tổng</span>
-                  <span>{money(booking.totalAmount)}</span>
+                  <span>{money(payableAmount)}</span>
                 </div>
               </div>
 
-              {booking.status !== "paid" ? (
-                <Button className="mt-5 w-full" onClick={pay}>Thanh toán ngay</Button>
-              ) : (
+              {isPayOSReturn ? (
+                <div className={`mt-5 rounded-[18px] border p-3 text-sm font-semibold ${booking.status === "paid"
+                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                  : "border-sky-100 bg-sky-50 text-sky-700"
+                  }`}>
+                  {booking.status === "paid"
+                    ? "PayOS đã xác nhận thanh toán thành công."
+                    : "Đã quay lại từ PayOS. Hệ thống đang xác minh trạng thái thanh toán."}
+                </div>
+              ) : null}
+              {isPayOSCancel ? (
+                <div className="mt-5 rounded-[18px] border border-amber-100 bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+                  Bạn đã hủy thanh toán PayOS. Booking vẫn chưa được ghi nhận là đã thanh toán.
+                </div>
+              ) : null}
+              {isWaitingForPayment ? (
+                <div className="mt-5 rounded-[18px] border border-orange-100 bg-orange-50 p-3 text-sm font-semibold text-orange-700">
+                  Nút thanh toán sẽ hiện sau khi ca chăm sóc hoàn thành.
+                </div>
+              ) : null}
+              {canPay ? (
+                <Button className="mt-5 w-full" onClick={pay} disabled={paymentLoading}>
+                  {paymentLoading ? "Đang tạo link..." : `Thanh toán ${money(payableAmount)}`}
+                </Button>
+              ) : null}
+              {booking.status === "paid" ? (
                 <div className="mt-5 rounded-[18px] border border-emerald-100 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
                   Đơn đã được thanh toán.
                 </div>
-              )}
+              ) : null}
+              {booking.status === "cancelled" ? (
+                <div className="mt-5 rounded-[18px] border border-slate-100 bg-slate-50 p-3 text-sm font-semibold text-slate-600">
+                  Đơn đã hủy nên không cần thanh toán.
+                </div>
+              ) : null}
               {submitError ? <p className="mt-3 text-sm text-rose-600">{submitError}</p> : null}
             </Card>
 

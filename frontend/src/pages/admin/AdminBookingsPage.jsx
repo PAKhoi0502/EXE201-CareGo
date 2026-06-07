@@ -23,6 +23,15 @@ const initials = (name = "CG") =>
     .slice(0, 2)
     .toUpperCase();
 
+const getBaseAmount = (booking) => Number(booking.payment?.baseAmount ?? booking.totalAmount ?? 0);
+const getPenaltyAmount = (booking) => Number(booking.payment?.penaltyAmount ?? 0);
+const getPaidAmount = (booking) => Number(booking.payment?.paidAmount ?? booking.payment?.amount ?? getBaseAmount(booking));
+const getPlatformFee = (booking) => Number(booking.payment?.platformFee ?? booking.platformFee ?? 0);
+const getCompanionEarning = (booking) =>
+  Number(booking.payment?.companionEarning ?? Math.max(getBaseAmount(booking) - getPlatformFee(booking), 0));
+const getCareGoRevenue = (booking) => getPlatformFee(booking) + getPenaltyAmount(booking);
+const getDisplayAmount = (booking) => (booking.status === "paid" ? getPaidAmount(booking) : getBaseAmount(booking));
+
 const AdminBookingsPage = () => {
   const { data, loading, error } = useAsync(() => api.get("/admin/bookings"), []);
   const [query, setQuery] = useState("");
@@ -46,10 +55,11 @@ const AdminBookingsPage = () => {
   });
 
   const runningCount = bookings.filter((booking) => ["accepted", "in_progress"].includes(booking.status)).length;
-  const paidRevenue = bookings
-    .filter((booking) => booking.status === "paid")
-    .reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
-  const platformFee = bookings.reduce((sum, booking) => sum + (booking.platformFee || 0), 0);
+  const paidBookings = bookings.filter((booking) => booking.status === "paid");
+  const paidRevenue = paidBookings.reduce((sum, booking) => sum + getPaidAmount(booking), 0);
+  const penaltyRevenue = paidBookings.reduce((sum, booking) => sum + getPenaltyAmount(booking), 0);
+  const platformFee = paidBookings.reduce((sum, booking) => sum + getPlatformFee(booking), 0);
+  const careGoRevenue = paidBookings.reduce((sum, booking) => sum + getCareGoRevenue(booking), 0);
   const gpsReadyCount = bookings.filter((booking) => booking.addressLocation?.lat).length;
 
   return (
@@ -86,6 +96,7 @@ const AdminBookingsPage = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Doanh thu paid</span>
           <p className="mt-2 text-2xl font-bold text-emerald-700">{money(paidRevenue)}</p>
+          <p className="mt-1 text-[11px] text-slate-400">Phí phạt: {money(penaltyRevenue)}</p>
         </div>
         <div className="rounded-xl border-l-4 border-amber-500 bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <span className="block text-xs font-medium text-amber-600">Booking có GPS điểm đến</span>
@@ -148,6 +159,7 @@ const AdminBookingsPage = () => {
                 const googleMapsUrl = hasPinnedLocation
                   ? `https://www.google.com/maps/dir/?api=1&destination=${booking.addressLocation.lat},${booking.addressLocation.lng}`
                   : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address || "")}`;
+                const penaltyAmount = getPenaltyAmount(booking);
 
                 return (
                   <tr key={booking._id} className={booking.status === "in_progress" ? "bg-teal-50/40" : "hover:bg-slate-50/80"}>
@@ -201,8 +213,12 @@ const AdminBookingsPage = () => {
                       </p>
                     </td>
                     <td className="p-4 text-right">
-                      <p className="text-sm font-bold text-teal-700">{money(booking.totalAmount)}</p>
-                      <p className="text-[11px] text-slate-400">Phí nền tảng: {money(booking.platformFee)}</p>
+                      <p className="text-sm font-bold text-teal-700">{money(getDisplayAmount(booking))}</p>
+                      <p className="text-[11px] text-slate-400">Tiền ca: {money(getBaseAmount(booking))}</p>
+                      <p className="text-[11px] text-slate-400">Phí nền tảng: {money(getPlatformFee(booking))}</p>
+                      {penaltyAmount > 0 ? (
+                        <p className="text-[11px] font-semibold text-rose-600">Phí phạt: {money(penaltyAmount)}</p>
+                      ) : null}
                     </td>
                     <td className="p-4 text-right">
                       <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedBooking(booking)}>
@@ -225,7 +241,7 @@ const AdminBookingsPage = () => {
 
         <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 p-4 text-xs">
           <span className="font-medium text-slate-500">Hiển thị {filteredBookings.length} booking</span>
-          <span className="font-semibold text-slate-500">Phí nền tảng tạm tính: {money(platformFee)}</span>
+          <span className="font-semibold text-slate-500">CareGo đã thu: {money(careGoRevenue)} | Phí nền tảng: {money(platformFee)}</span>
         </div>
       </section>
 
@@ -244,8 +260,12 @@ const AdminBookingsPage = () => {
               <DetailItem label="Dịch vụ" value={selectedBooking.serviceId?.name} />
               <DetailItem label="Thời gian bắt đầu" value={dateTime(selectedBooking.startTime)} />
               <DetailItem label="Thời lượng" value={`${selectedBooking.durationHours || 0} giờ`} />
-              <DetailItem label="Tổng tiền" value={money(selectedBooking.totalAmount)} />
-              <DetailItem label="Phí nền tảng" value={money(selectedBooking.platformFee)} />
+              <DetailItem label="Tiền ca" value={money(getBaseAmount(selectedBooking))} />
+              <DetailItem label="Phí nền tảng" value={money(getPlatformFee(selectedBooking))} />
+              <DetailItem label="Phí phạt" value={money(getPenaltyAmount(selectedBooking))} />
+              <DetailItem label="Tổng khách trả" value={money(getDisplayAmount(selectedBooking))} />
+              <DetailItem label="CareGo thu" value={money(selectedBooking.status === "paid" ? getCareGoRevenue(selectedBooking) : 0)} />
+              <DetailItem label="Thu nhập companion" value={money(selectedBooking.status === "paid" ? getCompanionEarning(selectedBooking) : 0)} />
               <DetailItem label="Ngày tạo" value={dateTime(selectedBooking.createdAt)} />
               <DetailItem label="Cập nhật lần cuối" value={dateTime(selectedBooking.updatedAt)} />
             </DetailGrid>

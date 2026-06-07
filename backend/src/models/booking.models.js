@@ -56,6 +56,14 @@ const BookingSchema = new mongoose.Schema(
       ],
       default: "pending",
     },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    paymentDueAt: {
+      type: Date,
+      default: null,
+    },
     totalAmount: {
       type: Number,
       required: true,
@@ -71,6 +79,7 @@ const BookingSchema = new mongoose.Schema(
 );
 
 BookingSchema.index({ companionId: 1, startTime: 1, status: 1 });
+BookingSchema.index({ customerId: 1, status: 1, paymentDueAt: 1 });
 
 const Booking = mongoose.model("booking", BookingSchema);
 export default Booking;

@@ -18,9 +18,20 @@ export const getAdminDashboard = async (req, res) => {
           {
             $group: {
               _id: null,
-              revenue: { $sum: "$amount" },
-              platformFee: { $sum: "$platformFee" },
-              companionEarning: { $sum: "$companionEarning" },
+              revenue: { $sum: { $ifNull: ["$paidAmount", "$amount"] } },
+              baseRevenue: { $sum: { $ifNull: ["$baseAmount", "$amount"] } },
+              paidAmount: { $sum: { $ifNull: ["$paidAmount", "$amount"] } },
+              penaltyAmount: { $sum: { $ifNull: ["$penaltyAmount", 0] } },
+              platformFee: { $sum: { $ifNull: ["$platformFee", 0] } },
+              companionEarning: { $sum: { $ifNull: ["$companionEarning", 0] } },
+              caregoRevenue: {
+                $sum: {
+                  $add: [
+                    { $ifNull: ["$platformFee", 0] },
+                    { $ifNull: ["$penaltyAmount", 0] },
+                  ],
+                },
+              },
             },
           },
         ]),
@@ -35,7 +46,15 @@ export const getAdminDashboard = async (req, res) => {
       totalCompanions,
       totalServices,
       totalBookings,
-      revenue: revenueStats[0] || { revenue: 0, platformFee: 0, companionEarning: 0 },
+      revenue: revenueStats[0] || {
+        revenue: 0,
+        baseRevenue: 0,
+        paidAmount: 0,
+        penaltyAmount: 0,
+        platformFee: 0,
+        companionEarning: 0,
+        caregoRevenue: 0,
+      },
       bookingsByStatus,
     });
   } catch (error) {
@@ -75,9 +94,28 @@ export const getAdminBookings = async (req, res) => {
       .populate("companionId", "name email phone")
       .populate("elderProfileId")
       .populate("serviceId")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    return res.status(200).json({ bookings });
+    const payments = await Payment.find({
+      bookingId: { $in: bookings.map((booking) => booking._id) },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    const paymentByBookingId = new Map();
+    payments.forEach((payment) => {
+      const key = payment.bookingId.toString();
+      const current = paymentByBookingId.get(key);
+      if (!current || (current.status !== "paid" && payment.status === "paid")) {
+        paymentByBookingId.set(key, payment);
+      }
+    });
+    const bookingsWithPayment = bookings.map((booking) => ({
+      ...booking,
+      payment: paymentByBookingId.get(booking._id.toString()) || null,
+    }));
+
+    return res.status(200).json({ bookings: bookingsWithPayment });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }

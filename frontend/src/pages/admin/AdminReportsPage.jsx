@@ -20,6 +20,14 @@ ChartJS.register(BarElement, CategoryScale, Filler, Legend, LinearScale, LineEle
 
 const statuses = ["pending", "accepted", "in_progress", "completed", "paid", "cancelled"];
 
+const getBaseAmount = (booking) => Number(booking.payment?.baseAmount ?? booking.totalAmount ?? 0);
+const getPenaltyAmount = (booking) => Number(booking.payment?.penaltyAmount ?? 0);
+const getPaidAmount = (booking) => Number(booking.payment?.paidAmount ?? booking.payment?.amount ?? getBaseAmount(booking));
+const getPlatformFee = (booking) => Number(booking.payment?.platformFee ?? booking.platformFee ?? 0);
+const getCompanionEarning = (booking) =>
+  Number(booking.payment?.companionEarning ?? Math.max(getBaseAmount(booking) - getPlatformFee(booking), 0));
+const getCareGoRevenue = (booking) => getPlatformFee(booking) + getPenaltyAmount(booking);
+
 const makeMonthly = (bookings) => {
   const months = Array.from({ length: 6 }, (_, index) => {
     const date = new Date();
@@ -29,6 +37,7 @@ const makeMonthly = (bookings) => {
       label: new Intl.DateTimeFormat("vi-VN", { month: "short" }).format(date),
       count: 0,
       revenue: 0,
+      penalty: 0,
     };
   });
 
@@ -37,7 +46,10 @@ const makeMonthly = (bookings) => {
     const bucket = months.find((item) => item.key === `${date.getFullYear()}-${date.getMonth()}`);
     if (!bucket) return;
     bucket.count += 1;
-    if (booking.status === "paid") bucket.revenue += booking.totalAmount || 0;
+    if (booking.status === "paid") {
+      bucket.revenue += getPaidAmount(booking);
+      bucket.penalty += getPenaltyAmount(booking);
+    }
   });
 
   return months;
@@ -49,7 +61,7 @@ const topServices = (bookings) => {
     const name = booking.serviceId?.name || "Khác";
     stats[name] ||= { name, count: 0, revenue: 0 };
     stats[name].count += 1;
-    stats[name].revenue += booking.totalAmount || 0;
+    stats[name].revenue += getBaseAmount(booking);
   });
   return Object.values(stats).sort((a, b) => b.count - a.count).slice(0, 5);
 };
@@ -63,12 +75,12 @@ const topCompanions = (bookings) => {
       name: booking.companionId?.name || "Chưa có companion",
       count: 0,
       paid: 0,
-      revenue: 0,
+      earning: 0,
     };
     stats[id].count += 1;
     if (booking.status === "paid") {
       stats[id].paid += 1;
-      stats[id].revenue += booking.totalAmount || 0;
+      stats[id].earning += getCompanionEarning(booking);
     }
   });
   return Object.values(stats).sort((a, b) => b.count - a.count).slice(0, 6);
@@ -84,9 +96,13 @@ const AdminReportsPage = () => {
   const monthly = makeMonthly(bookings);
   const services = topServices(bookings);
   const companionRows = topCompanions(bookings);
+  const paidBookings = bookings.filter((item) => item.status === "paid");
 
-  const paidRevenue = bookings.filter((item) => item.status === "paid").reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-  const platformFee = bookings.reduce((sum, item) => sum + (item.platformFee || 0), 0);
+  const paidRevenue = paidBookings.reduce((sum, item) => sum + getPaidAmount(item), 0);
+  const baseRevenue = paidBookings.reduce((sum, item) => sum + getBaseAmount(item), 0);
+  const penaltyRevenue = paidBookings.reduce((sum, item) => sum + getPenaltyAmount(item), 0);
+  const platformFee = paidBookings.reduce((sum, item) => sum + getPlatformFee(item), 0);
+  const careGoRevenue = paidBookings.reduce((sum, item) => sum + getCareGoRevenue(item), 0);
   const completed = bookings.filter((item) => ["completed", "paid"].includes(item.status)).length;
   const completionRate = bookings.length ? Math.round((completed / bookings.length) * 100) : 0;
   const missingGps = bookings.filter((item) => !item.addressLocation?.lat).length;
@@ -97,7 +113,10 @@ const AdminReportsPage = () => {
 
     const summaryRows = [
       { label: "Doanh thu paid", value: paidRevenue },
+      { label: "Gia tri ca da thanh toan", value: baseRevenue },
       { label: "Phi nen tang", value: platformFee },
+      { label: "Phi phat qua han", value: penaltyRevenue },
+      { label: "CareGo thu", value: careGoRevenue },
       { label: "Ty le hoan thanh", value: `${completionRate}%` },
       { label: "Thieu GPS diem den", value: missingGps },
       { label: "Ho so cho duyet", value: pendingCompanions },
@@ -108,6 +127,7 @@ const AdminReportsPage = () => {
       thang: item.label,
       so_booking: item.count,
       doanh_thu_paid: item.revenue,
+      phi_phat: item.penalty,
     }));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(monthlyRows), "Doanh thu theo thang");
 
@@ -122,7 +142,7 @@ const AdminReportsPage = () => {
       companion: item.name,
       so_ca: item.count,
       paid: item.paid,
-      doanh_thu: item.revenue,
+      thu_nhap: item.earning,
     }));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(companionRowsExport), "Hieu suat companion");
 
@@ -133,8 +153,12 @@ const AdminReportsPage = () => {
       companion: booking.companionId?.name || "",
       dich_vu: booking.serviceId?.name || "",
       trang_thai: booking.status,
-      tong_tien: booking.totalAmount || 0,
-      phi_nen_tang: booking.platformFee || 0,
+      tien_ca: getBaseAmount(booking),
+      phi_nen_tang: getPlatformFee(booking),
+      phi_phat: getPenaltyAmount(booking),
+      tong_khach_tra: booking.status === "paid" ? getPaidAmount(booking) : 0,
+      carego_thu: booking.status === "paid" ? getCareGoRevenue(booking) : 0,
+      thu_nhap_companion: booking.status === "paid" ? getCompanionEarning(booking) : 0,
       ngay_tao: formatDateTime(booking.createdAt),
     }));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings");
@@ -198,14 +222,19 @@ const AdminReportsPage = () => {
       {loading ? <p className="text-sm text-slate-500">Đang tải báo cáo...</p> : null}
       {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="text-xs font-medium text-slate-400">Doanh thu paid</span>
           <p className="mt-2 text-xl font-bold text-teal-700">{money(paidRevenue)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <span className="text-xs font-medium text-slate-400">Phí nền tảng</span>
-          <p className="mt-2 text-xl font-bold text-emerald-700">{money(platformFee)}</p>
+          <span className="text-xs font-medium text-slate-400">CareGo thu</span>
+          <p className="mt-2 text-xl font-bold text-emerald-700">{money(careGoRevenue)}</p>
+          <p className="mt-1 text-[11px] text-slate-400">Phí nền tảng: {money(platformFee)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Phí phạt</span>
+          <p className="mt-2 text-xl font-bold text-rose-700">{money(penaltyRevenue)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="text-xs font-medium text-slate-400">Tỷ lệ hoàn thành</span>
@@ -280,7 +309,7 @@ const AdminReportsPage = () => {
                 <th className="p-4">Companion</th>
                 <th className="p-4">Số ca</th>
                 <th className="p-4">Paid</th>
-                <th className="p-4 text-right">Doanh thu</th>
+                <th className="p-4 text-right">Thu nhập</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -289,7 +318,7 @@ const AdminReportsPage = () => {
                   <td className="p-4 font-semibold text-slate-800">{item.name}</td>
                   <td className="p-4">{item.count}</td>
                   <td className="p-4">{item.paid}</td>
-                  <td className="p-4 text-right font-bold text-teal-700">{money(item.revenue)}</td>
+                  <td className="p-4 text-right font-bold text-teal-700">{money(item.earning)}</td>
                 </tr>
               ))}
               {!companionRows.length ? (

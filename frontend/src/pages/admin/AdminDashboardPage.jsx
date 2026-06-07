@@ -39,6 +39,11 @@ const compactMoney = (value) => {
   return money(amount);
 };
 
+const getBaseAmount = (booking) => Number(booking.payment?.baseAmount ?? booking.totalAmount ?? 0);
+const getPenaltyAmount = (booking) => Number(booking.payment?.penaltyAmount ?? 0);
+const getPaidAmount = (booking) => Number(booking.payment?.paidAmount ?? booking.payment?.amount ?? getBaseAmount(booking));
+const getDisplayAmount = (booking) => (booking.status === "paid" ? getPaidAmount(booking) : getBaseAmount(booking));
+
 const getMonthlyStats = (bookings) => {
   const months = Array.from({ length: 5 }, (_, index) => {
     const date = new Date();
@@ -59,7 +64,7 @@ const getMonthlyStats = (bookings) => {
 
     bucket.count += 1;
     if (booking.status === "paid") {
-      bucket.revenue += booking.totalAmount || 0;
+      bucket.revenue += getPaidAmount(booking);
     }
   });
 
@@ -243,6 +248,7 @@ const AdminDashboardPage = () => {
         <StatCard
           label="Doanh thu"
           value={compactMoney(data?.revenue?.revenue)}
+          hint={`CareGo thu: ${compactMoney(data?.revenue?.caregoRevenue)} | Phí phạt: ${compactMoney(data?.revenue?.penaltyAmount)}`}
           accent="emerald"
           icon={
             <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
@@ -329,7 +335,10 @@ const AdminDashboardPage = () => {
                       <p className="mt-1 text-xs text-slate-400">{dateTime(booking.startTime)}</p>
                     </td>
                     <td className="p-4 text-right font-semibold text-teal-700">
-                      {money(booking.totalAmount)}
+                      {money(getDisplayAmount(booking))}
+                      {getPenaltyAmount(booking) > 0 ? (
+                        <p className="mt-1 text-[11px] font-medium text-rose-600">Phí phạt: {money(getPenaltyAmount(booking))}</p>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
