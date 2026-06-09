@@ -6,6 +6,7 @@ import AdminReportsPage from "./pages/admin/AdminReportsPage.jsx";
 import AdminServicesPage from "./pages/admin/AdminServicesPage.jsx";
 import AdminUsersPage from "./pages/admin/AdminUsersPage.jsx";
 import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage.jsx";
+import AdminSupportPage from "./pages/admin/AdminSupportPage.jsx";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage.jsx";
 import LoginPage from "./pages/auth/LoginPage.jsx";
 import RegisterCompanionPage from "./pages/auth/RegisterCompanionPage.jsx";
@@ -28,6 +29,7 @@ import CustomerProfilePage from "./pages/customer/CustomerProfilePage.jsx";
 import CustomerServicesPage from "./pages/customer/CustomerServicesPage.jsx";
 import NewBookingPage from "./pages/customer/NewBookingPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
+import SupportPage from "./pages/support/SupportPage.jsx";
 import AdminLayout from "./layouts/AdminLayout.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -79,6 +81,7 @@ const App = () => {
         <Route path="bookings/new" element={<NewBookingPage />} />
         <Route path="bookings" element={<CustomerBookingsPage />} />
         <Route path="bookings/:id" element={<CustomerBookingDetailPage />} />
+        <Route path="support" element={<SupportPage />} />
       </Route>
 
       <Route
@@ -96,6 +99,7 @@ const App = () => {
         <Route path="bookings/:id" element={<CompanionBookingDetailPage />} />
         <Route path="earnings" element={<CompanionEarningsPage />} />
         <Route path="withdrawals" element={<CompanionWithdrawalsPage />} />
+        <Route path="support" element={<SupportPage />} />
       </Route>
 
       <Route
@@ -113,6 +117,7 @@ const App = () => {
         <Route path="bookings" element={<AdminBookingsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
+        <Route path="support" element={<AdminSupportPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

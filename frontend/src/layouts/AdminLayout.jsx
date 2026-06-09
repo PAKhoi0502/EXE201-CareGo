@@ -9,6 +9,7 @@ const adminLinks = [
   { label: "Booking", to: "/admin/bookings" },
   { label: "Dịch vụ", to: "/admin/services" },
   { label: "Yêu cầu rút tiền", to: "/admin/withdrawals" },
+  { label: "Hỗ trợ", to: "/admin/support" },
   { label: "Báo cáo", to: "/admin/reports" },
 ];
 

@@ -26,6 +26,7 @@ const MenuIcon = ({ type, tone = "teal" }) => {
     plus: <path d="M12 5v14M5 12h14" />,
     calendar: <path d="M8 3v3m8-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
     family: <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM3 20a6 6 0 0 1 12 0m-1.5-4.5A5 5 0 0 1 21 20" />,
+    support: <path d="M4 12a8 8 0 0 1 16 0v5a2 2 0 0 1-2 2h-3m-6 0H6a2 2 0 0 1-2-2v-5Zm0 0h3v5H4m16-5h-3v5h3M9 21h6" />,
     logout: <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4m5 10 5-5-5-5m5 5H9" />,
   };
 

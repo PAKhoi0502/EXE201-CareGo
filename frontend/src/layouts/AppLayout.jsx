@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate } from "react-router";
 import { api } from "../api/client.js";
 import CareGoLogo from "../components/CareGoLogo.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
+import SupportFloatingButton from "../components/support/SupportFloatingButton.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useAsync } from "../hooks/useAsync.js";
 import { money } from "../utils/format.js";
@@ -19,6 +20,7 @@ const MenuIcon = ({ type, tone = "teal" }) => {
     calendar: <path d="M8 3v3m8-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
     check: <path d="m5 12 4 4L19 6" />,
     wallet: <path d="M4 7a2 2 0 0 1 2-2h12v14H6a2 2 0 0 1-2-2V7Zm12 6h4v4h-4a2 2 0 0 1 0-4Z" />,
+    support: <path d="M4 12a8 8 0 0 1 16 0v5a2 2 0 0 1-2 2h-3m-6 0H6a2 2 0 0 1-2-2v-5Zm0 0h3v5H4m16-5h-3v5h3M9 21h6" />,
     logout: <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4m5 10 5-5-5-5m5 5H9" />,
   };
 
@@ -111,6 +113,7 @@ const AppLayout = () => {
         <main className="mx-auto w-[min(1180px,92%)] py-7">
           <Outlet />
         </main>
+        <SupportFloatingButton />
       </div>
     );
   }
@@ -230,6 +233,7 @@ const AppLayout = () => {
       <main className="mx-auto w-[min(1180px,92%)] py-7">
         <Outlet />
       </main>
+      <SupportFloatingButton />
     </div>
   );
 };

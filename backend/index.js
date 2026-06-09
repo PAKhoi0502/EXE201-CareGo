@@ -19,7 +19,9 @@ import paymentRouter from "./src/routes/payment.routes.js";
 import serviceRouter from "./src/routes/service.routes.js";
 import uploadRouter from "./src/routes/upload.routes.js";
 import withdrawalRouter from "./src/routes/withdrawal.routes.js";
+import supportRouter from "./src/routes/support.routes.js";
 import { setupLocationSocket } from "./src/socket/location.socket.js";
+import { setupSupportSocket } from "./src/socket/support.socket.js";
 
 // import swagger
 import { setupSwagger } from "./src/config/swagger.js";
@@ -60,6 +62,7 @@ app.use("/api/payments", paymentRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/withdrawals", withdrawalRouter);
+app.use("/api/support", supportRouter);
 
 const io = new Server(server, {
   cors: {
@@ -69,6 +72,7 @@ const io = new Server(server, {
 });
 
 setupLocationSocket(io);
+setupSupportSocket(io);
 
 server.listen(port, () => {
   console.log(`Example app listening on port ${port}`, "http://localhost:3000");
