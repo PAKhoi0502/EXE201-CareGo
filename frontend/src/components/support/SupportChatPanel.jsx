@@ -8,7 +8,7 @@ const formatTime = (value) =>
     ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(new Date(value))
     : "";
 
-export default function SupportChatPanel({ conversation, onConversationChange }) {
+export default function SupportChatPanel({ conversation, onConversationChange, compact = false }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -122,7 +122,9 @@ export default function SupportChatPanel({ conversation, onConversationChange })
 
   if (!conversation) {
     return (
-      <div className="grid h-[70vh] min-h-[520px] max-h-[680px] place-items-center rounded-[28px] border border-dashed border-teal-200 bg-white p-8 text-center">
+      <div className={`grid place-items-center border border-dashed border-teal-200 bg-white p-8 text-center ${
+        compact ? "h-[430px]" : "h-[70vh] min-h-[520px] max-h-[680px] rounded-[28px]"
+      }`}>
         <div>
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-teal-50 text-2xl text-teal-700">?</div>
           <p className="mt-4 font-black text-slate-800">Chọn một cuộc trò chuyện</p>
@@ -133,12 +135,14 @@ export default function SupportChatPanel({ conversation, onConversationChange })
   }
 
   return (
-    <section className="flex h-[70vh] min-h-[520px] max-h-[680px] flex-col overflow-hidden rounded-[28px] border border-teal-100 bg-white shadow-xl shadow-teal-900/5">
-      <header className="shrink-0 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4">
+    <section className={`flex flex-col overflow-hidden border border-teal-100 bg-white shadow-xl shadow-teal-900/5 ${
+      compact ? "h-[min(520px,70vh)] rounded-none border-x-0 border-b-0 shadow-none" : "h-[70vh] min-h-[520px] max-h-[680px] rounded-[28px]"
+    }`}>
+      <header className={`shrink-0 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-sky-50 ${compact ? "px-4 py-3" : "px-5 py-4"}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-wide text-teal-700">Hỗ trợ CareGo</p>
-            <h2 className="mt-1 text-lg font-black text-[#12312f]">{conversation.subject}</h2>
+            <h2 className={`${compact ? "max-w-[210px] truncate text-sm" : "mt-1 text-lg"} font-black text-[#12312f]`}>{conversation.subject}</h2>
           </div>
           <span className={`rounded-full px-3 py-1 text-xs font-black ${
             conversation.status === "resolved"
@@ -156,7 +160,7 @@ export default function SupportChatPanel({ conversation, onConversationChange })
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#f8fdfc] p-5">
+      <div className={`min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#f8fdfc] ${compact ? "p-3" : "p-5"}`}>
         {loading ? <p className="text-center text-sm font-bold text-slate-400">Đang tải tin nhắn...</p> : null}
         {messages.map((message) => {
           const senderId = String(message.senderId?._id || message.senderId || "");
@@ -183,19 +187,19 @@ export default function SupportChatPanel({ conversation, onConversationChange })
 
       {error ? <p className="shrink-0 border-t border-red-100 bg-red-50 px-5 py-2 text-xs font-bold text-red-600">{error}</p> : null}
 
-      <form onSubmit={sendMessage} className="flex shrink-0 gap-3 border-t border-teal-100 bg-white p-4">
+      <form onSubmit={sendMessage} className={`flex shrink-0 gap-2 border-t border-teal-100 bg-white ${compact ? "p-3" : "p-4"}`}>
         <textarea
           value={text}
           onChange={(event) => handleTyping(event.target.value)}
           disabled={conversation.status === "resolved"}
           rows={1}
           placeholder={conversation.status === "resolved" ? "Cuộc trò chuyện đã được giải quyết" : "Nhập tin nhắn hỗ trợ..."}
-          className="min-h-12 flex-1 resize-none rounded-2xl border border-teal-100 bg-[#fbfffe] px-4 py-3 text-sm outline-none focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+          className={`${compact ? "min-h-10 px-3 py-2" : "min-h-12 px-4 py-3"} min-w-0 flex-1 resize-none rounded-2xl border border-teal-100 bg-[#fbfffe] text-sm outline-none focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100`}
         />
         <button
           type="submit"
           disabled={!text.trim() || sending || conversation.status === "resolved"}
-          className="min-h-12 rounded-2xl bg-teal-700 px-5 text-sm font-black text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`${compact ? "min-h-10 px-4" : "min-h-12 px-5"} rounded-2xl bg-teal-700 text-sm font-black text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50`}
         >
           Gửi
         </button>
