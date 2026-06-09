@@ -552,7 +552,7 @@ const CustomerBookingDetailPage = () => {
                   type="button"
                   onClick={() => setShowHotline((current) => !current)}
                 >
-                  {showHotline ? "1900 6868" : "Gọi tổng đài CareGo"}
+                  {showHotline ? "033 610 8492" : "Gọi tổng đài CareGo"}
                 </Button>
               </div>
             </Card>
