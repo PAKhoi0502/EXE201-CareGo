@@ -122,7 +122,7 @@ export default function SupportChatPanel({ conversation, onConversationChange })
 
   if (!conversation) {
     return (
-      <div className="grid min-h-[560px] place-items-center rounded-[28px] border border-dashed border-teal-200 bg-white p-8 text-center">
+      <div className="grid h-[70vh] min-h-[520px] max-h-[680px] place-items-center rounded-[28px] border border-dashed border-teal-200 bg-white p-8 text-center">
         <div>
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-teal-50 text-2xl text-teal-700">?</div>
           <p className="mt-4 font-black text-slate-800">Chọn một cuộc trò chuyện</p>
@@ -133,8 +133,8 @@ export default function SupportChatPanel({ conversation, onConversationChange })
   }
 
   return (
-    <section className="flex min-h-[560px] flex-col overflow-hidden rounded-[28px] border border-teal-100 bg-white shadow-xl shadow-teal-900/5">
-      <header className="border-b border-teal-100 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4">
+    <section className="flex h-[70vh] min-h-[520px] max-h-[680px] flex-col overflow-hidden rounded-[28px] border border-teal-100 bg-white shadow-xl shadow-teal-900/5">
+      <header className="shrink-0 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-wide text-teal-700">Hỗ trợ CareGo</p>
@@ -156,7 +156,7 @@ export default function SupportChatPanel({ conversation, onConversationChange })
         </div>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto bg-[#f8fdfc] p-5">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#f8fdfc] p-5">
         {loading ? <p className="text-center text-sm font-bold text-slate-400">Đang tải tin nhắn...</p> : null}
         {messages.map((message) => {
           const senderId = String(message.senderId?._id || message.senderId || "");
@@ -181,9 +181,9 @@ export default function SupportChatPanel({ conversation, onConversationChange })
         <div ref={bottomRef} />
       </div>
 
-      {error ? <p className="border-t border-red-100 bg-red-50 px-5 py-2 text-xs font-bold text-red-600">{error}</p> : null}
+      {error ? <p className="shrink-0 border-t border-red-100 bg-red-50 px-5 py-2 text-xs font-bold text-red-600">{error}</p> : null}
 
-      <form onSubmit={sendMessage} className="flex gap-3 border-t border-teal-100 bg-white p-4">
+      <form onSubmit={sendMessage} className="flex shrink-0 gap-3 border-t border-teal-100 bg-white p-4">
         <textarea
           value={text}
           onChange={(event) => handleTyping(event.target.value)}

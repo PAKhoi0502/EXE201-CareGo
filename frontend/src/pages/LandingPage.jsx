@@ -3,6 +3,7 @@ import { useLocation } from "react-router";
 import HeroPhonePreview from "../components/landing/HeroPhonePreview.jsx";
 import LandingButton from "../components/landing/LandingButton.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
+import SupportFloatingButton from "../components/support/SupportFloatingButton.jsx";
 import {
   BlogPreviewSection,
   CompanionJoinSection,
@@ -93,6 +94,7 @@ const LandingPage = () => {
       </main>
 
       <LandingFooter />
+      <SupportFloatingButton />
     </div>
   );
 };
