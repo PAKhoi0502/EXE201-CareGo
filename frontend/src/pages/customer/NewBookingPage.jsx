@@ -6,7 +6,52 @@ import { Button, Input, Select, Textarea } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
 
-const serviceCodes = ["01", "02", "03"];
+const ServiceIcon = ({ serviceName = "", index = 0 }) => {
+  const normalizedName = serviceName.toLowerCase();
+  const type = normalizedName.includes("hospital") || normalizedName.includes("khám")
+    ? "hospital"
+    : normalizedName.includes("home") || normalizedName.includes("nhà")
+      ? "home"
+      : normalizedName.includes("walk") || normalizedName.includes("dạo")
+        ? "walk"
+        : ["hospital", "home", "walk", "care"][index % 4];
+
+  const paths = {
+    hospital: (
+      <>
+        <path d="M5 21V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v14" />
+        <path d="M3 21h18M9 21v-5h6v5M10 10h4M12 8v4" />
+      </>
+    ),
+    home: (
+      <>
+        <path d="m3 11 9-7 9 7" />
+        <path d="M5 10v10h14V10M9 20v-6h6v6" />
+        <path d="M15.5 8.5c-1.5-1.4-4.5-.3-3.5 2.2 1-2.5-2-3.6-3.5-2.2C6.6 10.4 9 13 12 15c3-2 5.4-4.6 3.5-6.5Z" />
+      </>
+    ),
+    walk: (
+      <>
+        <circle cx="12" cy="4" r="2" />
+        <path d="m10 8-2 5 4 2 1 6M12 15l4-3 3 3M8 13l-3 8M13 8l3 2" />
+      </>
+    ),
+    care: (
+      <>
+        <path d="M20.8 5.7a5.5 5.5 0 0 0-7.8 0L12 6.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z" />
+        <path d="M8 13h2l1-3 2 6 1-3h2" />
+      </>
+    ),
+  };
+
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {paths[type]}
+      </g>
+    </svg>
+  );
+};
 
 const initials = (name = "CG") =>
   name
@@ -202,8 +247,14 @@ const NewBookingPage = () => {
                     className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
                       }`}
                   >
-                    <div className="mb-4 grid h-14 w-14 place-items-center rounded-[20px] bg-teal-50 text-lg font-black text-teal-700">
-                      {serviceCodes[index % serviceCodes.length]}
+                    <div
+                      className={`mb-4 grid h-14 w-14 place-items-center rounded-[20px] transition ${
+                        active
+                          ? "bg-teal-700 text-white shadow-lg shadow-teal-700/20"
+                          : "bg-gradient-to-br from-teal-100 to-sky-100 text-teal-700"
+                      }`}
+                    >
+                      <ServiceIcon serviceName={service.name} index={index} />
                     </div>
                     <h3 className="text-lg font-black">{service.name}</h3>
                     <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">{service.description}</p>
