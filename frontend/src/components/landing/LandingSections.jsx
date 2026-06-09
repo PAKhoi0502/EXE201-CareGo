@@ -304,8 +304,8 @@ export const LandingFooter = () => (
       <div>
         <h3 className="font-black text-slate-900">Liên hệ</h3>
         <div className="mt-4 grid gap-2 text-sm text-slate-500">
-          <p>Hotline: <span className="font-bold text-slate-700">1900 6868</span></p>
-          <p>Email: <span className="font-bold text-slate-700">support@carego.vn</span></p>
+          <p>Hotline: <span className="font-bold text-slate-700">033 610 8492</span></p>
+          <p>Email: <span className="font-bold text-slate-700">carego.project@gmail.com</span></p>
           <p>Thời gian: 08:00 - 20:00</p>
           <p>Khu vực thử nghiệm: đô thị lớn, chung cư, bệnh viện.</p>
         </div>
