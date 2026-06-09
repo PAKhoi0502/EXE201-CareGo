@@ -465,89 +465,142 @@ const NewBookingPage = () => {
       </main>
 
       {detailCompanion ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 p-5">
-              <div>
-                <p className="text-xs font-bold uppercase text-slate-400">Chi tiết người đồng hành</p>
-                <h3 className="mt-1 text-xl font-black text-[#12312f]">{detailCompanion.fullName}</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetailCompanion(null)}
-                className="rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200"
-              >
-                Đóng
-              </button>
-            </div>
-
-            <div className="grid gap-4 p-5 sm:grid-cols-2">
-              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-400">Chuyên ngành</p>
-                <p className="mt-2 font-bold text-slate-900">{detailCompanion.major || "Chưa cập nhật"}</p>
-              </div>
-              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-400">Trường</p>
-                <p className="mt-2 font-bold text-slate-900">{detailCompanion.university || "Chưa cập nhật"}</p>
-              </div>
-              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-400">Số điện thoại</p>
-                <p className="mt-2 font-bold text-slate-900">{detailCompanion.phone || detailCompanion.userId?.phone || "Chưa cập nhật"}</p>
-              </div>
-              <div className="rounded-[18px] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-400">Email</p>
-                <p className="mt-2 font-bold text-slate-900">{detailCompanion.userId?.email || "Chưa cập nhật"}</p>
-              </div>
-            </div>
-
-            <div className="px-5">
-              <div className="rounded-[18px] border border-teal-100 bg-[#f7fffe] p-4">
-                <p className="text-xs font-black uppercase text-slate-400">Kỹ năng</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(detailCompanion.skills?.length ? detailCompanion.skills : ["Chưa có kỹ năng"]).map((skill) => (
-                    <span key={skill} className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">
-                      {skill}
-                    </span>
-                  ))}
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setDetailCompanion(null);
+          }}
+        >
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-white/20 bg-white shadow-2xl shadow-slate-950/30">
+            <header className="relative shrink-0 overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-cyan-500 p-6 text-white sm:p-8">
+              <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/20 blur-3xl" />
+              <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-[30px] border border-white/30 bg-white text-2xl font-black text-teal-700 shadow-xl">
+                  {detailCompanion.selfieUrl || detailCompanion.userId?.avatar?.url ? (
+                    <img
+                      src={detailCompanion.selfieUrl || detailCompanion.userId?.avatar?.url}
+                      alt={detailCompanion.fullName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials(detailCompanion.fullName)
+                  )}
                 </div>
-              </div>
-            </div>
-
-            <div className="px-5 pb-6">
-              <div className="rounded-[18px] border border-slate-100 bg-white p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-black uppercase text-slate-400">Đánh giá từ khách hàng</p>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                    {detailCompanion.ratingAverage || 0}/5 · {detailCompanion.ratingCount || 0}
-                  </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black">Hồ sơ đã xác thực</span>
+                    <span className="rounded-full bg-emerald-300/20 px-3 py-1 text-xs font-black text-emerald-50">Đang online</span>
+                  </div>
+                  <h2 className="mt-3 text-3xl font-black">{detailCompanion.fullName}</h2>
+                  <p className="mt-2 text-sm font-semibold text-white/75">
+                    {detailCompanion.major || "Người đồng hành CareGo"} · {detailCompanion.university || "Chưa cập nhật trường"}
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-amber-500">★ {detailCompanion.ratingAverage || 0}/5</span>
+                    <span className="text-xs font-bold text-white/75">{detailCompanion.ratingCount || 0} đánh giá từ khách hàng</span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailCompanion(null)}
+                  aria-label="Đóng chi tiết"
+                  className="absolute right-0 top-0 grid h-10 w-10 place-items-center rounded-full bg-white/15 text-xl font-bold transition hover:bg-white/25"
+                >
+                  ×
+                </button>
+              </div>
+            </header>
 
-                {detailReviewsLoading ? <p className="mt-3 text-sm text-slate-500">Đang tải đánh giá...</p> : null}
-                {detailReviewsError ? <p className="mt-3 text-sm text-rose-600">{detailReviewsError}</p> : null}
-                {!detailReviewsLoading && !detailReviewsError && detailReviews.length === 0 ? (
-                  <p className="mt-3 text-sm text-slate-500">Chưa có đánh giá.</p>
-                ) : null}
-
-                <div className="mt-4 space-y-3">
-                  {detailReviews.map((review) => (
-                    <div key={review._id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <strong className="text-slate-900">{review.customerId?.name || "Khách hàng"}</strong>
-                        <span className="text-emerald-700">{review.rating}/5</span>
-                      </div>
-                      {review.comment ? (
-                        <p className="mt-2 text-sm text-slate-600">{review.comment}</p>
-                      ) : (
-                        <p className="mt-2 text-xs text-slate-400">Không có nhận xét.</p>
-                      )}
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7fffe] p-5 sm:p-7">
+              <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="space-y-5">
+                  <section className="rounded-[26px] border border-teal-100 bg-white p-5 shadow-sm">
+                    <h3 className="text-lg font-black text-[#12312f]">Thông tin chuyên môn</h3>
+                    <div className="mt-4 grid gap-3">
+                      {[
+                        ["Chuyên ngành", detailCompanion.major || "Chưa cập nhật"],
+                        ["Trường học", detailCompanion.university || "Chưa cập nhật"],
+                        ["Khu vực hoạt động", detailCompanion.serviceArea || detailCompanion.area || "Chưa cập nhật"],
+                        ["Số điện thoại", detailCompanion.phone || detailCompanion.userId?.phone || "Chưa cập nhật"],
+                        ["Email", detailCompanion.userId?.email || "Chưa cập nhật"],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+                          <p className="mt-1 break-words text-sm font-bold text-slate-700">{value}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </section>
+
+                  <section className="rounded-[26px] border border-teal-100 bg-white p-5 shadow-sm">
+                    <h3 className="text-lg font-black text-[#12312f]">Kỹ năng nổi bật</h3>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {(detailCompanion.skills?.length ? detailCompanion.skills : ["Chưa cập nhật kỹ năng"]).map((skill) => (
+                        <span key={skill} className="rounded-full border border-teal-100 bg-teal-50 px-3 py-2 text-xs font-black text-teal-700">{skill}</span>
+                      ))}
+                    </div>
+                  </section>
                 </div>
+
+                <section className="rounded-[26px] border border-teal-100 bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-teal-700">Trải nghiệm thực tế</p>
+                      <h3 className="mt-1 text-xl font-black text-[#12312f]">Đánh giá từ khách hàng</h3>
+                    </div>
+                    <span className="rounded-full bg-amber-50 px-3 py-2 text-xs font-black text-amber-600">★ {detailCompanion.ratingAverage || 0}/5 · {detailCompanion.ratingCount || 0} đánh giá</span>
+                  </div>
+
+                  {detailReviewsLoading ? <div className="mt-5 rounded-2xl border border-dashed border-teal-100 p-6 text-center text-sm font-bold text-slate-400">Đang tải đánh giá...</div> : null}
+                  {detailReviewsError ? <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-600">{detailReviewsError}</div> : null}
+                  {!detailReviewsLoading && !detailReviewsError && detailReviews.length === 0 ? (
+                    <div className="mt-5 rounded-2xl border border-dashed border-teal-100 bg-[#f7fffe] p-8 text-center">
+                      <p className="font-black text-slate-700">Chưa có đánh giá</p>
+                      <p className="mt-2 text-sm text-slate-500">Người đồng hành chưa nhận được nhận xét từ khách hàng.</p>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-5 grid gap-3">
+                    {detailReviews.map((review) => (
+                      <article key={review._id} className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-teal-100 to-sky-100 text-xs font-black text-teal-700">{initials(review.customerId?.name || "Khách hàng")}</span>
+                            <div>
+                              <strong className="block text-sm text-slate-900">{review.customerId?.name || "Khách hàng"}</strong>
+                              <span className="mt-1 block text-xs font-black text-amber-500">{"★".repeat(Math.max(1, Number(review.rating || 0)))}</span>
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-teal-700">{review.rating}/5</span>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-600">{review.comment || "Khách hàng không để lại nhận xét."}</p>
+                      </article>
+                    ))}
+                  </div>
+                </section>
               </div>
             </div>
+
+            <footer className="flex shrink-0 flex-col gap-3 border-t border-teal-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+              <p className="text-xs font-semibold text-slate-500">Hồ sơ và đánh giá giúp bạn chọn người đồng hành phù hợp hơn.</p>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setDetailCompanion(null)} className="min-h-11 rounded-2xl border border-teal-100 bg-white px-5 text-sm font-black text-slate-600 transition hover:bg-teal-50">Đóng</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((current) => ({ ...current, companionId: detailCompanion.userId?._id || detailCompanion.userId }));
+                    setDetailCompanion(null);
+                  }}
+                  className="min-h-11 rounded-2xl bg-teal-700 px-5 text-sm font-black text-white shadow-lg shadow-teal-700/20 transition hover:bg-teal-800"
+                >
+                  Chọn người đồng hành này
+                </button>
+              </div>
+            </footer>
           </div>
         </div>
       ) : null}
+
     </form>
   );
 };
