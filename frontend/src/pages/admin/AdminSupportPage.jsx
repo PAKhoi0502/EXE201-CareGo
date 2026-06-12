@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client.js";
 import SupportChatPanel from "../../components/support/SupportChatPanel.jsx";
-import { locationSocket } from "../../socket/locationSocket.js";
+import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 
 const statusLabels = { waiting: "Chờ hỗ trợ", active: "Đang xử lý", resolved: "Đã giải quyết" };
 
@@ -26,7 +26,7 @@ export default function AdminSupportPage() {
 
   useEffect(() => {
     loadConversations();
-    locationSocket.connect();
+    connectLocationSocket();
     locationSocket.emit("support:admin:join");
     locationSocket.on("support:new-conversation", loadConversations);
     locationSocket.on("support:conversation-updated", loadConversations);

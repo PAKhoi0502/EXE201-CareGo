@@ -4,7 +4,7 @@ import { api } from "../../api/client.js";
 import { Button, Card, Input, PageHeader, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
-import { locationSocket } from "../../socket/locationSocket.js";
+import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 import { dateTime, money } from "../../utils/format.js";
 
 const ShiftPhoto = ({ label, url, onPreview }) => {
@@ -156,7 +156,7 @@ const CustomerBookingDetailPage = () => {
         : { label: "Chưa đến hạn", className: "bg-orange-50 text-orange-700" };
 
   useEffect(() => {
-    locationSocket.connect();
+    connectLocationSocket();
     locationSocket.emit("booking:join", { bookingId: id });
 
     const handleLocation = (location) => {
@@ -546,7 +546,19 @@ const CustomerBookingDetailPage = () => {
                     ? booking.companionId?.phone || "Chưa cập nhật số điện thoại"
                     : "Gọi người đồng hành"}
                 </Button>
-                <Button variant="secondary">Nhắn tin</Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("carego:open-booking-chat", {
+                        detail: { bookingId: booking._id },
+                      }),
+                    )
+                  }
+                >
+                  Nhắn tin
+                </Button>
                 <Button
                   className="bg-[#12312f] text-white hover:bg-[#0b1f1d]"
                   type="button"

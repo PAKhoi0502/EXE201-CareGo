@@ -5,7 +5,7 @@ import { Button, Card, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import ImageUpload from "../../components/ImageUpload.jsx";
 import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
-import { locationSocket } from "../../socket/locationSocket.js";
+import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 import { dateTime, money } from "../../utils/format.js";
 
 const statusCopy = {
@@ -117,7 +117,7 @@ const CompanionBookingDetailPage = () => {
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking?.address || "")}`;
 
   useEffect(() => {
-    locationSocket.connect();
+    connectLocationSocket();
     locationSocket.emit("booking:join", { bookingId: id });
 
     if (!navigator.geolocation) {

@@ -10,6 +10,7 @@ import Payment from "../models/payment.models.js";
 import Review from "../models/review.models.js";
 import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
+import { emitBookingChatState } from "../socket/booking-chat.socket.js";
 
 const populateBooking = [
   { path: "customerId", select: "name email phone" },
@@ -28,6 +29,14 @@ const toIdString = (value) => {
 
 const ACTIVE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
 const CONFIRMED_BOOKING_STATUSES = ["accepted", "in_progress"];
+const BOOKING_STATUS_TRANSITIONS = {
+  pending: ["accepted", "cancelled"],
+  accepted: ["in_progress", "cancelled"],
+  in_progress: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+  paid: [],
+};
 const PAYMENT_DUE_MS = 3 * 24 * 60 * 60 * 1000;
 const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
 
@@ -308,6 +317,10 @@ export const updateBookingStatus = async (req, res) => {
       return res.status(403).json({ message: "permission denied" });
     }
 
+    if (!BOOKING_STATUS_TRANSITIONS[booking.status]?.includes(status)) {
+      return res.status(409).json({ message: "booking status transition is not allowed" });
+    }
+
     if (["accepted", "in_progress"].includes(status)) {
       const conflictingBooking = await findCompanionTimeConflict({
         companionId: booking.companionId,
@@ -334,6 +347,7 @@ export const updateBookingStatus = async (req, res) => {
 
     booking.status = status;
     await booking.save();
+    emitBookingChatState(booking);
 
     if (status === "completed" && !wasAlreadyCompleted) {
       await CompanionProfile.findOneAndUpdate(
@@ -357,6 +371,7 @@ export const cancelBooking = async (req, res) => {
 
     booking.status = "cancelled";
     await booking.save();
+    emitBookingChatState(booking);
     return res.status(200).json({ message: "booking cancelled", booking });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client.js";
 import SupportChatPanel from "../../components/support/SupportChatPanel.jsx";
-import { locationSocket } from "../../socket/locationSocket.js";
+import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 
 const categories = [
   ["booking", "Vấn đề booking"],
@@ -38,7 +38,7 @@ export default function SupportPage() {
 
   useEffect(() => {
     loadConversations();
-    locationSocket.connect();
+    connectLocationSocket();
     const refresh = () => loadConversations();
     locationSocket.on("support:conversation-updated", refresh);
     return () => locationSocket.off("support:conversation-updated", refresh);

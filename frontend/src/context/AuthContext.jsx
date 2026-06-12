@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api, setToken } from "../api/client.js";
-import { locationSocket } from "../socket/locationSocket.js";
+import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
 
 const AuthContext = createContext(null);
 
@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!userId) return undefined;
 
-    locationSocket.connect();
+    connectLocationSocket();
     locationSocket.emit("user:online", { userId });
 
     const heartbeat = setInterval(() => {
@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!userId || !isCompanion) return undefined;
 
-    locationSocket.connect();
+    connectLocationSocket();
 
     if (!navigator.geolocation) {
       locationSocket.emit("companion:gps:stop", { companionId: userId });

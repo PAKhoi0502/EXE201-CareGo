@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Booking from "../models/booking.models.js";
 import ShiftLog from "../models/shift-log.models.js";
 
@@ -26,11 +27,13 @@ const setCompanionGpsStatus = (socket, companionId, data) => {
   socketCompanions.set(socket.id, companionIds);
 };
 
-const resolveCompanionId = async (bookingId, companionId) => {
-  if (companionId) return companionId;
-
-  const booking = await Booking.findById(bookingId).select("companionId");
-  return booking?.companionId;
+const canAccessBooking = (booking, user) => {
+  const userId = String(user?.userId || "");
+  return (
+    user?.role === "admin" ||
+    String(booking?.customerId || "") === userId ||
+    String(booking?.companionId || "") === userId
+  );
 };
 
 export const getCompanionGpsStatuses = () => {
@@ -61,6 +64,7 @@ const setUserOnline = (socket, userId) => {
   sockets.add(socket.id);
   userSockets.set(id, sockets);
   socketUsers.set(socket.id, id);
+  socket.join(`user:${id}`);
   userPresence.set(id, {
     userId: id,
     isOnline: true,
@@ -103,21 +107,27 @@ export const getUserOnlineStatuses = () =>
 
 export const setupLocationSocket = (io) => {
   io.on("connection", (socket) => {
-    socket.on("user:online", ({ userId }) => {
-      setUserOnline(socket, userId);
+    socket.on("user:online", () => {
+      setUserOnline(socket, socket.user.userId);
     });
 
-    socket.on("user:heartbeat", ({ userId }) => {
-      setUserOnline(socket, userId);
+    socket.on("user:heartbeat", () => {
+      setUserOnline(socket, socket.user.userId);
     });
 
     socket.on("user:offline", () => {
       setUserOfflineForSocket(socket.id);
     });
 
-    socket.on("booking:join", ({ bookingId }) => {
-      if (bookingId) {
-        socket.join(`booking:${bookingId}`);
+    socket.on("booking:join", async ({ bookingId }) => {
+      if (!mongoose.isValidObjectId(bookingId)) return;
+      try {
+        const booking = await Booking.findById(bookingId).select("customerId companionId");
+        if (booking && canAccessBooking(booking, socket.user)) {
+          socket.join(`booking:${bookingId}`);
+        }
+      } catch {
+        return;
       }
     });
 
@@ -127,7 +137,7 @@ export const setupLocationSocket = (io) => {
       }
     });
 
-    socket.on("location:send", async ({ bookingId, companionId, lat, lng, note }) => {
+    socket.on("location:send", async ({ bookingId, lat, lng, note }) => {
       if (!bookingId || lat === undefined || lng === undefined) {
         return;
       }
@@ -140,7 +150,18 @@ export const setupLocationSocket = (io) => {
       };
 
       try {
-        const resolvedCompanionId = await resolveCompanionId(bookingId, companionId);
+        const booking = await Booking.findById(bookingId).select("customerId companionId");
+        const canSend =
+          booking &&
+          (socket.user.role === "admin" ||
+            (socket.user.role === "companion" &&
+              String(booking.companionId) === String(socket.user.userId)));
+        if (!canSend) {
+          socket.emit("location:error", { message: "permission denied" });
+          return;
+        }
+
+        const resolvedCompanionId = booking.companionId;
         setCompanionGpsStatus(socket, resolvedCompanionId, {
           isGpsOn: true,
           bookingId,
@@ -164,12 +185,12 @@ export const setupLocationSocket = (io) => {
       }
     });
 
-    socket.on("companion:gps:update", ({ companionId, lat, lng }) => {
-      if (!companionId || lat === undefined || lng === undefined) {
+    socket.on("companion:gps:update", ({ lat, lng }) => {
+      if (socket.user.role !== "companion" || lat === undefined || lng === undefined) {
         return;
       }
 
-      setCompanionGpsStatus(socket, companionId, {
+      setCompanionGpsStatus(socket, socket.user.userId, {
         isGpsOn: true,
         lat: Number(lat),
         lng: Number(lng),
@@ -177,20 +198,34 @@ export const setupLocationSocket = (io) => {
       });
     });
 
-    socket.on("companion:gps:stop", ({ companionId }) => {
-      setCompanionGpsStatus(socket, companionId, {
+    socket.on("companion:gps:stop", () => {
+      if (socket.user.role !== "companion") return;
+      setCompanionGpsStatus(socket, socket.user.userId, {
         isGpsOn: false,
         lastSeenAt: new Date(),
       });
     });
 
-    socket.on("location:stop", async ({ bookingId, companionId }) => {
-      const resolvedCompanionId = await resolveCompanionId(bookingId, companionId);
-      setCompanionGpsStatus(socket, resolvedCompanionId, {
-        isGpsOn: false,
-        bookingId,
-        lastSeenAt: new Date(),
-      });
+    socket.on("location:stop", async ({ bookingId }) => {
+      if (!mongoose.isValidObjectId(bookingId)) return;
+      try {
+        const booking = await Booking.findById(bookingId).select("customerId companionId");
+        const canStop =
+          booking &&
+          (socket.user.role === "admin" ||
+            (socket.user.role === "companion" &&
+              String(booking.companionId) === String(socket.user.userId)));
+        if (!canStop) return;
+
+        const resolvedCompanionId = booking.companionId;
+        setCompanionGpsStatus(socket, resolvedCompanionId, {
+          isGpsOn: false,
+          bookingId,
+          lastSeenAt: new Date(),
+        });
+      } catch {
+        return;
+      }
     });
 
     socket.on("disconnect", () => {

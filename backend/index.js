@@ -13,6 +13,7 @@ import cors from "cors";
 import authRouter from "./src/routes/auth-routes.routes.js";
 import adminRouter from "./src/routes/admin.routes.js";
 import bookingRouter from "./src/routes/booking.routes.js";
+import bookingChatRouter from "./src/routes/booking-chat.routes.js";
 import companionRouter from "./src/routes/companion.routes.js";
 import elderRouter from "./src/routes/elder.routes.js";
 import paymentRouter from "./src/routes/payment.routes.js";
@@ -22,6 +23,8 @@ import withdrawalRouter from "./src/routes/withdrawal.routes.js";
 import supportRouter from "./src/routes/support.routes.js";
 import { setupLocationSocket } from "./src/socket/location.socket.js";
 import { setupSupportSocket } from "./src/socket/support.socket.js";
+import { setupBookingChatSocket } from "./src/socket/booking-chat.socket.js";
+import { setupSocketAuthentication } from "./src/socket/auth.socket.js";
 
 // import swagger
 import { setupSwagger } from "./src/config/swagger.js";
@@ -58,6 +61,7 @@ app.use("/api/services", serviceRouter);
 app.use("/api/companions", companionRouter);
 app.use("/api/elders", elderRouter);
 app.use("/api/bookings", bookingRouter);
+app.use("/api/booking-chat", bookingChatRouter);
 app.use("/api/payments", paymentRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/upload", uploadRouter);
@@ -71,8 +75,10 @@ const io = new Server(server, {
   },
 });
 
+setupSocketAuthentication(io);
 setupLocationSocket(io);
 setupSupportSocket(io);
+setupBookingChatSocket(io);
 
 server.listen(port, () => {
   console.log(`Example app listening on port ${port}`, "http://localhost:3000");

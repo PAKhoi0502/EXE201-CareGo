@@ -4,6 +4,7 @@ import { api } from "../api/client.js";
 import CareGoLogo from "../components/CareGoLogo.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 import SupportFloatingButton from "../components/support/SupportFloatingButton.jsx";
+import BookingChatFloatingButton from "../components/booking-chat/BookingChatFloatingButton.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useAsync } from "../hooks/useAsync.js";
 import { money } from "../utils/format.js";
@@ -113,6 +114,7 @@ const AppLayout = () => {
         <main className="mx-auto w-[min(1180px,92%)] py-7">
           <Outlet />
         </main>
+        <BookingChatFloatingButton />
         <SupportFloatingButton />
       </div>
     );
@@ -233,6 +235,7 @@ const AppLayout = () => {
       <main className="mx-auto w-[min(1180px,92%)] py-7">
         <Outlet />
       </main>
+      <BookingChatFloatingButton />
       <SupportFloatingButton />
     </div>
   );

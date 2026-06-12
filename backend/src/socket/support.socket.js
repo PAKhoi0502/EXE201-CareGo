@@ -1,26 +1,51 @@
+import mongoose from "mongoose";
+import SupportConversation from "../models/support-conversation.models.js";
+
 let supportIo = null;
+
+const roomName = (conversationId) => `support:${conversationId}`;
+
+const canAccessConversation = async (conversationId, user) => {
+  if (!mongoose.isValidObjectId(conversationId)) return false;
+  if (user.role === "admin") {
+    return Boolean(await SupportConversation.exists({ _id: conversationId }));
+  }
+
+  return Boolean(
+    await SupportConversation.exists({
+      _id: conversationId,
+      userId: user.userId,
+    }),
+  );
+};
 
 export const setupSupportSocket = (io) => {
   supportIo = io;
 
   io.on("connection", (socket) => {
-    socket.on("support:join", ({ conversationId }) => {
-      if (conversationId) socket.join(`support:${conversationId}`);
+    socket.on("support:join", async ({ conversationId }) => {
+      try {
+        if (await canAccessConversation(conversationId, socket.user)) {
+          socket.join(roomName(conversationId));
+        }
+      } catch {
+        return;
+      }
     });
 
     socket.on("support:leave", ({ conversationId }) => {
-      if (conversationId) socket.leave(`support:${conversationId}`);
+      if (conversationId) socket.leave(roomName(conversationId));
     });
 
     socket.on("support:admin:join", () => {
-      socket.join("support:admins");
+      if (socket.user.role === "admin") socket.join("support:admins");
     });
 
-    socket.on("support:typing", ({ conversationId, userId, isTyping }) => {
-      if (!conversationId) return;
-      socket.to(`support:${conversationId}`).emit("support:typing", {
+    socket.on("support:typing", ({ conversationId, isTyping }) => {
+      if (!conversationId || !socket.rooms.has(roomName(conversationId))) return;
+      socket.to(roomName(conversationId)).emit("support:typing", {
         conversationId,
-        userId,
+        userId: socket.user.userId,
         isTyping: Boolean(isTyping),
       });
     });

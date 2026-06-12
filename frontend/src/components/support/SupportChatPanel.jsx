@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { locationSocket } from "../../socket/locationSocket.js";
+import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 
 const formatTime = (value) =>
   value
@@ -41,7 +41,7 @@ export default function SupportChatPanel({ conversation, onConversationChange, c
         if (active) setLoading(false);
       });
 
-    locationSocket.connect();
+    connectLocationSocket();
     locationSocket.emit("support:join", { conversationId: conversation._id });
 
     const onNewMessage = ({ message, conversation: updatedConversation }) => {

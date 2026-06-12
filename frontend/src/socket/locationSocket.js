@@ -7,3 +7,11 @@ const socketUrl =
 export const locationSocket = io(socketUrl, {
   autoConnect: false,
 });
+
+export const connectLocationSocket = () => {
+  locationSocket.auth = {
+    token: localStorage.getItem("carego_token"),
+  };
+  locationSocket.connect();
+  return locationSocket;
+};
