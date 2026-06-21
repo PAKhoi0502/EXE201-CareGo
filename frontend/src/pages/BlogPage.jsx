@@ -1,7 +1,8 @@
 import { Link } from "react-router";
-import { blogPosts } from "../components/blog/blogData.js";
+import { api } from "../api/client.js";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 import { LandingFooter } from "../components/landing/LandingSections.jsx";
+import { useAsync } from "../hooks/useAsync.js";
 
 const BlogVisual = ({ category }) => (
   <div className="relative h-44 overflow-hidden rounded-[28px] bg-gradient-to-br from-teal-700 via-teal-500 to-sky-400">
@@ -21,56 +22,76 @@ const BlogVisual = ({ category }) => (
   </div>
 );
 
-const BlogPage = () => (
-  <div className="min-h-screen bg-[#f5fbfa] text-[#12312f]">
-    <LandingNavbar />
-
-    <main>
-      <section className="border-b border-teal-100 bg-gradient-to-b from-white to-teal-50/70 py-16">
-        <div className="mx-auto w-[min(1180px,92%)]">
-          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-700">
-            Góc chăm sóc CareGo
-          </span>
-          <h1 className="mt-5 max-w-3xl text-4xl font-black leading-tight sm:text-5xl">
-            Kiến thức chăm sóc người cao tuổi cho gia đình bận rộn
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-500">
-            Các bài viết ngắn giúp gia đình chuẩn bị tốt hơn khi đặt lịch chăm sóc, đi khám và theo dõi ca làm.
-          </p>
-        </div>
-      </section>
-
-      <section className="py-16">
-        <div className="mx-auto grid w-[min(1180px,92%)] gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {blogPosts.map((post) => (
-            <Link
-              key={post.slug}
-              to={`/blog/${post.slug}`}
-              className="group rounded-[32px] border border-teal-100 bg-white p-4 shadow-xl shadow-teal-900/5 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-teal-900/10"
-            >
-              <BlogVisual category={post.category} />
-              <div className="p-3">
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
-                  <span>{post.date}</span>
-                  <span>•</span>
-                  <span>{post.readTime}</span>
-                </div>
-                <h2 className="mt-3 text-xl font-black leading-snug text-[#12312f] group-hover:text-teal-800">
-                  {post.title}
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-500">{post.excerpt}</p>
-                <span className="mt-5 inline-flex text-sm font-black text-teal-700">
-                  Đọc bài viết
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </main>
-
-    <LandingFooter />
-  </div>
+const Stat = ({ children }) => (
+  <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-black text-teal-700">
+    {children}
+  </span>
 );
+
+const BlogPage = () => {
+  const { data, loading, error } = useAsync(() => api.get("/blogs"), []);
+  const posts = data?.posts || [];
+
+  return (
+    <div className="min-h-screen bg-[#f5fbfa] text-[#12312f]">
+      <LandingNavbar />
+
+      <main>
+        <section className="border-b border-teal-100 bg-gradient-to-b from-white to-teal-50/70 py-16">
+          <div className="mx-auto w-[min(1180px,92%)]">
+            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-700">
+              Góc chăm sóc CareGo
+            </span>
+            <h1 className="mt-5 max-w-3xl text-4xl font-black leading-tight sm:text-5xl">
+              Kiến thức chăm sóc người cao tuổi cho gia đình bận rộn
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-500">
+              Các bài viết ngắn giúp gia đình chuẩn bị tốt hơn khi đặt lịch chăm sóc, đi khám và theo dõi ca làm.
+            </p>
+          </div>
+        </section>
+
+        <section className="py-16">
+          <div className="mx-auto w-[min(1180px,92%)]">
+            {loading ? <p className="text-sm font-bold text-slate-500">Đang tải blog...</p> : null}
+            {error ? <p className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p> : null}
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {posts.map((post) => (
+                <Link
+                  key={post.slug}
+                  to={`/blog/${post.slug}`}
+                  className="group rounded-[32px] border border-teal-100 bg-white p-4 shadow-xl shadow-teal-900/5 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-teal-900/10"
+                >
+                  <BlogVisual category={post.category} />
+                  <div className="p-3">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
+                      <span>{post.date}</span>
+                      <span>•</span>
+                      <span>{post.readTime}</span>
+                    </div>
+                    <h2 className="mt-3 text-xl font-black leading-snug text-[#12312f] group-hover:text-teal-800">
+                      {post.title}
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">{post.excerpt}</p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <Stat>👁 {post.viewCount || 0}</Stat>
+                      <Stat>★ {post.ratingAverage || 0}</Stat>
+                      <Stat>💬 {post.comments?.length || 0}</Stat>
+                    </div>
+                    <span className="mt-5 inline-flex text-sm font-black text-teal-700">
+                      Đọc bài viết
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <LandingFooter />
+    </div>
+  );
+};
 
 export default BlogPage;

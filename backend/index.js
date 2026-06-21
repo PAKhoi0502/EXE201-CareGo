@@ -21,6 +21,7 @@ import serviceRouter from "./src/routes/service.routes.js";
 import uploadRouter from "./src/routes/upload.routes.js";
 import withdrawalRouter from "./src/routes/withdrawal.routes.js";
 import supportRouter from "./src/routes/support.routes.js";
+import blogRouter from "./src/routes/blog.routes.js";
 import { setupLocationSocket } from "./src/socket/location.socket.js";
 import { setupSupportSocket } from "./src/socket/support.socket.js";
 import { setupBookingChatSocket } from "./src/socket/booking-chat.socket.js";
@@ -67,6 +68,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/withdrawals", withdrawalRouter);
 app.use("/api/support", supportRouter);
+app.use("/api/blogs", blogRouter);
 
 const io = new Server(server, {
   cors: {

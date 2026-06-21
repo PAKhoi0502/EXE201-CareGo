@@ -7,6 +7,7 @@ const adminLinks = [
   { label: "Người dùng", to: "/admin/users" },
   { label: "Người đồng hành", to: "/admin/companions" },
   { label: "Booking", to: "/admin/bookings" },
+  { label: "Blog", to: "/admin/blogs" },
   { label: "Dịch vụ", to: "/admin/services" },
   { label: "Yêu cầu rút tiền", to: "/admin/withdrawals" },
   { label: "Hỗ trợ", to: "/admin/support" },

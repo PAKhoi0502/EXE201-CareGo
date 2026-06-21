@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router";
+import AdminBlogsPage from "./pages/admin/AdminBlogsPage.jsx";
 import AdminBookingsPage from "./pages/admin/AdminBookingsPage.jsx";
 import AdminCompanionsPage from "./pages/admin/AdminCompanionsPage.jsx";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
@@ -115,6 +116,7 @@ const App = () => {
         <Route path="companions" element={<AdminCompanionsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="bookings" element={<AdminBookingsPage />} />
+        <Route path="blogs" element={<AdminBlogsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
         <Route path="support" element={<AdminSupportPage />} />

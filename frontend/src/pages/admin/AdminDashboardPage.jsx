@@ -125,6 +125,7 @@ const AdminDashboardPage = () => {
   const pendingCompanions = companions.filter((item) => item.vettingStatus === "pending");
   const monthlyStats = getMonthlyStats(bookings);
   const serviceShare = getServiceShare(bookings);
+  const blogStats = data?.blogStats || [];
 
   const approveCompanion = async (id, vettingStatus) => {
     await api.patch(`/companions/${id}/status`, { vettingStatus });
@@ -200,6 +201,44 @@ const AdminDashboardPage = () => {
       },
     },
     cutout: "65%",
+  };
+
+  const blogViewsChartData = {
+    labels: blogStats.map((item) =>
+      item.title?.length > 24 ? `${item.title.slice(0, 24)}...` : item.title,
+    ),
+    datasets: [
+      {
+        label: "Lượt xem",
+        data: blogStats.map((item) => item.viewCount || 0),
+        backgroundColor: "rgba(15, 118, 110, 0.78)",
+        borderRadius: 8,
+      },
+    ],
+  };
+
+  const blogViewsChartOptions = {
+    indexAxis: "y",
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => `${context.raw || 0} lượt xem`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        ticks: { precision: 0 },
+        grid: { color: "#f1f5f9" },
+      },
+      y: {
+        grid: { display: false },
+      },
+    },
   };
 
   if (loading) {
@@ -295,6 +334,46 @@ const AdminDashboardPage = () => {
           </p>
         </Card>
       </div>
+
+      <Card className="border-teal-100 bg-white/95 shadow-xl shadow-teal-900/5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-bold text-slate-900">Lượt xem blog</h2>
+            <p className="text-xs text-slate-400">
+              Mỗi lượt mở bài viết sẽ được ghi nhận để admin theo dõi nội dung được quan tâm nhất.
+            </p>
+          </div>
+          <Link to="/blog" className="text-xs font-semibold text-teal-700 hover:underline">
+            Xem trang blog
+          </Link>
+        </div>
+        <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+          <div className="h-72">
+            <Chart type="bar" data={blogViewsChartData} options={blogViewsChartOptions} />
+          </div>
+          <div className="grid content-start gap-3">
+            {blogStats.slice(0, 4).map((item, index) => (
+              <div key={item.slug} className="rounded-2xl border border-teal-100 bg-[#f7fffe] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black text-teal-700">#{index + 1} • {item.category}</p>
+                    <h3 className="mt-1 text-sm font-black leading-5 text-slate-900">{item.title}</h3>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-teal-700">
+                    👁 {item.viewCount || 0}
+                  </span>
+                </div>
+                <p className="mt-3 text-xs font-semibold text-slate-500">
+                  ★ {item.ratingAverage || 0}/5 • {item.ratingCount || 0} đánh giá • {item.commentCount || 0} bình luận
+                </p>
+              </div>
+            ))}
+            {!blogStats.length ? (
+              <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Chưa có dữ liệu blog.</p>
+            ) : null}
+          </div>
+        </div>
+      </Card>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="overflow-hidden p-0 xl:col-span-2 border-teal-100 bg-white/95 shadow-xl shadow-teal-900/5">

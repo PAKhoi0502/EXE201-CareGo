@@ -3,11 +3,15 @@ import CompanionProfile from "../models/companion-profile.models.js";
 import Payment from "../models/payment.models.js";
 import Service from "../models/service.models.js";
 import User from "../models/user.models.js";
+import { ensureDefaultBlogPosts } from "./blog.controller.js";
+import BlogPost from "../models/blog-post.models.js";
 import { getCompanionGpsStatuses, getUserOnlineStatuses } from "../socket/location.socket.js";
 
 export const getAdminDashboard = async (req, res) => {
   try {
-    const [totalUsers, totalCompanions, totalServices, totalBookings, revenueStats] =
+    await ensureDefaultBlogPosts();
+
+    const [totalUsers, totalCompanions, totalServices, totalBookings, revenueStats, blogStats] =
       await Promise.all([
         User.countDocuments(),
         CompanionProfile.countDocuments(),
@@ -35,6 +39,10 @@ export const getAdminDashboard = async (req, res) => {
             },
           },
         ]),
+        BlogPost.find({ isPublished: true })
+          .select("title slug category viewCount ratingSum ratingCount comments")
+          .sort({ viewCount: -1 })
+          .lean(),
       ]);
 
     const bookingsByStatus = await Booking.aggregate([
@@ -56,6 +64,11 @@ export const getAdminDashboard = async (req, res) => {
         caregoRevenue: 0,
       },
       bookingsByStatus,
+      blogStats: blogStats.map((post) => ({
+        ...post,
+        ratingAverage: post.ratingCount ? Number((post.ratingSum / post.ratingCount).toFixed(1)) : 0,
+        commentCount: post.comments?.length || 0,
+      })),
     });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
