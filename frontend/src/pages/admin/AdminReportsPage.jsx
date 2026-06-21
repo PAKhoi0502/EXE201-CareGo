@@ -9,6 +9,7 @@ import {
   PointElement,
   Tooltip,
 } from "chart.js";
+import { useState } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import * as XLSX from "xlsx";
 import { api } from "../../api/client.js";
@@ -19,6 +20,42 @@ import { money } from "../../utils/format.js";
 ChartJS.register(BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip);
 
 const statuses = ["pending", "accepted", "in_progress", "completed", "paid", "cancelled"];
+
+const toDateInputValue = (date) => {
+  const value = new Date(date);
+  value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
+  return value.toISOString().slice(0, 10);
+};
+
+const getRecentRange = (days) => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - (days - 1));
+
+  return {
+    from: toDateInputValue(start),
+    to: toDateInputValue(end),
+  };
+};
+
+const reportRangePresets = [
+  { label: "Hôm nay", days: 1 },
+  { label: "7 ngày gần nhất", days: 7 },
+  { label: "30 ngày gần nhất", days: 30 },
+  { label: "90 ngày gần nhất", days: 90 },
+];
+
+const isDateInRange = (value, range) => {
+  if (!value) return false;
+
+  const date = new Date(value);
+  const from = range.from ? new Date(`${range.from}T00:00:00`) : null;
+  const to = range.to ? new Date(`${range.to}T23:59:59.999`) : null;
+
+  if (from && date < from) return false;
+  if (to && date > to) return false;
+  return true;
+};
 
 const getBaseAmount = (booking) => Number(booking.payment?.baseAmount ?? booking.totalAmount ?? 0);
 const getPenaltyAmount = (booking) => Number(booking.payment?.penaltyAmount ?? 0);
@@ -89,29 +126,34 @@ const topCompanions = (bookings) => {
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString("vi-VN") : "");
 
 const AdminReportsPage = () => {
+  const [dateRange, setDateRange] = useState(() => getRecentRange(30));
   const { data: bookingsData, loading, error } = useAsync(() => api.get("/admin/bookings"), []);
   const { data: companionsData } = useAsync(() => api.get("/companions/admin/all"), []);
   const bookings = bookingsData?.bookings || [];
+  const filteredBookings = bookings.filter((booking) => isDateInRange(booking.createdAt, dateRange));
   const companions = companionsData?.companions || [];
-  const monthly = makeMonthly(bookings);
-  const services = topServices(bookings);
-  const companionRows = topCompanions(bookings);
-  const paidBookings = bookings.filter((item) => item.status === "paid");
+  const monthly = makeMonthly(filteredBookings);
+  const services = topServices(filteredBookings);
+  const companionRows = topCompanions(filteredBookings);
+  const paidBookings = filteredBookings.filter((item) => item.status === "paid");
 
   const paidRevenue = paidBookings.reduce((sum, item) => sum + getPaidAmount(item), 0);
   const baseRevenue = paidBookings.reduce((sum, item) => sum + getBaseAmount(item), 0);
   const penaltyRevenue = paidBookings.reduce((sum, item) => sum + getPenaltyAmount(item), 0);
   const platformFee = paidBookings.reduce((sum, item) => sum + getPlatformFee(item), 0);
   const careGoRevenue = paidBookings.reduce((sum, item) => sum + getCareGoRevenue(item), 0);
-  const completed = bookings.filter((item) => ["completed", "paid"].includes(item.status)).length;
-  const completionRate = bookings.length ? Math.round((completed / bookings.length) * 100) : 0;
-  const missingGps = bookings.filter((item) => !item.addressLocation?.lat).length;
+  const completed = filteredBookings.filter((item) => ["completed", "paid"].includes(item.status)).length;
+  const completionRate = filteredBookings.length ? Math.round((completed / filteredBookings.length) * 100) : 0;
+  const missingGps = filteredBookings.filter((item) => !item.addressLocation?.lat).length;
   const pendingCompanions = companions.filter((item) => item.vettingStatus === "pending").length;
 
   const exportExcel = () => {
     const workbook = XLSX.utils.book_new();
 
     const summaryRows = [
+      { label: "Tu ngay", value: dateRange.from },
+      { label: "Den ngay", value: dateRange.to },
+      { label: "Tong booking trong khoang", value: filteredBookings.length },
       { label: "Doanh thu paid", value: paidRevenue },
       { label: "Gia tri ca da thanh toan", value: baseRevenue },
       { label: "Phi nen tang", value: platformFee },
@@ -146,7 +188,7 @@ const AdminReportsPage = () => {
     }));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(companionRowsExport), "Hieu suat companion");
 
-    const bookingRows = bookings.map((booking) => ({
+    const bookingRows = filteredBookings.map((booking) => ({
       booking_id: booking._id,
       khach_hang: booking.customerId?.name || "",
       email_khach_hang: booking.customerId?.email || "",
@@ -163,7 +205,7 @@ const AdminReportsPage = () => {
     }));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings");
 
-    const fileName = `admin-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const fileName = `admin-report-${dateRange.from}-to-${dateRange.to}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
@@ -196,7 +238,7 @@ const AdminReportsPage = () => {
     datasets: [
       {
         label: "Số booking",
-        data: statuses.map((status) => bookings.filter((booking) => booking.status === status).length),
+        data: statuses.map((status) => filteredBookings.filter((booking) => booking.status === status).length),
         backgroundColor: ["#f59e0b", "#0284c7", "#4f46e5", "#64748b", "#0f766e", "#e11d48"],
         borderRadius: 6,
       },
@@ -221,6 +263,82 @@ const AdminReportsPage = () => {
 
       {loading ? <p className="text-sm text-slate-500">Đang tải báo cáo...</p> : null}
       {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
+
+      <section className="overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-xl shadow-teal-900/5">
+        <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-500 p-5 text-white">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-teal-100">
+                Bộ lọc báo cáo
+              </p>
+              <h2 className="mt-1 text-xl font-black">Lọc dữ liệu theo ngày tạo booking</h2>
+              <p className="mt-1 max-w-2xl text-sm font-medium text-teal-50">
+                Doanh thu, biểu đồ, top dịch vụ, hiệu suất companion và file Excel sẽ tính theo khoảng ngày này.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDateRange(getRecentRange(30))}
+              className="inline-flex min-h-10 items-center justify-center rounded-full bg-white px-5 text-sm font-black text-teal-700 shadow-sm transition hover:bg-teal-50"
+            >
+              Đặt lại 30 ngày
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
+            <div className="flex flex-wrap gap-2">
+              {reportRangePresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setDateRange(getRecentRange(preset.days))}
+                  className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white hover:text-teal-700"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs font-bold text-teal-50">
+                Từ ngày
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
+                  className="min-h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
+                />
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-teal-50">
+                Đến ngày
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
+                  className="min-h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-5 md:grid-cols-3">
+          <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4">
+            <p className="text-sm font-semibold text-teal-700">Booking trong khoảng</p>
+            <strong className="mt-2 block text-3xl font-black text-teal-800">{filteredBookings.length}</strong>
+          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+            <p className="text-sm font-semibold text-emerald-700">CareGo thu trong khoảng</p>
+            <strong className="mt-2 block text-2xl font-black text-emerald-800">{money(careGoRevenue)}</strong>
+          </div>
+          <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+            <p className="text-sm font-semibold text-sky-700">Khoảng lọc</p>
+            <strong className="mt-2 block text-sm font-black text-sky-800">
+              {dateRange.from} - {dateRange.to}
+            </strong>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -347,9 +465,9 @@ const AdminReportsPage = () => {
           <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
             <p className="text-sm font-semibold text-slate-800">Booking bị hủy</p>
             <p className="mt-1 text-xs text-slate-500">
-              {bookings.filter((booking) => booking.status === "cancelled").length} booking đang cancelled.
+              {filteredBookings.filter((booking) => booking.status === "cancelled").length} booking đang cancelled.
             </p>
-            <StatusBadge status={bookings.some((booking) => booking.status === "cancelled") ? "cancelled" : "approved"} />
+            <StatusBadge status={filteredBookings.some((booking) => booking.status === "cancelled") ? "cancelled" : "approved"} />
           </div>
         </div>
       </section>
