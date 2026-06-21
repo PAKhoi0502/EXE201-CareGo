@@ -1,4 +1,5 @@
 import {
+  ArcElement,
   BarElement,
   CategoryScale,
   Chart as ChartJS,
@@ -10,14 +11,14 @@ import {
   Tooltip,
 } from "chart.js";
 import { useState } from "react";
-import { Bar, Line } from "react-chartjs-2";
+import { Bar, Doughnut, Line } from "react-chartjs-2";
 import * as XLSX from "xlsx";
 import { api } from "../../api/client.js";
 import { StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
 
-ChartJS.register(BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip);
+ChartJS.register(ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip);
 
 const statuses = ["pending", "accepted", "in_progress", "completed", "paid", "cancelled"];
 
@@ -92,6 +93,43 @@ const makeMonthly = (bookings) => {
   return months;
 };
 
+const makeDaily = (bookings, range) => {
+  const start = range.from ? new Date(`${range.from}T00:00:00`) : new Date();
+  const end = range.to ? new Date(`${range.to}T00:00:00`) : new Date();
+  const days = [];
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return days;
+  }
+
+  const cursor = new Date(start);
+  while (cursor <= end && days.length < 45) {
+    const key = toDateInputValue(cursor);
+    days.push({
+      key,
+      label: new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit" }).format(cursor),
+      count: 0,
+      caregoRevenue: 0,
+      companionEarning: 0,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  bookings.forEach((booking) => {
+    const key = toDateInputValue(booking.createdAt);
+    const bucket = days.find((item) => item.key === key);
+    if (!bucket) return;
+
+    bucket.count += 1;
+    if (booking.status === "paid") {
+      bucket.caregoRevenue += getCareGoRevenue(booking);
+      bucket.companionEarning += getCompanionEarning(booking);
+    }
+  });
+
+  return days;
+};
+
 const topServices = (bookings) => {
   const stats = {};
   bookings.forEach((booking) => {
@@ -133,6 +171,7 @@ const AdminReportsPage = () => {
   const filteredBookings = bookings.filter((booking) => isDateInRange(booking.createdAt, dateRange));
   const companions = companionsData?.companions || [];
   const monthly = makeMonthly(filteredBookings);
+  const daily = makeDaily(filteredBookings, dateRange);
   const services = topServices(filteredBookings);
   const companionRows = topCompanions(filteredBookings);
   const paidBookings = filteredBookings.filter((item) => item.status === "paid");
@@ -243,6 +282,65 @@ const AdminReportsPage = () => {
         borderRadius: 6,
       },
     ],
+  };
+
+  const dailyBookingData = {
+    labels: daily.map((item) => item.label),
+    datasets: [
+      {
+        label: "Booking",
+        data: daily.map((item) => item.count),
+        borderColor: "#0f766e",
+        backgroundColor: "rgba(20, 184, 166, 0.18)",
+        pointBackgroundColor: "#0f766e",
+        pointRadius: 3,
+        tension: 0.35,
+        fill: true,
+      },
+    ],
+  };
+
+  const statusShareData = {
+    labels: statuses,
+    datasets: [
+      {
+        data: statuses.map((status) => filteredBookings.filter((booking) => booking.status === status).length),
+        backgroundColor: ["#f59e0b", "#0284c7", "#4f46e5", "#64748b", "#0f766e", "#e11d48"],
+        borderColor: "#ffffff",
+        borderWidth: 3,
+        hoverOffset: 8,
+      },
+    ],
+  };
+
+  const moneySplitData = {
+    labels: daily.map((item) => item.label),
+    datasets: [
+      {
+        label: "CareGo thu",
+        data: daily.map((item) => Math.round((item.caregoRevenue / 1000000) * 10) / 10),
+        backgroundColor: "rgba(15, 118, 110, 0.78)",
+        borderRadius: 6,
+      },
+      {
+        label: "Companion nhận",
+        data: daily.map((item) => Math.round((item.companionEarning / 1000000) * 10) / 10),
+        backgroundColor: "rgba(37, 99, 235, 0.68)",
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: { boxWidth: 10, padding: 12, font: { size: 11, weight: "700" } },
+      },
+    },
+    cutout: "64%",
   };
 
   return (
@@ -367,6 +465,57 @@ const AdminReportsPage = () => {
           <p className="mt-2 text-xl font-bold text-slate-900">{pendingCompanions}</p>
         </div>
       </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <section className="rounded-2xl border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5 xl:col-span-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-bold text-slate-900">Booking theo ngày</h2>
+              <p className="mt-1 text-xs text-slate-400">
+                Theo dõi nhu cầu đặt lịch trong khoảng ngày đang lọc.
+              </p>
+            </div>
+            <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">
+              {filteredBookings.length} booking
+            </span>
+          </div>
+          <div className="mt-4 h-72">
+            <Line data={dailyBookingData} options={chartOptions} />
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5">
+          <h2 className="font-bold text-slate-900">Tỷ lệ trạng thái booking</h2>
+          <p className="mt-1 text-xs text-slate-400">
+            Nhìn nhanh pending, đang chạy, hoàn thành, đã thanh toán và hủy.
+          </p>
+          <div className="mt-4 h-72">
+            <Doughnut data={statusShareData} options={doughnutOptions} />
+          </div>
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-bold text-slate-900">CareGo thu vs Companion nhận</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Chỉ tính các booking đã thanh toán, đơn vị hiển thị theo triệu VND.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-black">
+            <span className="rounded-full bg-teal-50 px-3 py-1 text-teal-700">
+              CareGo: {money(careGoRevenue)}
+            </span>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+              Companion: {money(paidBookings.reduce((sum, item) => sum + getCompanionEarning(item), 0))}
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 h-80">
+          <Bar data={moneySplitData} options={chartOptions} />
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
