@@ -162,6 +162,47 @@ const countViewsInRange = (post, range) => {
   }).length;
 };
 
+const toDateKey = (date) => {
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return "";
+  return value.toISOString().slice(0, 10);
+};
+
+const buildDailyViews = (posts, range) => {
+  if (!range) return [];
+
+  const days = [];
+  const cursor = new Date(range.start);
+  while (cursor <= range.end && days.length < 90) {
+    days.push({
+      key: toDateKey(cursor),
+      label: new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit" }).format(cursor),
+      views: 0,
+    });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  posts.forEach((post) => {
+    const viewLogs = post.viewLogs || [];
+    if (!viewLogs.length && post.viewCount) {
+      const createdAt = new Date(post.createdAt);
+      if (Number.isNaN(createdAt.getTime())) return;
+      const bucket = days.find((item) => item.key === toDateKey(createdAt));
+      if (bucket) bucket.views += post.viewCount;
+      return;
+    }
+
+    viewLogs.forEach((log) => {
+      const viewedAt = new Date(log.createdAt);
+      if (viewedAt < range.start || viewedAt > range.end) return;
+      const bucket = days.find((item) => item.key === toDateKey(viewedAt));
+      if (bucket) bucket.views += 1;
+    });
+  });
+
+  return days;
+};
+
 export const getBlogPosts = async (_req, res) => {
   try {
     await ensureDefaultBlogPosts();
@@ -259,7 +300,7 @@ export const getBlogStats = async (req, res) => {
     await ensureDefaultBlogPosts();
     const range = getDateRange(req.query);
     const posts = await BlogPost.find({ isPublished: true })
-      .select("title slug category viewCount viewLogs ratingSum ratingCount comments")
+      .select("title slug category viewCount viewLogs ratingSum ratingCount comments createdAt")
       .sort({ viewCount: -1 });
 
     const blogStats = posts
@@ -273,7 +314,21 @@ export const getBlogStats = async (req, res) => {
       })
       .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
 
-    return res.status(200).json({ blogStats });
+    const categoryViews = Object.values(
+      blogStats.reduce((acc, post) => {
+        const category = post.category || "CareGo";
+        acc[category] ||= { category, views: 0, posts: 0 };
+        acc[category].views += post.viewCount || 0;
+        acc[category].posts += 1;
+        return acc;
+      }, {}),
+    ).sort((a, b) => b.views - a.views);
+
+    return res.status(200).json({
+      blogStats,
+      dailyViews: buildDailyViews(posts, range),
+      categoryViews,
+    });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
