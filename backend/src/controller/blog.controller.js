@@ -125,11 +125,41 @@ export const ensureDefaultBlogPosts = async () => {
 
 const serializePost = (post) => {
   const data = post.toObject ? post.toObject({ virtuals: true }) : post;
+  const { viewLogs: _viewLogs, ...publicData } = data;
   return {
-    ...data,
+    ...publicData,
     ratingAverage: data.ratingCount ? Number((data.ratingSum / data.ratingCount).toFixed(1)) : 0,
+    commentCount: data.comments?.length || 0,
     comments: (data.comments || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
   };
+};
+
+const getDateRange = ({ from, to }) => {
+  if (!from && !to) return null;
+
+  const start = from ? new Date(`${from}T00:00:00.000Z`) : new Date("1970-01-01T00:00:00.000Z");
+  const end = to ? new Date(`${to}T23:59:59.999Z`) : new Date();
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
+
+  return { start, end };
+};
+
+const countViewsInRange = (post, range) => {
+  if (!range) return post.viewCount || 0;
+
+  const viewLogs = post.viewLogs || [];
+  if (!viewLogs.length && post.viewCount) {
+    const createdAt = new Date(post.createdAt);
+    return createdAt >= range.start && createdAt <= range.end ? post.viewCount : 0;
+  }
+
+  return viewLogs.filter((log) => {
+    const viewedAt = new Date(log.createdAt);
+    return viewedAt >= range.start && viewedAt <= range.end;
+  }).length;
 };
 
 export const getBlogPosts = async (_req, res) => {
@@ -160,7 +190,10 @@ export const increaseBlogView = async (req, res) => {
     await ensureDefaultBlogPosts();
     const post = await BlogPost.findOneAndUpdate(
       { slug: req.params.slug, isPublished: true },
-      { $inc: { viewCount: 1 } },
+      {
+        $inc: { viewCount: 1 },
+        $push: { viewLogs: { createdAt: new Date() } },
+      },
       { new: true },
     );
     if (!post) {
@@ -221,13 +254,26 @@ export const commentBlogPost = async (req, res) => {
   }
 };
 
-export const getBlogStats = async (_req, res) => {
+export const getBlogStats = async (req, res) => {
   try {
     await ensureDefaultBlogPosts();
+    const range = getDateRange(req.query);
     const posts = await BlogPost.find({ isPublished: true })
-      .select("title slug category viewCount ratingSum ratingCount comments")
+      .select("title slug category viewCount viewLogs ratingSum ratingCount comments")
       .sort({ viewCount: -1 });
-    return res.status(200).json({ blogStats: posts.map(serializePost) });
+
+    const blogStats = posts
+      .map((post) => {
+        const data = serializePost(post);
+        return {
+          ...data,
+          allTimeViewCount: data.viewCount || 0,
+          viewCount: countViewsInRange(post, range),
+        };
+      })
+      .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+
+    return res.status(200).json({ blogStats });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }

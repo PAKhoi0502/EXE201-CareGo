@@ -6,6 +6,7 @@ import {
   LinearScale,
   Tooltip,
 } from "chart.js";
+import { useState } from "react";
 import { Bar } from "react-chartjs-2";
 import { Link } from "react-router";
 import { api } from "../../api/client.js";
@@ -14,27 +15,63 @@ import { useAsync } from "../../hooks/useAsync.js";
 
 ChartJS.register(BarElement, CategoryScale, Legend, LinearScale, Tooltip);
 
-const AdminBlogsPage = () => {
-  const { data, loading, error } = useAsync(() => api.get("/blogs/admin/stats"), []);
-  const blogStats = data?.blogStats || [];
+const toDateInputValue = (date) => {
+  const value = new Date(date);
+  value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
+  return value.toISOString().slice(0, 10);
+};
 
+const getRecentRange = (days) => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - (days - 1));
+
+  return {
+    from: toDateInputValue(start),
+    to: toDateInputValue(end),
+  };
+};
+
+const rangePresets = [
+  { label: "Hôm nay", days: 1 },
+  { label: "7 ngày gần nhất", days: 7 },
+  { label: "30 ngày gần nhất", days: 30 },
+  { label: "90 ngày gần nhất", days: 90 },
+];
+
+const AdminBlogsPage = () => {
+  const [dateRange, setDateRange] = useState(() => getRecentRange(7));
+  const { data, loading, error } = useAsync(
+    () => api.get(`/blogs/admin/stats?from=${dateRange.from}&to=${dateRange.to}`),
+    [dateRange.from, dateRange.to],
+  );
+
+  const blogStats = data?.blogStats || [];
   const totalViews = blogStats.reduce((sum, item) => sum + Number(item.viewCount || 0), 0);
   const totalRatings = blogStats.reduce((sum, item) => sum + Number(item.ratingCount || 0), 0);
   const totalComments = blogStats.reduce(
     (sum, item) => sum + Number(item.comments?.length || item.commentCount || 0),
-    0
+    0,
   );
+  const bestPost = blogStats[0];
 
   const chartData = {
     labels: blogStats.map((item) =>
-      item.title?.length > 28 ? `${item.title.slice(0, 28)}...` : item.title
+      item.title?.length > 34 ? `${item.title.slice(0, 34)}...` : item.title,
     ),
     datasets: [
       {
         label: "Lượt xem",
         data: blogStats.map((item) => item.viewCount || 0),
-        backgroundColor: "rgba(15, 118, 110, 0.78)",
-        borderRadius: 8,
+        backgroundColor: blogStats.map((_, index) =>
+          index === 0 ? "rgba(15, 118, 110, 0.95)" : "rgba(20, 184, 166, 0.56)",
+        ),
+        borderColor: blogStats.map((_, index) =>
+          index === 0 ? "rgba(13, 148, 136, 1)" : "rgba(153, 246, 228, 1)",
+        ),
+        borderRadius: 10,
+        borderWidth: 1,
+        barThickness: 24,
       },
     ],
   };
@@ -45,14 +82,30 @@ const AdminBlogsPage = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
+      tooltip: {
+        backgroundColor: "#0f172a",
+        titleFont: { weight: "700" },
+        bodyFont: { weight: "700" },
+        padding: 12,
+        cornerRadius: 12,
+        callbacks: {
+          label: (context) => `${context.raw || 0} lượt xem`,
+        },
+      },
     },
     scales: {
       x: {
         beginAtZero: true,
         ticks: { precision: 0 },
-        grid: { color: "#f1f5f9" },
+        border: { display: false },
+        grid: { color: "#e2f7f3" },
       },
       y: {
+        ticks: {
+          color: "#475569",
+          font: { size: 11, weight: "700" },
+        },
+        border: { display: false },
         grid: { display: false },
       },
     },
@@ -74,6 +127,84 @@ const AdminBlogsPage = () => {
           Xem trang blog
         </Link>
       </div>
+
+      <Card className="overflow-hidden border-teal-100 bg-white/95 p-0 shadow-xl shadow-teal-900/5">
+        <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-500 p-5 text-white">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-teal-100">
+                Bộ lọc thời gian
+              </p>
+              <h2 className="mt-1 text-xl font-black">Lượt xem blog theo khoảng ngày</h2>
+              <p className="mt-1 max-w-2xl text-sm font-medium text-teal-50">
+                Chọn nhanh 7 ngày gần nhất hoặc nhập khoảng ngày để xem bài viết nào đang được quan tâm.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDateRange(getRecentRange(7))}
+              className="inline-flex min-h-10 items-center justify-center rounded-full bg-white px-5 text-sm font-black text-teal-700 shadow-sm transition hover:bg-teal-50"
+            >
+              Đặt lại 7 ngày
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
+            <div className="flex flex-wrap gap-2">
+              {rangePresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setDateRange(getRecentRange(preset.days))}
+                  className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white hover:text-teal-700"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs font-bold text-teal-50">
+                Từ ngày
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
+                  className="min-h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
+                />
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-teal-50">
+                Đến ngày
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
+                  className="min-h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-5 p-5 md:grid-cols-3">
+          <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4">
+            <p className="text-sm font-semibold text-teal-700">Lượt xem trong khoảng</p>
+            <strong className="mt-2 block text-3xl font-black text-teal-800">{totalViews}</strong>
+          </div>
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-700">Bài nổi bật</p>
+            <strong className="mt-2 block truncate text-lg font-black text-amber-800">
+              {bestPost?.title || "Chưa có dữ liệu"}
+            </strong>
+          </div>
+          <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+            <p className="text-sm font-semibold text-sky-700">Khoảng lọc</p>
+            <strong className="mt-2 block text-sm font-black text-sky-800">
+              {dateRange.from} - {dateRange.to}
+            </strong>
+          </div>
+        </div>
+      </Card>
 
       {loading ? <p className="text-sm font-semibold text-slate-500">Đang tải blog...</p> : null}
       {error ? <p className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</p> : null}
@@ -100,8 +231,14 @@ const AdminBlogsPage = () => {
             Mỗi lần người dùng click mở chi tiết bài viết sẽ tăng một lượt xem.
           </p>
         </div>
-        <div className="h-80">
-          <Bar data={chartData} options={chartOptions} />
+        <div className="h-80 rounded-3xl border border-teal-50 bg-gradient-to-b from-white to-teal-50/40 p-4">
+          {loading ? (
+            <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400">
+              Đang tải biểu đồ blog...
+            </div>
+          ) : (
+            <Bar data={chartData} options={chartOptions} />
+          )}
         </div>
       </Card>
 
@@ -146,7 +283,7 @@ const AdminBlogsPage = () => {
               {!blogStats.length && !loading ? (
                 <tr>
                   <td colSpan="6" className="p-6 text-center text-sm font-semibold text-slate-400">
-                    Chưa có dữ liệu blog.
+                    Chưa có dữ liệu blog trong khoảng ngày này.
                   </td>
                 </tr>
               ) : null}

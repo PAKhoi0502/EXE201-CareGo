@@ -61,6 +61,14 @@ const BlogPostSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    viewLogs: [
+      {
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     ratingSum: {
       type: Number,
       default: 0,
