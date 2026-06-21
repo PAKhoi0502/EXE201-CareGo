@@ -22,6 +22,35 @@ const RatingStars = ({ value, onChange, disabled = false }) => (
   </div>
 );
 
+const ArticleMetric = ({ label, value, tone = "teal" }) => {
+  const tones = {
+    teal: "bg-teal-50 text-teal-700",
+    amber: "bg-amber-50 text-amber-700",
+    sky: "bg-sky-50 text-sky-700",
+  };
+
+  return (
+    <div className={`rounded-2xl px-4 py-3 ${tones[tone]}`}>
+      <p className="text-xs font-black uppercase tracking-wide opacity-75">{label}</p>
+      <strong className="mt-1 block text-lg font-black">{value}</strong>
+    </div>
+  );
+};
+
+const BlogHeroVisual = ({ category }) => (
+  <div className="relative min-h-[280px] overflow-hidden rounded-[34px] bg-gradient-to-br from-teal-700 via-teal-500 to-sky-500 shadow-2xl shadow-teal-900/15">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.35),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(255,255,255,0.24),transparent_24%)]" />
+    <div className="absolute -bottom-20 -right-12 h-64 w-64 rounded-full bg-white/20 blur-2xl" />
+    <div className="absolute left-6 top-6 rounded-full border border-white/25 bg-white/20 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur">
+      {category}
+    </div>
+    <div className="absolute bottom-6 left-6 right-6 rounded-[28px] border border-white/25 bg-white/92 p-6 backdrop-blur">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-700">CareGo Guide</p>
+      <p className="mt-3 text-2xl font-black leading-tight text-slate-950">Chăm sóc người thân chủ động hơn mỗi ngày</p>
+    </div>
+  </div>
+);
+
 const BlogDetailPage = () => {
   const { slug } = useParams();
   const { data, setData, loading, error } = useAsync(() => api.get(`/blogs/${slug}`), [slug]);
@@ -98,39 +127,50 @@ const BlogDetailPage = () => {
 
       <main>
         <article>
-          <section className="border-b border-teal-100 bg-gradient-to-b from-white to-teal-50/80 py-16">
-            <div className="mx-auto w-[min(960px,92%)]">
-              <Link to="/blog" className="text-sm font-black text-teal-700 hover:text-teal-900">
-                Quay lại blog
-              </Link>
-              <div className="mt-6 flex flex-wrap items-center gap-3 text-xs font-black uppercase tracking-wide text-teal-700">
-                <span className="rounded-full border border-teal-200 bg-white px-3 py-1.5">{post.category}</span>
-                <span className="text-slate-400">{post.date}</span>
-                <span className="text-slate-400">{post.readTime}</span>
+          <section className="relative overflow-hidden border-b border-teal-100 bg-gradient-to-b from-white via-teal-50/70 to-[#f5fbfa] py-12 sm:py-16">
+            <div className="mx-auto grid w-[min(1180px,92%)] gap-10 lg:grid-cols-[1fr_420px] lg:items-center">
+              <div>
+                <Link to="/blog" className="inline-flex items-center gap-2 text-sm font-black text-teal-700 hover:text-teal-900">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+                    <path d="M19 12H5m6-6-6 6 6 6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                  </svg>
+                  Quay lại Blog
+                </Link>
+                <div className="mt-6 flex flex-wrap items-center gap-3 text-xs font-black uppercase tracking-wide text-teal-700">
+                  <span className="rounded-full border border-teal-200 bg-white px-3 py-1.5">{post.category}</span>
+                  <span className="text-slate-400">{post.date}</span>
+                  <span className="text-slate-400">{post.readTime}</span>
+                </div>
+                <h1 className="mt-5 text-4xl font-black leading-tight tracking-tight sm:text-6xl">{post.title}</h1>
+                <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-500">{post.excerpt}</p>
+                <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                  <ArticleMetric label="Lượt xem" value={post.viewCount || 0} />
+                  <ArticleMetric label="Đánh giá" value={`${post.ratingAverage || 0}/5`} tone="amber" />
+                  <ArticleMetric label="Bình luận" value={post.comments?.length || 0} tone="sky" />
+                </div>
               </div>
-              <h1 className="mt-5 text-4xl font-black leading-tight sm:text-5xl">{post.title}</h1>
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-500">{post.excerpt}</p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-teal-700 shadow-sm">👁 {post.viewCount || 0} lượt xem</span>
-                <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-amber-600 shadow-sm">★ {post.ratingAverage || 0}/5 ({post.ratingCount || 0})</span>
-                <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-sky-700 shadow-sm">💬 {post.comments?.length || 0} bình luận</span>
-              </div>
+              <BlogHeroVisual category={post.category} />
             </div>
           </section>
 
-          <section className="py-14">
-            <div className="mx-auto grid w-[min(960px,92%)] gap-8 lg:grid-cols-[1fr_280px]">
+          <section className="py-12 sm:py-14">
+            <div className="mx-auto grid w-[min(1180px,92%)] gap-8 lg:grid-cols-[1fr_320px]">
               <div className="rounded-[34px] border border-teal-100 bg-white p-7 shadow-xl shadow-teal-900/5 sm:p-10">
                 <div className="rounded-[28px] bg-gradient-to-br from-teal-700 via-teal-500 to-sky-400 p-6 text-white">
                   <p className="text-sm font-bold text-white/75">Điểm chính</p>
                   <h2 className="mt-2 text-2xl font-black">{post.highlight}</h2>
                 </div>
 
-                <div className="mt-8 grid gap-8">
-                  {post.content.map((section) => (
-                    <section key={section.heading}>
-                      <h2 className="text-2xl font-black text-[#12312f]">{section.heading}</h2>
-                      <p className="mt-3 text-base leading-8 text-slate-600">{section.body}</p>
+                <div className="mt-9 grid gap-9">
+                  {post.content.map((section, index) => (
+                    <section key={section.heading} className="relative border-b border-teal-50 pb-8 last:border-b-0 last:pb-0">
+                      <div className="mb-4 flex items-center gap-3">
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-50 text-sm font-black text-teal-700">
+                          {index + 1}
+                        </span>
+                        <h2 className="text-2xl font-black text-[#12312f]">{section.heading}</h2>
+                      </div>
+                      <p className="text-base leading-8 text-slate-600">{section.body}</p>
                     </section>
                   ))}
                 </div>
@@ -191,22 +231,9 @@ const BlogDetailPage = () => {
                     ) : null}
                   </div>
                 </div>
-
-                <div className="mt-10 rounded-[28px] border border-emerald-100 bg-emerald-50 p-6">
-                  <h2 className="text-xl font-black">Gia đình cần hỗ trợ đặt lịch?</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    CareGo giúp bạn đặt người đồng hành theo giờ, theo dõi GPS, nhận ảnh xác nhận và báo cáo sau ca.
-                  </p>
-                  <Link
-                    to="/register"
-                    className="mt-5 inline-flex min-h-11 items-center rounded-full bg-teal-700 px-5 text-sm font-black text-white transition hover:bg-teal-800"
-                  >
-                    Bắt đầu đặt lịch
-                  </Link>
-                </div>
               </div>
 
-              <aside className="space-y-4">
+              <aside className="space-y-5">
                 <div className="rounded-[28px] border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5">
                   <h2 className="font-black">Bài viết liên quan</h2>
                   <div className="mt-4 grid gap-3">
@@ -218,10 +245,25 @@ const BlogDetailPage = () => {
                       >
                         <p className="text-xs font-bold text-teal-700">{item.category}</p>
                         <h3 className="mt-2 text-sm font-black leading-5">{item.title}</h3>
-                        <p className="mt-2 text-xs font-semibold text-slate-400">👁 {item.viewCount || 0} • ★ {item.ratingAverage || 0}</p>
+                        <p className="mt-2 text-xs font-semibold text-slate-400">
+                          {item.viewCount || 0} lượt xem • ★ {item.ratingAverage || 0}
+                        </p>
                       </Link>
                     ))}
                   </div>
+                </div>
+
+                <div className="rounded-[28px] border border-emerald-100 bg-emerald-50 p-5 shadow-xl shadow-teal-900/5">
+                  <h2 className="text-lg font-black text-slate-950">Gia đình cần hỗ trợ đặt lịch?</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    CareGo giúp bạn đặt người đồng hành, theo dõi GPS và nhận báo cáo sau mỗi ca chăm sóc.
+                  </p>
+                  <Link
+                    to="/register"
+                    className="mt-5 inline-flex min-h-11 items-center rounded-full bg-teal-700 px-5 text-sm font-black text-white transition hover:bg-teal-800"
+                  >
+                    Bắt đầu đặt lịch
+                  </Link>
                 </div>
               </aside>
             </div>
