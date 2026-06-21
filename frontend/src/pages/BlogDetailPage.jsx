@@ -51,12 +51,15 @@ const BlogHeroVisual = ({ category }) => (
   </div>
 );
 
+const COMMENTS_PER_PAGE = 5;
+
 const BlogDetailPage = () => {
   const { slug } = useParams();
   const { data, setData, loading, error } = useAsync(() => api.get(`/blogs/${slug}`), [slug]);
   const { data: postsData } = useAsync(() => api.get("/blogs"), []);
   const [rating, setRating] = useState(5);
-  const [commentForm, setCommentForm] = useState({ name: "", content: "" });
+  const [commentForm, setCommentForm] = useState({ name: "", content: "", rating: 5 });
+  const [commentPage, setCommentPage] = useState(1);
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -64,6 +67,12 @@ const BlogDetailPage = () => {
   const relatedPosts = useMemo(
     () => (postsData?.posts || []).filter((item) => item.slug !== slug).slice(0, 3),
     [postsData?.posts, slug],
+  );
+  const comments = post?.comments || [];
+  const totalCommentPages = Math.max(1, Math.ceil(comments.length / COMMENTS_PER_PAGE));
+  const pagedComments = comments.slice(
+    (commentPage - 1) * COMMENTS_PER_PAGE,
+    commentPage * COMMENTS_PER_PAGE,
   );
 
   useEffect(() => {
@@ -82,27 +91,27 @@ const BlogDetailPage = () => {
     };
   }, [slug, setData]);
 
-  const submitRating = async () => {
-    setSubmitError("");
-    setSuccess("");
-    try {
-      const result = await api.post(`/blogs/${slug}/rating`, { rating });
-      setData(result);
-      setSuccess("Cảm ơn bạn đã đánh giá bài viết.");
-    } catch (err) {
-      setSubmitError(err.message);
+  useEffect(() => {
+    setCommentPage(1);
+  }, [slug]);
+
+  useEffect(() => {
+    if (commentPage > totalCommentPages) {
+      setCommentPage(totalCommentPages);
     }
-  };
+  }, [commentPage, totalCommentPages]);
 
   const submitComment = async (event) => {
     event.preventDefault();
     setSubmitError("");
     setSuccess("");
     try {
-      const result = await api.post(`/blogs/${slug}/comments`, commentForm);
+      const result = await api.post(`/blogs/${slug}/comments`, { ...commentForm, rating });
       setData(result);
-      setCommentForm({ name: "", content: "" });
-      setSuccess("Bình luận của bạn đã được ghi nhận.");
+      setCommentForm({ name: "", content: "", rating: 5 });
+      setRating(5);
+      setCommentPage(1);
+      setSuccess("Bình luận và đánh giá của bạn đã được ghi nhận.");
     } catch (err) {
       setSubmitError(err.message);
     }
@@ -175,24 +184,16 @@ const BlogDetailPage = () => {
                   ))}
                 </div>
 
-                <div className="mt-10 rounded-[28px] border border-amber-100 bg-amber-50 p-6">
-                  <h2 className="text-xl font-black">Đánh giá bài viết</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">Bạn thấy nội dung này hữu ích ở mức nào?</p>
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <RatingStars value={rating} onChange={setRating} />
-                    <button
-                      type="button"
-                      onClick={submitRating}
-                      className="min-h-11 rounded-full bg-teal-700 px-5 text-sm font-black text-white transition hover:bg-teal-800"
-                    >
-                      Gửi đánh giá
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-8 rounded-[28px] border border-teal-100 bg-[#fbfffe] p-6">
-                  <h2 className="text-xl font-black">Bình luận</h2>
+                <div className="mt-10 rounded-[28px] border border-teal-100 bg-[#fbfffe] p-6">
+                  <h2 className="text-xl font-black">Bình luận và đánh giá</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Chọn số sao và để lại cảm nhận của bạn về bài viết.
+                  </p>
                   <form className="mt-5 grid gap-4" onSubmit={submitComment}>
+                    <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4">
+                      <p className="mb-2 text-sm font-black text-slate-800">Đánh giá của bạn</p>
+                      <RatingStars value={rating} onChange={setRating} />
+                    </div>
                     <input
                       value={commentForm.name}
                       onChange={(event) => setCommentForm({ ...commentForm, name: event.target.value })}
@@ -213,10 +214,16 @@ const BlogDetailPage = () => {
                   </form>
 
                   <div className="mt-6 grid gap-3">
-                    {(post.comments || []).map((comment) => (
+                    {pagedComments.map((comment) => (
                       <div key={comment._id || comment.createdAt} className="rounded-2xl border border-teal-100 bg-white p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <strong className="text-sm text-[#12312f]">{comment.name}</strong>
+                          <div>
+                            <strong className="text-sm text-[#12312f]">{comment.name}</strong>
+                            <div className="mt-1 text-sm font-black text-amber-400">
+                              {"★".repeat(comment.rating || 5)}
+                              <span className="text-slate-300">{"★".repeat(5 - (comment.rating || 5))}</span>
+                            </div>
+                          </div>
                           <span className="text-xs font-semibold text-slate-400">
                             {comment.createdAt ? new Intl.DateTimeFormat("vi-VN").format(new Date(comment.createdAt)) : ""}
                           </span>
@@ -228,6 +235,46 @@ const BlogDetailPage = () => {
                       <p className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-500">
                         Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nhận.
                       </p>
+                    ) : null}
+                    {comments.length > COMMENTS_PER_PAGE ? (
+                      <div className="mt-2 flex flex-col gap-3 rounded-2xl border border-teal-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs font-bold text-slate-500">
+                          Hiển thị {(commentPage - 1) * COMMENTS_PER_PAGE + 1}-
+                          {Math.min(commentPage * COMMENTS_PER_PAGE, comments.length)} trong {comments.length} bình luận
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={commentPage === 1}
+                            onClick={() => setCommentPage((page) => Math.max(1, page - 1))}
+                            className="rounded-full border border-teal-100 px-4 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Trước
+                          </button>
+                          {Array.from({ length: totalCommentPages }, (_, index) => index + 1).map((page) => (
+                            <button
+                              key={page}
+                              type="button"
+                              onClick={() => setCommentPage(page)}
+                              className={`grid h-9 w-9 place-items-center rounded-full text-xs font-black transition ${
+                                page === commentPage
+                                  ? "bg-teal-700 text-white"
+                                  : "border border-teal-100 text-teal-700 hover:bg-teal-50"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            disabled={commentPage === totalCommentPages}
+                            onClick={() => setCommentPage((page) => Math.min(totalCommentPages, page + 1))}
+                            className="rounded-full border border-teal-100 px-4 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Sau
+                          </button>
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 </div>

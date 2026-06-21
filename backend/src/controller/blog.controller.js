@@ -270,17 +270,23 @@ export const rateBlogPost = async (req, res) => {
 export const commentBlogPost = async (req, res) => {
   try {
     const { name, content } = req.body;
+    const rating = Number(req.body.rating || 5);
     if (!content?.trim()) {
       return res.status(400).json({ message: "comment content is required" });
+    }
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "rating must be between 1 and 5" });
     }
 
     const post = await BlogPost.findOneAndUpdate(
       { slug: req.params.slug, isPublished: true },
       {
+        $inc: { ratingSum: rating, ratingCount: 1 },
         $push: {
           comments: {
             name: name?.trim() || "Bạn đọc CareGo",
             content: content.trim(),
+            rating,
           },
         },
       },
