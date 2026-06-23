@@ -20,7 +20,7 @@ const ClickPicker = ({ onPick }) => {
       onPick({
         lat: event.latlng.lat,
         lng: event.latlng.lng,
-        displayName: "Vi tri da chon tren ban do",
+        displayName: "Vị trí đã chọn trên bản đồ",
       });
     },
   });
@@ -71,13 +71,28 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
     }
   };
 
+  const handleAddressInputChange = (event) => {
+    onAddressChange(event.target.value);
+    if (location) {
+      onLocationChange(null);
+    }
+  };
+
+  const handleMapPick = (addressLocation) => {
+    onLocationChange(addressLocation);
+    if (!address?.trim()) {
+      onAddressChange(addressLocation.displayName || "Vi tri da chon tren ban do");
+    }
+  };
+
   return (
     <div className="grid gap-3">
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
         <Input
-          label="Dia chi thuc hien"
+          label="Địa chỉ thực hiện"
           value={address}
-          onChange={(event) => onAddressChange(event.target.value)}
+          onChange={handleAddressInputChange}
+          required
         />
         <div className="flex items-end">
           <Button type="button" className="w-full md:w-auto" onClick={searchAddress} disabled={searching}>
@@ -97,7 +112,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <ClickPicker onPick={onLocationChange} />
+          <ClickPicker onPick={handleMapPick} />
           {location ? (
             <Marker position={[Number(location.lat), Number(location.lng)]} icon={markerIcon}>
               <Popup>{location.displayName || address}</Popup>
@@ -107,7 +122,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
       </div>
       {location ? (
         <p className="text-sm text-slate-500">
-          Da ghim: {Number(location.lat).toFixed(6)}, {Number(location.lng).toFixed(6)}
+          Đã ghim: {Number(location.lat).toFixed(6)}, {Number(location.lng).toFixed(6)}
         </p>
       ) : (
         <p className="text-sm text-slate-500">Ban co the tim dia chi hoac bam truc tiep tren ban do de ghim vi tri.</p>

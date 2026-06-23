@@ -363,6 +363,8 @@ const NewBookingPage = () => {
               {onlineCompanions.map((item) => {
                 const companionUserId = item.userId?._id;
                 const active = form.companionId === companionUserId;
+                const ratingAverage = Number(item.ratingAverage || 0);
+                const ratingCount = Number(item.ratingCount || 0);
                 return (
                   <button
                     key={item._id}
@@ -380,7 +382,11 @@ const NewBookingPage = () => {
                         <small className="text-slate-500">{item.major || "Người đồng hành"}</small>
                       </div>
                     </div>
-                    <p className="mb-3 text-sm font-black text-amber-500">4.9/5 đánh giá</p>
+                    <p className="mb-3 text-sm font-black text-amber-500">
+                      {ratingCount > 0
+                        ? `${ratingAverage.toFixed(1)}/5 (${ratingCount} đánh giá)`
+                        : "Chưa có đánh giá"}
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {(item.skills || []).slice(0, 4).map((skill) => (
                         <span key={skill} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-teal-700">

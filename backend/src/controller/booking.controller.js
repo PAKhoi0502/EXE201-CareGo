@@ -1,3 +1,5 @@
+import crypto from "crypto";
+import BookingCompanionLock from "../models/booking-companion-lock.models.js";
 import Booking from "../models/booking.models.js";
 import {
   buildPayOSRedirectUrl,
@@ -10,6 +12,7 @@ import Payment from "../models/payment.models.js";
 import Review from "../models/review.models.js";
 import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
+import User from "../models/user.models.js";
 import { emitBookingChatState } from "../socket/booking-chat.socket.js";
 
 const populateBooking = [
@@ -41,6 +44,9 @@ const CUSTOMER_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted"];
 const ADMIN_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
 const PAYMENT_DUE_MS = 3 * 24 * 60 * 60 * 1000;
 const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
+const BOOKING_CREATE_LOCK_TTL_MS = 10 * 1000;
+const BOOKING_CREATE_LOCK_WAIT_MS = 1200;
+const BOOKING_CREATE_LOCK_RETRY_MS = 75;
 
 const getPlatformFeeRate = () => {
   const rate = Number(
@@ -251,7 +257,69 @@ const normalizeAddressLocation = (addressLocation) => {
   };
 };
 
+const createBookingLockBusyError = () => {
+  const error = new Error("Companion schedule is being updated. Please try again.");
+  error.statusCode = 409;
+  return error;
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const acquireCompanionBookingLock = async (companionId) => {
+  const lockId = String(companionId);
+  const ownerToken = crypto.randomUUID?.() || crypto.randomBytes(16).toString("hex");
+  const getExpiresAt = () => new Date(Date.now() + BOOKING_CREATE_LOCK_TTL_MS);
+  const deadline = Date.now() + BOOKING_CREATE_LOCK_WAIT_MS;
+
+  while (Date.now() <= deadline) {
+    try {
+      await BookingCompanionLock.create({
+        _id: lockId,
+        ownerToken,
+        expiresAt: getExpiresAt(),
+      });
+      return { lockId, ownerToken };
+    } catch (error) {
+      if (error?.code !== 11000) {
+        throw error;
+      }
+    }
+
+    const acquiredLock = await BookingCompanionLock.findOneAndUpdate(
+      {
+        _id: lockId,
+        expiresAt: { $lte: new Date() },
+      },
+      { $set: { ownerToken, expiresAt: getExpiresAt() } },
+      { new: true },
+    ).select("ownerToken");
+
+    if (acquiredLock?.ownerToken === ownerToken) {
+      return { lockId, ownerToken };
+    }
+
+    await sleep(BOOKING_CREATE_LOCK_RETRY_MS);
+  }
+
+  throw createBookingLockBusyError();
+};
+
+const releaseCompanionBookingLock = async (lock) => {
+  if (!lock) return;
+
+  try {
+    await BookingCompanionLock.deleteOne({
+      _id: lock.lockId,
+      ownerToken: lock.ownerToken,
+    });
+  } catch {
+    // The lock is short-lived and has a TTL fallback, so release failure should not mask the booking response.
+  }
+};
+
 export const createBooking = async (req, res) => {
+  let bookingLock = null;
+
   try {
     const {
       elderProfileId,
@@ -273,7 +341,7 @@ export const createBooking = async (req, res) => {
 
     const parsedStartTime = new Date(startTime);
     const parsedDurationHours = Number(durationHours);
-    if (Number.isNaN(parsedStartTime.getTime()) || Number.isNaN(parsedDurationHours) || parsedDurationHours <= 0) {
+    if (Number.isNaN(parsedStartTime.getTime()) || Number.isNaN(parsedDurationHours) || parsedDurationHours < 1) {
       return res.status(400).json({ message: "Thời gian đặt lịch hoặc thời lượng không hợp lệ" });
     }
 
@@ -318,6 +386,16 @@ export const createBooking = async (req, res) => {
       return res.status(404).json({ message: "service not found" });
     }
 
+    const companionUser = await User.findOne({
+      _id: companionId,
+      role: "companion",
+      isActive: true,
+      isEmailVerified: true,
+    }).select("_id");
+    if (!companionUser) {
+      return res.status(404).json({ message: "active companion not found" });
+    }
+
     const companionProfile = await CompanionProfile.findOne({
       userId: companionId,
       vettingStatus: "approved",
@@ -325,6 +403,8 @@ export const createBooking = async (req, res) => {
     if (!companionProfile) {
       return res.status(404).json({ message: "approved companion not found" });
     }
+
+    bookingLock = await acquireCompanionBookingLock(companionId);
 
     const conflictingBooking = await findCompanionTimeConflict({
       companionId,
@@ -361,7 +441,13 @@ export const createBooking = async (req, res) => {
 
     return res.status(201).json({ message: "booking created", booking });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      message: error.statusCode ? error.message : "internal server error",
+      error: error.message,
+    });
+  } finally {
+    await releaseCompanionBookingLock(bookingLock);
   }
 };
 

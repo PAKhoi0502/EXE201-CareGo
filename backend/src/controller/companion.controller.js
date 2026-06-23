@@ -30,10 +30,14 @@ export const getCompanions = async (req, res) => {
     const companions = await CompanionProfile.find({
       vettingStatus: "approved",
     })
-      .populate("userId", "name email phone avatar isActive")
+      .populate({
+        path: "userId",
+        select: "name email phone avatar isActive",
+        match: { role: "companion", isActive: true, isEmailVerified: true },
+      })
       .sort({ ratingAverage: -1, completedBookings: -1 });
 
-    return res.status(200).json({ companions });
+    return res.status(200).json({ companions: companions.filter((companion) => companion.userId) });
   } catch (error) {
     return res
       .status(500)
@@ -46,8 +50,12 @@ export const getCompanionById = async (req, res) => {
     const companion = await CompanionProfile.findOne({
       _id: req.params.id,
       vettingStatus: "approved",
-    }).populate("userId", "name email phone avatar isActive");
-    if (!companion) {
+    }).populate({
+      path: "userId",
+      select: "name email phone avatar isActive",
+      match: { role: "companion", isActive: true, isEmailVerified: true },
+    });
+    if (!companion || !companion.userId) {
       return res.status(404).json({ message: "companion not found" });
     }
 
@@ -64,7 +72,13 @@ export const getCompanionOnlineStatuses = async (req, res) => {
     const companions = await CompanionProfile.find({
       vettingStatus: "approved",
     }).select("userId");
-    const allowedIds = new Set(companions.map((item) => String(item.userId)));
+    const activeCompanionUsers = await User.find({
+      _id: { $in: companions.map((item) => item.userId).filter(Boolean) },
+      role: "companion",
+      isActive: true,
+      isEmailVerified: true,
+    }).select("_id");
+    const allowedIds = new Set(activeCompanionUsers.map((item) => String(item._id)));
     const onlineStatuses = Object.fromEntries(
       Object.entries(getUserOnlineStatuses()).filter(([userId]) =>
         allowedIds.has(String(userId)),
