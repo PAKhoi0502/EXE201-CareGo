@@ -80,6 +80,11 @@ const CompanionProfileSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    ratingTotal: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     completedBookings: {
       type: Number,
       default: 0,

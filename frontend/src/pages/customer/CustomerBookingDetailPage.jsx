@@ -188,7 +188,7 @@ const CustomerBookingDetailPage = () => {
     let active = true;
     const refreshBooking = async () => {
       try {
-        if (isPayOSReturn && payosOrderCode) {
+        if ((isPayOSReturn || isPayOSCancel) && payosOrderCode) {
           await api.post("/payments/payos/sync", { bookingId: id, orderCode: payosOrderCode });
         }
         const nextData = await api.get(`/bookings/${id}`);

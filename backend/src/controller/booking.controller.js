@@ -1,9 +1,11 @@
 import crypto from "crypto";
 import BookingCompanionLock from "../models/booking-companion-lock.models.js";
+import BookingPaymentLock from "../models/booking-payment-lock.models.js";
 import Booking from "../models/booking.models.js";
 import {
   buildPayOSRedirectUrl,
   createPayOSPaymentLink,
+  getPayOSPaymentLink,
   getPayOSPaymentExpireMinutes,
 } from "../config/payos.js";
 import CompanionProfile from "../models/companion-profile.models.js";
@@ -54,6 +56,9 @@ const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
 const BOOKING_CREATE_LOCK_TTL_MS = 10 * 1000;
 const BOOKING_CREATE_LOCK_WAIT_MS = 1200;
 const BOOKING_CREATE_LOCK_RETRY_MS = 75;
+const PAYMENT_LINK_LOCK_TTL_MS = 60 * 1000;
+const PAYMENT_LINK_LOCK_WAIT_MS = 3000;
+const PAYMENT_LINK_LOCK_RETRY_MS = 100;
 
 const getPositiveEnvNumber = (names, fallback) => {
   for (const name of names) {
@@ -319,6 +324,62 @@ const isReusablePendingPayOSPayment = (payment, paidAmount, now) => {
   );
 };
 
+const getPayOSPaymentPaidAt = (paymentLink) => {
+  const transactionDate =
+    paymentLink?.transactions?.findLast?.((transaction) => transaction.transactionDateTime)?.transactionDateTime;
+  return transactionDate ? new Date(transactionDate) : new Date();
+};
+
+const refreshReusablePendingPayOSPayment = async ({ payment, booking, paidAmount }) => {
+  if (!payment?.orderCode) {
+    return null;
+  }
+
+  const paymentLink = await getPayOSPaymentLink(payment.orderCode);
+  const payosStatus = String(paymentLink?.status || "").toUpperCase();
+
+  if (payosStatus === "PAID") {
+    const amountPaid = Number(paymentLink.amountPaid ?? paymentLink.amount ?? 0);
+    const orderAmount = Number(paymentLink.amount ?? 0);
+    if (paidAmount > 0 && amountPaid !== paidAmount && orderAmount !== paidAmount) {
+      payment.status = "failed";
+      await payment.save();
+      const error = new Error("payment amount mismatch");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    payment.status = "paid";
+    payment.paidAt = payment.paidAt || getPayOSPaymentPaidAt(paymentLink);
+    payment.rawWebhook = {
+      source: "payos-reuse-sync",
+      syncedAt: new Date(),
+      paymentLink,
+    };
+    await payment.save();
+
+    if (booking.status !== "paid") {
+      booking.status = "paid";
+      await booking.save();
+    }
+
+    return null;
+  }
+
+  if (payosStatus === "CANCELLED" || payosStatus === "EXPIRED" || payosStatus === "FAILED") {
+    payment.status = payosStatus.toLowerCase();
+    payment.rawWebhook = {
+      source: "payos-reuse-sync",
+      syncedAt: new Date(),
+      paymentLink,
+    };
+    await payment.save();
+    return null;
+  }
+
+  return payment;
+};
+
 const getBookingPaymentRedirectUrl = ({ configuredUrl, bookingId, orderCode, payosStatus }) => {
   const fallbackUrl = new URL(
     `/customer/bookings/${bookingId}`,
@@ -360,6 +421,12 @@ const normalizeAddressLocation = (addressLocation) => {
 
 const createBookingLockBusyError = () => {
   const error = new Error("Companion schedule is being updated. Please try again.");
+  error.statusCode = 409;
+  return error;
+};
+
+const createPaymentLockBusyError = () => {
+  const error = new Error("Payment link is being created. Please try again.");
   error.statusCode = 409;
   return error;
 };
@@ -416,6 +483,92 @@ const releaseCompanionBookingLock = async (lock) => {
   } catch {
     // The lock is short-lived and has a TTL fallback, so release failure should not mask the booking response.
   }
+};
+
+const acquireBookingPaymentLock = async (bookingId) => {
+  const lockId = String(bookingId);
+  const ownerToken = crypto.randomUUID?.() || crypto.randomBytes(16).toString("hex");
+  const getExpiresAt = () => new Date(Date.now() + PAYMENT_LINK_LOCK_TTL_MS);
+  const deadline = Date.now() + PAYMENT_LINK_LOCK_WAIT_MS;
+
+  while (Date.now() <= deadline) {
+    try {
+      await BookingPaymentLock.create({
+        _id: lockId,
+        ownerToken,
+        expiresAt: getExpiresAt(),
+      });
+      return { lockId, ownerToken };
+    } catch (error) {
+      if (error?.code !== 11000) {
+        throw error;
+      }
+    }
+
+    const acquiredLock = await BookingPaymentLock.findOneAndUpdate(
+      {
+        _id: lockId,
+        expiresAt: { $lte: new Date() },
+      },
+      { $set: { ownerToken, expiresAt: getExpiresAt() } },
+      { new: true },
+    ).select("ownerToken");
+
+    if (acquiredLock?.ownerToken === ownerToken) {
+      return { lockId, ownerToken };
+    }
+
+    await sleep(PAYMENT_LINK_LOCK_RETRY_MS);
+  }
+
+  throw createPaymentLockBusyError();
+};
+
+const releaseBookingPaymentLock = async (lock) => {
+  if (!lock) return;
+
+  try {
+    await BookingPaymentLock.deleteOne({
+      _id: lock.lockId,
+      ownerToken: lock.ownerToken,
+    });
+  } catch {
+    // The lock has a TTL fallback; release failure should not mask the payment response.
+  }
+};
+
+const getExistingRatingTotalExpression = () => ({
+  $cond: [
+    { $gt: [{ $ifNull: ["$ratingTotal", 0] }, 0] },
+    { $ifNull: ["$ratingTotal", 0] },
+    { $multiply: [{ $ifNull: ["$ratingAverage", 0] }, { $ifNull: ["$ratingCount", 0] }] },
+  ],
+});
+
+const updateCompanionRatingStats = async ({ companionId, ratingValue }) => {
+  await CompanionProfile.findOneAndUpdate(
+    { userId: companionId },
+    [
+      {
+        $set: {
+          ratingTotal: {
+            $add: [getExistingRatingTotalExpression(), ratingValue],
+          },
+          ratingCount: {
+            $add: [{ $ifNull: ["$ratingCount", 0] }, 1],
+          },
+        },
+      },
+      {
+        $set: {
+          ratingAverage: {
+            $round: [{ $divide: ["$ratingTotal", "$ratingCount"] }, 1],
+          },
+        },
+      },
+    ],
+    { new: true },
+  );
 };
 
 export const createBooking = async (req, res) => {
@@ -798,6 +951,8 @@ export const updateShiftLog = async (req, res) => {
 };
 
 export const payBooking = async (req, res) => {
+  let paymentLock = null;
+
   try {
     const booking = await Booking.findOne({
       _id: req.params.id,
@@ -831,21 +986,35 @@ export const payBooking = async (req, res) => {
       return res.status(400).json({ message: "So tien thanh toan khong hop le." });
     }
 
+    paymentLock = await acquireBookingPaymentLock(booking._id);
+
     const existingPayment = await Payment.findOne({ bookingId: booking._id });
     if (existingPayment?.status === "paid") {
       return res.status(400).json({ message: "Booking da duoc thanh toan." });
     }
 
     if (isReusablePendingPayOSPayment(existingPayment, paidAmount, now)) {
-      return res.status(200).json({
-        message: "payment link ready",
-        checkoutUrl: existingPayment.checkoutUrl,
+      const reusablePayment = await refreshReusablePendingPayOSPayment({
         payment: existingPayment,
         booking,
-        baseAmount,
-        penaltyAmount,
         paidAmount,
       });
+
+      if (!reusablePayment && existingPayment.status === "paid") {
+        return res.status(400).json({ message: "Booking da duoc thanh toan." });
+      }
+
+      if (reusablePayment) {
+        return res.status(200).json({
+          message: "payment link ready",
+          checkoutUrl: reusablePayment.checkoutUrl,
+          payment: reusablePayment,
+          booking,
+          baseAmount,
+          penaltyAmount,
+          paidAmount,
+        });
+      }
     }
 
     const orderCode = await createUniquePayOSOrderCode();
@@ -944,6 +1113,8 @@ export const payBooking = async (req, res) => {
     }
   } catch (error) {
     return res.status(error.statusCode || 500).json({ message: "internal server error", error: error.message });
+  } finally {
+    await releaseBookingPaymentLock(paymentLock);
   }
 };
 
@@ -986,29 +1157,17 @@ export const createReview = async (req, res) => {
       tags,
     });
 
-    const stats = await Review.aggregate([
-      { $match: { companionId: booking.companionId } },
-      {
-        $group: {
-          _id: "$companionId",
-          average: { $avg: "$rating" },
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    if (stats[0]) {
-      await CompanionProfile.findOneAndUpdate(
-        { userId: booking.companionId },
-        {
-          ratingAverage: Math.round(stats[0].average * 10) / 10,
-          ratingCount: stats[0].count,
-        },
-      );
-    }
+    await updateCompanionRatingStats({
+      companionId: booking.companionId,
+      ratingValue,
+    });
 
     return res.status(201).json({ message: "review created", review });
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "booking already reviewed" });
+    }
+
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
 };
