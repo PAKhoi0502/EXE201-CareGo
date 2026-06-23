@@ -42,11 +42,34 @@ const BOOKING_STATUS_TRANSITIONS = {
 };
 const CUSTOMER_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted"];
 const ADMIN_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
+const COMPANION_REJECTABLE_BOOKING_STATUSES = ["pending"];
+const SHIFT_EVIDENCE_EDITABLE_BOOKING_STATUSES = ["accepted", "in_progress"];
+const SHIFT_PHOTO_FOLDERS = {
+  checkInPhotoUrl: "carego/check-in",
+  checkOutPhotoUrl: "carego/check-out",
+};
+const SHIFT_GPS_REQUIREMENT = "gpsLocationNearAddress";
 const PAYMENT_DUE_MS = 3 * 24 * 60 * 60 * 1000;
 const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
 const BOOKING_CREATE_LOCK_TTL_MS = 10 * 1000;
 const BOOKING_CREATE_LOCK_WAIT_MS = 1200;
 const BOOKING_CREATE_LOCK_RETRY_MS = 75;
+
+const getPositiveEnvNumber = (names, fallback) => {
+  for (const name of names) {
+    const value = Number(process.env[name]);
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return fallback;
+};
+
+const SHIFT_GPS_MAX_DISTANCE_METERS = getPositiveEnvNumber(
+  ["CAREGO_SHIFT_GPS_MAX_DISTANCE_METERS", "SHIFT_GPS_MAX_DISTANCE_METERS"],
+  500,
+);
 
 const getPlatformFeeRate = () => {
   const rate = Number(
@@ -98,44 +121,122 @@ const canAccessBooking = (booking, user) => {
   );
 };
 
-const hasShiftPhoto = (value) => {
+const canUpdateShiftEvidence = (booking) =>
+  SHIFT_EVIDENCE_EDITABLE_BOOKING_STATUSES.includes(booking.status);
+
+const normalizeShiftPhotoUrls = (value) => {
   if (Array.isArray(value)) {
-    return value.some((url) => String(url || "").trim());
+    return value.map((url) => String(url || "").trim()).filter(Boolean);
   }
 
-  return Boolean(String(value || "").trim());
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
+  return null;
 };
 
-const hasGpsEvidence = (shiftLog) => {
-  return Boolean(
-    shiftLog?.locations?.some(
-      (location) =>
-        Number.isFinite(Number(location?.lat)) &&
-        Number.isFinite(Number(location?.lng)),
-    ),
-  );
+const getCloudinaryPathname = (url) => {
+  try {
+    const parsedUrl = new URL(String(url || "").trim());
+    if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "res.cloudinary.com") {
+      return "";
+    }
+
+    return decodeURIComponent(parsedUrl.pathname);
+  } catch {
+    return "";
+  }
 };
+
+const isTrustedShiftPhotoUrl = (url, folder) => {
+  const pathname = getCloudinaryPathname(url);
+  if (!pathname) {
+    return false;
+  }
+
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+  if (cloudName && !pathname.startsWith(`/${cloudName}/image/upload/`)) {
+    return false;
+  }
+
+  return pathname.includes(`/${folder}/`);
+};
+
+const hasShiftPhoto = (value, folder) => {
+  const urls = normalizeShiftPhotoUrls(value);
+  return Boolean(urls?.some((url) => isTrustedShiftPhotoUrl(url, folder)));
+};
+
+const normalizeGpsLocation = (location) => {
+  if (!location || typeof location !== "object") {
+    return null;
+  }
+
+  const lat = Number(location.lat);
+  const lng = Number(location.lng);
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    return null;
+  }
+
+  return { lat, lng };
+};
+
+const getDistanceMeters = (first, second) => {
+  const earthRadiusMeters = 6371000;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const firstLat = toRadians(first.lat);
+  const secondLat = toRadians(second.lat);
+  const deltaLat = toRadians(second.lat - first.lat);
+  const deltaLng = toRadians(second.lng - first.lng);
+  const haversine =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(deltaLng / 2) ** 2;
+
+  return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+};
+
+const isGpsNearBookingAddress = (location, booking) => {
+  const currentLocation = normalizeGpsLocation(location);
+  const addressLocation = normalizeGpsLocation(booking?.addressLocation);
+  if (!currentLocation || !addressLocation) {
+    return false;
+  }
+
+  return getDistanceMeters(currentLocation, addressLocation) <= SHIFT_GPS_MAX_DISTANCE_METERS;
+};
+
+const hasGpsEvidence = (shiftLog, booking) =>
+  Boolean(shiftLog?.locations?.some((location) => isGpsNearBookingAddress(location, booking)));
 
 const isShiftChecklistDone = (shiftLog) => {
   const checklist = Array.isArray(shiftLog?.checklist) ? shiftLog.checklist : [];
   return checklist.length === 0 || checklist.every((item) => item?.done === true);
 };
 
-const getMissingShiftRequirements = (shiftLog, nextStatus) => {
+const getMissingShiftRequirements = (shiftLog, nextStatus, booking) => {
   const missing = [];
 
   if (!shiftLog) {
     return nextStatus === "completed"
-      ? ["checkInPhotoUrl", "gpsLocation", "checklist", "companionNote", "checkOutPhotoUrl"]
-      : ["checkInPhotoUrl", "gpsLocation"];
+      ? ["checkInPhotoUrl", SHIFT_GPS_REQUIREMENT, "checklist", "companionNote", "checkOutPhotoUrl"]
+      : ["checkInPhotoUrl", SHIFT_GPS_REQUIREMENT];
   }
 
-  if (!hasShiftPhoto(shiftLog.checkInPhotoUrl)) {
+  if (!hasShiftPhoto(shiftLog.checkInPhotoUrl, SHIFT_PHOTO_FOLDERS.checkInPhotoUrl)) {
     missing.push("checkInPhotoUrl");
   }
 
-  if (!hasGpsEvidence(shiftLog)) {
-    missing.push("gpsLocation");
+  if (!hasGpsEvidence(shiftLog, booking)) {
+    missing.push(SHIFT_GPS_REQUIREMENT);
   }
 
   if (nextStatus === "completed") {
@@ -147,7 +248,7 @@ const getMissingShiftRequirements = (shiftLog, nextStatus) => {
       missing.push("companionNote");
     }
 
-    if (!hasShiftPhoto(shiftLog.checkOutPhotoUrl)) {
+    if (!hasShiftPhoto(shiftLog.checkOutPhotoUrl, SHIFT_PHOTO_FOLDERS.checkOutPhotoUrl)) {
       missing.push("checkOutPhotoUrl");
     }
   }
@@ -499,6 +600,14 @@ export const updateBookingStatus = async (req, res) => {
       return res.status(403).json({ message: "permission denied" });
     }
 
+    if (
+      req.user.role === "companion" &&
+      status === "cancelled" &&
+      !COMPANION_REJECTABLE_BOOKING_STATUSES.includes(booking.status)
+    ) {
+      return res.status(409).json({ message: "companion can only reject pending bookings" });
+    }
+
     if (!BOOKING_STATUS_TRANSITIONS[booking.status]?.includes(status)) {
       return res.status(409).json({ message: "booking status transition is not allowed" });
     }
@@ -521,7 +630,7 @@ export const updateBookingStatus = async (req, res) => {
 
     if (["in_progress", "completed"].includes(status)) {
       const shiftLog = await ShiftLog.findOne({ bookingId: booking._id });
-      const missingRequirements = getMissingShiftRequirements(shiftLog, status);
+      const missingRequirements = getMissingShiftRequirements(shiftLog, status, booking);
 
       if (missingRequirements.length > 0) {
         return res.status(409).json({
@@ -531,26 +640,34 @@ export const updateBookingStatus = async (req, res) => {
       }
     }
 
-    const wasAlreadyCompleted = booking.status === "completed";
+    const previousStatus = booking.status;
+    const statusUpdates = { status };
 
     if (status === "completed") {
       const completedAt = booking.completedAt || new Date();
-      booking.completedAt = completedAt;
-      booking.paymentDueAt = booking.paymentDueAt || new Date(completedAt.getTime() + PAYMENT_DUE_MS);
+      statusUpdates.completedAt = completedAt;
+      statusUpdates.paymentDueAt = booking.paymentDueAt || new Date(completedAt.getTime() + PAYMENT_DUE_MS);
     }
 
-    booking.status = status;
-    await booking.save();
-    emitBookingChatState(booking);
+    const updatedBooking = await Booking.findOneAndUpdate(
+      { _id: booking._id, status: previousStatus },
+      { $set: statusUpdates },
+      { new: true, runValidators: true },
+    );
+    if (!updatedBooking) {
+      return res.status(409).json({ message: "booking status changed, please retry" });
+    }
 
-    if (status === "completed" && !wasAlreadyCompleted) {
+    emitBookingChatState(updatedBooking);
+
+    if (status === "completed") {
       await CompanionProfile.findOneAndUpdate(
-        { userId: booking.companionId },
+        { userId: updatedBooking.companionId },
         { $inc: { completedBookings: 1 } },
       );
     }
 
-    return res.status(200).json({ message: "booking status updated", booking });
+    return res.status(200).json({ message: "booking status updated", booking: updatedBooking });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -595,14 +712,30 @@ export const addLocation = async (req, res) => {
       return res.status(400).json({ message: "lat and lng are required" });
     }
 
+    const location = normalizeGpsLocation({ lat, lng });
+    if (!location) {
+      return res.status(400).json({ message: "valid lat and lng are required" });
+    }
+
     const booking = await Booking.findById(req.params.id);
     if (!booking || !canAccessBooking(booking, req.user)) {
       return res.status(404).json({ message: "booking not found" });
     }
 
+    if (!canUpdateShiftEvidence(booking)) {
+      return res.status(409).json({ message: "booking shift evidence cannot be updated in current status" });
+    }
+
+    if (!isGpsNearBookingAddress(location, booking)) {
+      return res.status(409).json({
+        message: "gps location is too far from booking address",
+        maxDistanceMeters: SHIFT_GPS_MAX_DISTANCE_METERS,
+      });
+    }
+
     const shiftLog = await ShiftLog.findOneAndUpdate(
       { bookingId: booking._id },
-      { $push: { locations: { lat, lng, note } } },
+      { $push: { locations: { ...location, note } } },
       { new: true, upsert: true },
     );
 
@@ -619,14 +752,33 @@ export const updateShiftLog = async (req, res) => {
       return res.status(404).json({ message: "booking not found" });
     }
 
+    if (!canUpdateShiftEvidence(booking)) {
+      return res.status(409).json({ message: "booking shift evidence cannot be updated in current status" });
+    }
+
     const allowedFields = {};
-    const fields = [
-      "checkInPhotoUrl",
-      "checkOutPhotoUrl",
-      "checklist",
-      "healthMetrics",
-      "companionNote",
-    ];
+    Object.entries(SHIFT_PHOTO_FOLDERS).forEach(([field, folder]) => {
+      if (req.body[field] === undefined) {
+        return;
+      }
+
+      const photoUrls = normalizeShiftPhotoUrls(req.body[field]);
+      if (!photoUrls || photoUrls.some((url) => !isTrustedShiftPhotoUrl(url, folder))) {
+        allowedFields.__invalidPhotoField = field;
+        return;
+      }
+
+      allowedFields[field] = photoUrls;
+    });
+
+    if (allowedFields.__invalidPhotoField) {
+      return res.status(400).json({
+        message: "shift photo url must be a trusted uploaded image",
+        field: allowedFields.__invalidPhotoField,
+      });
+    }
+
+    const fields = ["checklist", "healthMetrics", "companionNote"];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) {
         allowedFields[field] = req.body[field];

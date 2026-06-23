@@ -3,6 +3,21 @@ import Booking from "../models/booking.models.js";
 import ShiftLog from "../models/shift-log.models.js";
 
 const GPS_ACTIVE_THRESHOLD_MS = 30000;
+const LOCATION_TRACKABLE_BOOKING_STATUSES = ["accepted", "in_progress"];
+const getPositiveEnvNumber = (names, fallback) => {
+  for (const name of names) {
+    const value = Number(process.env[name]);
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return fallback;
+};
+const LOCATION_MAX_DISTANCE_METERS = getPositiveEnvNumber(
+  ["CAREGO_SHIFT_GPS_MAX_DISTANCE_METERS", "SHIFT_GPS_MAX_DISTANCE_METERS"],
+  500,
+);
 const companionGpsStatus = new Map();
 const socketCompanions = new Map();
 const userSockets = new Map();
@@ -34,6 +49,51 @@ const canAccessBooking = (booking, user) => {
     String(booking?.customerId || "") === userId ||
     String(booking?.companionId || "") === userId
   );
+};
+
+const normalizeGpsLocation = (location) => {
+  if (!location || typeof location !== "object") {
+    return null;
+  }
+
+  const lat = Number(location.lat);
+  const lng = Number(location.lng);
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    return null;
+  }
+
+  return { lat, lng };
+};
+
+const getDistanceMeters = (first, second) => {
+  const earthRadiusMeters = 6371000;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const firstLat = toRadians(first.lat);
+  const secondLat = toRadians(second.lat);
+  const deltaLat = toRadians(second.lat - first.lat);
+  const deltaLng = toRadians(second.lng - first.lng);
+  const haversine =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(deltaLng / 2) ** 2;
+
+  return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+};
+
+const isGpsNearBookingAddress = (location, booking) => {
+  const currentLocation = normalizeGpsLocation(location);
+  const addressLocation = normalizeGpsLocation(booking?.addressLocation);
+  if (!currentLocation || !addressLocation) {
+    return false;
+  }
+
+  return getDistanceMeters(currentLocation, addressLocation) <= LOCATION_MAX_DISTANCE_METERS;
 };
 
 export const getCompanionGpsStatuses = () => {
@@ -142,15 +202,20 @@ export const setupLocationSocket = (io) => {
         return;
       }
 
+      const gpsLocation = normalizeGpsLocation({ lat, lng });
+      if (!gpsLocation) {
+        socket.emit("location:error", { message: "valid lat and lng are required" });
+        return;
+      }
+
       const location = {
-        lat: Number(lat),
-        lng: Number(lng),
+        ...gpsLocation,
         note: note || "Realtime GPS",
         recordedAt: new Date(),
       };
 
       try {
-        const booking = await Booking.findById(bookingId).select("customerId companionId");
+        const booking = await Booking.findById(bookingId).select("customerId companionId status addressLocation");
         const canSend =
           booking &&
           (socket.user.role === "admin" ||
@@ -158,6 +223,21 @@ export const setupLocationSocket = (io) => {
               String(booking.companionId) === String(socket.user.userId)));
         if (!canSend) {
           socket.emit("location:error", { message: "permission denied" });
+          return;
+        }
+
+        if (!LOCATION_TRACKABLE_BOOKING_STATUSES.includes(booking.status)) {
+          socket.emit("location:error", {
+            message: "booking location cannot be updated in current status",
+          });
+          return;
+        }
+
+        if (!isGpsNearBookingAddress(location, booking)) {
+          socket.emit("location:error", {
+            message: "gps location is too far from booking address",
+            maxDistanceMeters: LOCATION_MAX_DISTANCE_METERS,
+          });
           return;
         }
 
