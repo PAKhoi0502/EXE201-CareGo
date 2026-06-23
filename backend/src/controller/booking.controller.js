@@ -37,6 +37,8 @@ const BOOKING_STATUS_TRANSITIONS = {
   cancelled: [],
   paid: [],
 };
+const CUSTOMER_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted"];
+const ADMIN_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
 const PAYMENT_DUE_MS = 3 * 24 * 60 * 60 * 1000;
 const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
 
@@ -88,6 +90,63 @@ const canAccessBooking = (booking, user) => {
     toIdString(booking.customerId) === user.userId ||
     toIdString(booking.companionId) === user.userId
   );
+};
+
+const hasShiftPhoto = (value) => {
+  if (Array.isArray(value)) {
+    return value.some((url) => String(url || "").trim());
+  }
+
+  return Boolean(String(value || "").trim());
+};
+
+const hasGpsEvidence = (shiftLog) => {
+  return Boolean(
+    shiftLog?.locations?.some(
+      (location) =>
+        Number.isFinite(Number(location?.lat)) &&
+        Number.isFinite(Number(location?.lng)),
+    ),
+  );
+};
+
+const isShiftChecklistDone = (shiftLog) => {
+  const checklist = Array.isArray(shiftLog?.checklist) ? shiftLog.checklist : [];
+  return checklist.length === 0 || checklist.every((item) => item?.done === true);
+};
+
+const getMissingShiftRequirements = (shiftLog, nextStatus) => {
+  const missing = [];
+
+  if (!shiftLog) {
+    return nextStatus === "completed"
+      ? ["checkInPhotoUrl", "gpsLocation", "checklist", "companionNote", "checkOutPhotoUrl"]
+      : ["checkInPhotoUrl", "gpsLocation"];
+  }
+
+  if (!hasShiftPhoto(shiftLog.checkInPhotoUrl)) {
+    missing.push("checkInPhotoUrl");
+  }
+
+  if (!hasGpsEvidence(shiftLog)) {
+    missing.push("gpsLocation");
+  }
+
+  if (nextStatus === "completed") {
+    if (!isShiftChecklistDone(shiftLog)) {
+      missing.push("checklist");
+    }
+
+    if (!String(shiftLog.companionNote || "").trim()) {
+      missing.push("companionNote");
+    }
+
+    if (!hasShiftPhoto(shiftLog.checkOutPhotoUrl)) {
+      missing.push("checkOutPhotoUrl");
+    }
+  }
+
+  return missing;
 };
 
 const generatePayOSOrderCode = () => {
@@ -166,6 +225,32 @@ const getBookingPaymentRedirectUrl = ({ configuredUrl, bookingId, orderCode, pay
   );
 };
 
+const normalizeAddressLocation = (addressLocation) => {
+  if (!addressLocation || typeof addressLocation !== "object") {
+    return null;
+  }
+
+  const lat = Number(addressLocation.lat);
+  const lng = Number(addressLocation.lng);
+
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    return null;
+  }
+
+  return {
+    lat,
+    lng,
+    displayName: String(addressLocation.displayName || "").trim(),
+  };
+};
+
 export const createBooking = async (req, res) => {
   try {
     const {
@@ -178,8 +263,9 @@ export const createBooking = async (req, res) => {
       addressLocation,
       note,
     } = req.body;
+    const cleanAddress = String(address || "").trim();
 
-    if (!elderProfileId || !serviceId || !companionId || !startTime || !durationHours || !address) {
+    if (!elderProfileId || !serviceId || !companionId || !startTime || !durationHours || !cleanAddress) {
       return res.status(400).json({
         message: "elderProfileId, serviceId, companionId, startTime, durationHours and address are required",
       });
@@ -191,10 +277,20 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ message: "Thời gian đặt lịch hoặc thời lượng không hợp lệ" });
     }
 
+    const now = new Date();
+    if (parsedStartTime <= now) {
+      return res.status(400).json({ message: "booking start time must be in the future" });
+    }
+
+    const normalizedAddressLocation = normalizeAddressLocation(addressLocation);
+    if (!normalizedAddressLocation) {
+      return res.status(400).json({ message: "valid addressLocation with lat and lng is required" });
+    }
+
     const overdueBooking = await Booking.findOne({
       customerId: req.user.userId,
       status: "completed",
-      paymentDueAt: { $lt: new Date() },
+      paymentDueAt: { $lt: now },
     })
       .select("_id paymentDueAt totalAmount")
       .sort({ paymentDueAt: 1 });
@@ -251,8 +347,8 @@ export const createBooking = async (req, res) => {
       companionId,
       startTime: parsedStartTime,
       durationHours: parsedDurationHours,
-      address,
-      addressLocation,
+      address: cleanAddress,
+      addressLocation: normalizedAddressLocation,
       note,
       totalAmount,
       platformFee,
@@ -337,6 +433,18 @@ export const updateBookingStatus = async (req, res) => {
       }
     }
 
+    if (["in_progress", "completed"].includes(status)) {
+      const shiftLog = await ShiftLog.findOne({ bookingId: booking._id });
+      const missingRequirements = getMissingShiftRequirements(shiftLog, status);
+
+      if (missingRequirements.length > 0) {
+        return res.status(409).json({
+          message: "booking shift evidence is incomplete",
+          missingRequirements,
+        });
+      }
+    }
+
     const wasAlreadyCompleted = booking.status === "completed";
 
     if (status === "completed") {
@@ -367,6 +475,22 @@ export const cancelBooking = async (req, res) => {
     const booking = await Booking.findById(req.params.id);
     if (!booking || !canAccessBooking(booking, req.user)) {
       return res.status(404).json({ message: "booking not found" });
+    }
+
+    const cancellableStatuses =
+      req.user.role === "admin"
+        ? ADMIN_CANCELLABLE_BOOKING_STATUSES
+        : CUSTOMER_CANCELLABLE_BOOKING_STATUSES;
+    if (!cancellableStatuses.includes(booking.status)) {
+      return res.status(409).json({ message: "booking cannot be cancelled in current status" });
+    }
+
+    const paidPayment = await Payment.exists({
+      bookingId: booking._id,
+      status: "paid",
+    });
+    if (paidPayment) {
+      return res.status(409).json({ message: "paid booking cannot be cancelled" });
     }
 
     booking.status = "cancelled";
@@ -588,8 +712,14 @@ export const payBooking = async (req, res) => {
 export const createReview = async (req, res) => {
   try {
     const { rating, comment, tags } = req.body;
+    const ratingValue = Number(rating);
+
     if (!rating) {
       return res.status(400).json({ message: "rating is required" });
+    }
+
+    if (!Number.isFinite(ratingValue) || ratingValue < 1 || ratingValue > 5) {
+      return res.status(400).json({ message: "rating must be between 1 and 5" });
     }
 
     const booking = await Booking.findOne({
@@ -600,11 +730,20 @@ export const createReview = async (req, res) => {
       return res.status(404).json({ message: "booking not found" });
     }
 
+    if (booking.status !== "paid") {
+      return res.status(409).json({ message: "booking must be paid before review" });
+    }
+
+    const existingReview = await Review.exists({ bookingId: booking._id });
+    if (existingReview) {
+      return res.status(409).json({ message: "booking already reviewed" });
+    }
+
     const review = await Review.create({
       bookingId: booking._id,
       customerId: booking.customerId,
       companionId: booking.companionId,
-      rating,
+      rating: ratingValue,
       comment,
       tags,
     });

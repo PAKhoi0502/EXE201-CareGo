@@ -10,6 +10,21 @@ import { generateOtp, hashOtp } from "../utils/otp.js";
 const OTP_EXPIRES_IN_MS = 10 * 60 * 1000;
 const PENDING_REGISTER_EXPIRES_IN_MS = 30 * 60 * 1000;
 
+const normalizeTextList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
 export const getCompanions = async (req, res) => {
   try {
     const companions = await CompanionProfile.find({
@@ -227,6 +242,75 @@ export const adminGetCompanions = async (req, res) => {
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ companions });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "internal server error", error: error.message });
+  }
+};
+
+export const updateMyCompanionProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { fullName, phone, university, major, skills, serviceAreas } = req.body;
+
+    const profileUpdates = {};
+    if (fullName !== undefined) {
+      const cleanFullName = String(fullName).trim();
+      if (!cleanFullName) {
+        return res.status(400).json({ message: "fullName is required" });
+      }
+      profileUpdates.fullName = cleanFullName;
+    }
+    if (phone !== undefined) {
+      profileUpdates.phone = String(phone).trim();
+    }
+    if (university !== undefined) {
+      profileUpdates.university = String(university).trim();
+    }
+    if (major !== undefined) {
+      profileUpdates.major = String(major).trim();
+    }
+    if (skills !== undefined) {
+      profileUpdates.skills = normalizeTextList(skills);
+    }
+    if (serviceAreas !== undefined) {
+      profileUpdates.serviceAreas = normalizeTextList(serviceAreas);
+    }
+
+    const profile = await CompanionProfile.findOneAndUpdate(
+      { userId },
+      profileUpdates,
+      { new: true, runValidators: true },
+    ).select(
+      "vettingStatus fullName phone university major skills serviceAreas ratingAverage ratingCount completedBookings",
+    );
+
+    if (!profile) {
+      return res.status(404).json({ message: "companion profile not found" });
+    }
+
+    const userUpdates = {};
+    if (phone !== undefined) {
+      userUpdates.phone = profileUpdates.phone;
+    }
+
+    const user = Object.keys(userUpdates).length
+      ? await User.findByIdAndUpdate(userId, userUpdates, {
+          new: true,
+          runValidators: true,
+        }).select("-password -refreshToken -__V")
+      : await User.findById(userId).select("-password -refreshToken -__V");
+
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+
+    return res.status(200).json({
+      message: "companion profile updated",
+      user,
+      companionProfile: profile,
+    });
   } catch (error) {
     return res
       .status(500)

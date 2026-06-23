@@ -22,8 +22,8 @@ export default function SupportPage() {
 
   const loadConversations = useCallback(async () => {
     try {
-      setError("");
       const data = await api.get("/support/my-conversations");
+      setError("");
       setConversations(data.conversations || []);
       setSelected((current) => {
         if (!current) return data.conversations?.[0] || null;
@@ -37,7 +37,7 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => {
-    loadConversations();
+    Promise.resolve().then(loadConversations);
     connectLocationSocket();
     const refresh = () => loadConversations();
     locationSocket.on("support:conversation-updated", refresh);

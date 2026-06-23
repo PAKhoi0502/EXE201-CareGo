@@ -6,6 +6,7 @@ import {
   getMyWithdrawalSummary,
   updateWithdrawalStatus,
 } from "../controller/withdrawal.controller.js";
+import { allowRoles } from "../middlleware/role.middleware.js";
 
 const router = express.Router();
 
@@ -62,10 +63,10 @@ const verifyToken = (req, res, next) => {
   return next();
 };
 
-router.get("/my", verifyToken, getMyWithdrawalSummary);
-router.post("/", verifyToken, createWithdrawalRequest);
-router.get("/", verifyToken, getAdminWithdrawalRequests);
-router.get("/admin", verifyToken, getAdminWithdrawalRequests);
-router.patch("/admin/:id/status", verifyToken, updateWithdrawalStatus);
+router.get("/my", verifyToken, allowRoles("companion"), getMyWithdrawalSummary);
+router.post("/", verifyToken, allowRoles("companion"), createWithdrawalRequest);
+router.get("/admin", verifyToken, allowRoles("admin"), getAdminWithdrawalRequests);
+router.patch("/admin/:id/status", verifyToken, allowRoles("admin"), updateWithdrawalStatus);
+router.get("/", verifyToken, allowRoles("admin"), getAdminWithdrawalRequests);
 
 export default router;

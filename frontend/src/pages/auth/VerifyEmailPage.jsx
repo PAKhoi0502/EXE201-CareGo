@@ -8,7 +8,7 @@ const VerifyEmailPage = () => {
   const { verifyEmail, resendOtp, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState(location.state?.email || "");
+  const [email] = useState(location.state?.email || "");
   const [password] = useState(location.state?.password || "");
   const [role] = useState(location.state?.role || "customer");
   const [otp, setOtp] = useState("");

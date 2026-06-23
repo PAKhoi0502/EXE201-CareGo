@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { api } from "../../api/client.js";
-import { Button, Card, EmptyState, PageHeader, StatusBadge } from "../../components/Ui.jsx";
+import { Button, Card, EmptyState, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime, money } from "../../utils/format.js";
 

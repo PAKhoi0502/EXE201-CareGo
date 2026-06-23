@@ -13,8 +13,8 @@ export default function AdminSupportPage() {
 
   const loadConversations = useCallback(async () => {
     try {
-      setError("");
       const data = await api.get(`/support/admin/conversations?status=${statusFilter}`);
+      setError("");
       setConversations(data.conversations || []);
       setSelected((current) =>
         current ? data.conversations?.find((item) => item._id === current._id) || current : data.conversations?.[0] || null,
@@ -25,14 +25,17 @@ export default function AdminSupportPage() {
   }, [statusFilter]);
 
   useEffect(() => {
-    loadConversations();
+    Promise.resolve().then(loadConversations);
     connectLocationSocket();
+    const refresh = () => {
+      loadConversations();
+    };
     locationSocket.emit("support:admin:join");
-    locationSocket.on("support:new-conversation", loadConversations);
-    locationSocket.on("support:conversation-updated", loadConversations);
+    locationSocket.on("support:new-conversation", refresh);
+    locationSocket.on("support:conversation-updated", refresh);
     return () => {
-      locationSocket.off("support:new-conversation", loadConversations);
-      locationSocket.off("support:conversation-updated", loadConversations);
+      locationSocket.off("support:new-conversation", refresh);
+      locationSocket.off("support:conversation-updated", refresh);
     };
   }, [loadConversations]);
 

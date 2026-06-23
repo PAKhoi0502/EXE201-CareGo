@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, setToken } from "../api/client.js";
 import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
 
@@ -17,7 +17,7 @@ const normalizeUser = (data) => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem("carego_token")));
   const userId = user?.id || user?._id;
   const isCompanion = user?.role === "companion";
 
@@ -36,8 +36,6 @@ export const AuthProvider = ({ children }) => {
 
     if (localStorage.getItem("carego_token")) {
       loadMe();
-    } else {
-      setLoading(false);
     }
   }, []);
 
@@ -63,6 +61,13 @@ export const AuthProvider = ({ children }) => {
     return nextUser;
   };
 
+  const updateCompanionProfile = async (payload) => {
+    const data = await api.patch("/companions/me", payload);
+    const nextUser = normalizeUser(data);
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const verifyEmail = async (payload) => {
     return api.post("/auth/verify-email", payload);
   };
@@ -71,7 +76,7 @@ export const AuthProvider = ({ children }) => {
     return api.post("/auth/resend-otp", { email });
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     if (userId) {
       if (isCompanion) {
         locationSocket.emit("companion:gps:stop", { companionId: userId });
@@ -81,7 +86,7 @@ export const AuthProvider = ({ children }) => {
     }
     setToken(null);
     setUser(null);
-  };
+  }, [isCompanion, userId]);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -155,14 +160,16 @@ export const AuthProvider = ({ children }) => {
       registerCustomer,
       registerCompanion,
       updateProfile,
+      updateCompanionProfile,
       verifyEmail,
       resendOtp,
       logout,
     }),
-    [user, loading],
+    [user, loading, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);

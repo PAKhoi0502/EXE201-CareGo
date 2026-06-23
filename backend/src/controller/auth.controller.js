@@ -134,12 +134,16 @@ export const loginController = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
         avatar: user.avatar,
+        createdAt: user.createdAt,
+        isActive: user.isActive,
+        isEmailVerified: user.isEmailVerified,
         companionProfile:
           user.role === "companion"
             ? await CompanionProfile.findOne({ userId: user._id }).select(
-                "vettingStatus fullName university major skills",
+                "vettingStatus fullName phone university major skills serviceAreas",
               )
             : null,
       },
@@ -336,7 +340,7 @@ export const getCurrentUser = async (req, res) => {
     const companionProfile =
       user.role === "companion"
         ? await CompanionProfile.findOne({ userId }).select(
-            "vettingStatus fullName university major skills serviceAreas",
+            "vettingStatus fullName phone university major skills serviceAreas",
           )
         : null;
 
@@ -383,7 +387,7 @@ export const updateCurrentUser = async (req, res) => {
     const companionProfile =
       user.role === "companion"
         ? await CompanionProfile.findOne({ userId }).select(
-            "vettingStatus fullName university major skills serviceAreas",
+            "vettingStatus fullName phone university major skills serviceAreas",
           )
         : null;
 

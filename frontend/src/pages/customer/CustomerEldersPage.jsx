@@ -78,6 +78,8 @@ const CustomerEldersPage = () => {
   const [editingId, setEditingId] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deletingId, setDeletingId] = useState("");
   const elders = data?.elders || [];
 
   const updateForm = (field, value) => {
@@ -103,12 +105,14 @@ const CustomerEldersPage = () => {
     setEditingId(elder._id);
     setForm(toForm(elder));
     setSubmitError("");
+    setDeleteError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const submit = async (event) => {
     event.preventDefault();
     setSubmitError("");
+    setDeleteError("");
     setSubmitting(true);
 
     try {
@@ -124,6 +128,28 @@ const CustomerEldersPage = () => {
       setSubmitError(submitException.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const removeElder = async (elder) => {
+    const confirmed = window.confirm(`Xóa hồ sơ người thân "${elder.fullName}"? Hành động này không thể hoàn tác.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteError("");
+    setDeletingId(elder._id);
+
+    try {
+      await api.delete(`/elders/${elder._id}`);
+      if (editingId === elder._id) {
+        resetForm();
+      }
+      await reload();
+    } catch (deleteException) {
+      setDeleteError(deleteException.message);
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -319,6 +345,9 @@ const CustomerEldersPage = () => {
           {error ? (
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">{error}</div>
           ) : null}
+          {deleteError ? (
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">{deleteError}</div>
+          ) : null}
           {!loading && elders.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-teal-200 bg-white p-8 text-center">
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-teal-50 text-xl font-black text-teal-700">+</div>
@@ -345,13 +374,24 @@ const CustomerEldersPage = () => {
                     <span className="rounded-full bg-white px-3 py-1 text-slate-500">{genderLabels[elder.gender] || "Khác"}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => startEdit(elder)}
-                  className="rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-100"
-                >
-                  Sửa
-                </button>
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(elder)}
+                    disabled={Boolean(deletingId)}
+                    className="rounded-full border border-teal-200 bg-white px-4 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Sửa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeElder(elder)}
+                    disabled={Boolean(deletingId)}
+                    className="rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-black text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {deletingId === elder._id ? "Đang xóa..." : "Xóa"}
+                  </button>
+                </div>
               </div>
 
               <div className="grid gap-4 p-5 text-sm">

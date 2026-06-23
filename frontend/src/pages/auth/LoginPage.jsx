@@ -8,7 +8,6 @@ const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [roleTab, setRoleTab] = useState("customer");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 

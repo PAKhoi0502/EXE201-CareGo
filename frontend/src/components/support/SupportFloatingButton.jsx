@@ -17,20 +17,29 @@ export default function SupportFloatingButton() {
   const supportPath = user?.role === "companion" ? "/companion/support" : "/customer/support";
 
   useEffect(() => {
-    if (!open || conversation) return;
+    if (!open || conversation) return undefined;
 
-    setLoading(true);
-    setError("");
-    api
-      .get("/support/my-conversations")
-      .then((data) => {
+    let active = true;
+    const loadConversation = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await api.get("/support/my-conversations");
         const conversations = data.conversations || [];
         const activeConversation =
           conversations.find((item) => item.status !== "resolved") || null;
-        setConversation(activeConversation);
-      })
-      .catch((loadError) => setError(loadError.message))
-      .finally(() => setLoading(false));
+        if (active) setConversation(activeConversation);
+      } catch (loadError) {
+        if (active) setError(loadError.message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    Promise.resolve().then(loadConversation);
+    return () => {
+      active = false;
+    };
   }, [open, conversation]);
 
   useEffect(() => {

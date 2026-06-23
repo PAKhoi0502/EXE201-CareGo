@@ -35,7 +35,7 @@ const AdminServicesPage = () => {
   const [editForm, setEditForm] = useState(emptyForm);
   const [editError, setEditError] = useState("");
   const [selectedService, setSelectedService] = useState(null);
-  const services = data?.services || [];
+  const services = useMemo(() => data?.services || [], [data?.services]);
 
   const filteredServices = services.filter((service) => {
     const text = `${service.name} ${service.code} ${service.description}`.toLowerCase();

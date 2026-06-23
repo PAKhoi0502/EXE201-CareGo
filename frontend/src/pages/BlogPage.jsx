@@ -82,7 +82,7 @@ const BlogCard = ({ post }) => (
 const BlogPage = () => {
   const { data, loading, error } = useAsync(() => api.get("/blogs"), []);
   const [activeCategory, setActiveCategory] = useState("Tất cả");
-  const posts = data?.posts || [];
+  const posts = useMemo(() => data?.posts || [], [data?.posts]);
   const categories = useMemo(() => ["Tất cả", ...new Set(posts.map((post) => post.category).filter(Boolean))], [posts]);
   const filteredPosts = activeCategory === "Tất cả" ? posts : posts.filter((post) => post.category === activeCategory);
   const featuredPost = filteredPosts[0] || posts[0];

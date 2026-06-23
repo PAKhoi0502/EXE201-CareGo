@@ -64,8 +64,8 @@ const AdminUsersPage = () => {
   const [gpsStatuses, setGpsStatuses] = useState({});
   const [onlineStatuses, setOnlineStatuses] = useState({});
 
-  const users = usersData?.users || [];
-  const companions = companionsData?.companions || [];
+  const users = useMemo(() => usersData?.users || [], [usersData?.users]);
+  const companions = useMemo(() => companionsData?.companions || [], [companionsData?.companions]);
   const getGpsStatus = (companion) => gpsStatuses[companion.userId?._id || companion.userId] || null;
   const getOnlineStatus = (id) => onlineStatuses[id] || null;
   const getCompanionOnlineStatus = (companion) => getOnlineStatus(companion.userId?._id || companion.userId);

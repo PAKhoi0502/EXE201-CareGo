@@ -1,9 +1,7 @@
-import { Link } from "react-router";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { api, uploadImage } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Button, Card, Input, PageHeader } from "../../components/Ui.jsx";
-import ImageUpload from "../../components/ImageUpload.jsx";
 import { dateTime } from "../../utils/format.js";
 
 const getInitials = (name = "CG") =>
@@ -15,10 +13,16 @@ const getInitials = (name = "CG") =>
     .join("")
     .toUpperCase() || "CG";
 
+const toProfileForm = (user) => ({
+  name: user?.name || "",
+  phone: user?.phone || "",
+  avatarUrl: user?.avatar?.url || "",
+});
+
 const CustomerProfilePage = () => {
   const { user, updateProfile } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", avatarUrl: "" });
+  const [form, setForm] = useState(() => toProfileForm(user));
   const [submitError, setSubmitError] = useState("");
   const [saving, setSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -35,13 +39,11 @@ const CustomerProfilePage = () => {
   const [avatarError, setAvatarError] = useState("");
   const avatarInputRef = useRef(null);
 
-  useEffect(() => {
-    setForm({
-      name: user?.name || "",
-      phone: user?.phone || "",
-      avatarUrl: user?.avatar?.url || "",
-    });
-  }, [user]);
+  const startEdit = () => {
+    setForm(toProfileForm(user));
+    setSubmitError("");
+    setEditing(true);
+  };
 
   const saveProfile = async (event) => {
     event.preventDefault();
@@ -70,8 +72,6 @@ const CustomerProfilePage = () => {
     try {
       const data = await uploadImage({ file, folder: "carego/avatars" });
       await updateProfile({
-        name: user?.name,
-        phone: user?.phone || "",
         avatarUrl: data.url,
       });
     } catch (err) {
@@ -143,7 +143,7 @@ const CustomerProfilePage = () => {
               Hủy chỉnh sửa
             </Button>
           ) : (
-            <Button type="button" onClick={() => setEditing(true)}>
+            <Button type="button" onClick={startEdit}>
               Chỉnh sửa hồ sơ
             </Button>
           )
@@ -192,6 +192,12 @@ const CustomerProfilePage = () => {
               </div>
             </div>
           </div>
+
+          {avatarError ? (
+            <div className="mx-6 mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600">
+              {avatarError}
+            </div>
+          ) : null}
 
           <div className="grid gap-3 p-6 text-sm">
             <div className="rounded-[18px] border border-emerald-100 bg-[#f8fffd] p-4">

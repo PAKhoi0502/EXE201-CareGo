@@ -98,7 +98,6 @@ const CompanionBookingDetailPage = () => {
   const savedCheckOutPhotoUrls = Array.isArray(shiftLog?.checkOutPhotoUrl) ? shiftLog.checkOutPhotoUrl : [];
   const hasSavedCheckOutPhoto = savedCheckOutPhotoUrls.length > 0;
   const hasCheckOutPhoto = hasSavedCheckOutPhoto || shift.checkOutPhotoUrl.length > 0;
-  const hasRealtimeNote = Boolean(shift.companionNote?.trim());
   const hasSavedRealtimeNote = Boolean(shiftLog?.companionNote?.trim());
   const hasChecklist = checklist.length > 0;
   const isChecklistDone = !hasChecklist || checklist.every((item) => item.done);
@@ -121,8 +120,10 @@ const CompanionBookingDetailPage = () => {
     locationSocket.emit("booking:join", { bookingId: id });
 
     if (!navigator.geolocation) {
-      setGpsReady(false);
+      Promise.resolve().then(() => {
+        setGpsReady(false);
       setGpsError("Trình duyệt không hỗ trợ GPS");
+      });
       return () => {
         locationSocket.emit("booking:leave", { bookingId: id });
       };
@@ -171,14 +172,21 @@ const CompanionBookingDetailPage = () => {
   useEffect(() => {
     if (!shiftLog) return;
 
-    setShift({
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      setShift({
       checkInPhotoUrl: Array.isArray(shiftLog.checkInPhotoUrl) ? shiftLog.checkInPhotoUrl : [],
       checkOutPhotoUrl: Array.isArray(shiftLog.checkOutPhotoUrl) ? shiftLog.checkOutPhotoUrl : [],
       bloodPressure: shiftLog.healthMetrics?.bloodPressure || "",
       heartRate: shiftLog.healthMetrics?.heartRate || "",
       mood: shiftLog.healthMetrics?.mood || "",
       companionNote: shiftLog.companionNote || "",
+      });
     });
+    return () => {
+      active = false;
+    };
   }, [shiftLog]);
 
   const ensureGps = () => {

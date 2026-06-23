@@ -38,7 +38,7 @@ const AdminBookingsPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [serviceFilter, setServiceFilter] = useState("all");
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const bookings = data?.bookings || [];
+  const bookings = useMemo(() => data?.bookings || [], [data?.bookings]);
 
   const services = useMemo(() => {
     const values = bookings.map((booking) => booking.serviceId?.name).filter(Boolean);

@@ -93,7 +93,7 @@ const AdminCompanionsPage = () => {
   const [selectedCompanion, setSelectedCompanion] = useState(null);
   const [gpsStatuses, setGpsStatuses] = useState({});
   const [onlineStatuses, setOnlineStatuses] = useState({});
-  const companions = data?.companions || [];
+  const companions = useMemo(() => data?.companions || [], [data?.companions]);
   const getGpsStatus = (companion) => gpsStatuses[companion.userId?._id || companion.userId] || null;
   const getOnlineStatus = (companion) => onlineStatuses[companion.userId?._id || companion.userId] || null;
 

@@ -9,6 +9,7 @@ import {
   getCompanionById,
   getCompanions,
   registerCompanion,
+  updateMyCompanionProfile,
 } from "../controller/companion.controller.js";
 import { verifyToken } from "../middlleware/auth.middleware.js";
 import { allowRoles } from "../middlleware/role.middleware.js";
@@ -18,6 +19,7 @@ const router = express.Router();
 router.get("/", getCompanions);
 router.post("/register", registerCompanion);
 router.get("/online-statuses", verifyToken, getCompanionOnlineStatuses);
+router.patch("/me", verifyToken, allowRoles("companion"), updateMyCompanionProfile);
 router.get("/admin/all", verifyToken, allowRoles("admin"), adminGetCompanions);
 router.get(
   "/:id/reviews",

@@ -95,9 +95,9 @@ const NewBookingPage = () => {
   });
   const [error, setError] = useState("");
 
-  const elders = elderData?.elders || [];
-  const services = serviceData?.services || [];
-  const companions = companionData?.companions || [];
+  const elders = useMemo(() => elderData?.elders || [], [elderData?.elders]);
+  const services = useMemo(() => serviceData?.services || [], [serviceData?.services]);
+  const companions = useMemo(() => companionData?.companions || [], [companionData?.companions]);
   const onlineCompanions = useMemo(
     () =>
       companions.filter((item) => {
@@ -135,7 +135,7 @@ const NewBookingPage = () => {
       }
     };
 
-    loadOnlineStatuses();
+    Promise.resolve().then(loadOnlineStatuses);
     const timer = setInterval(loadOnlineStatuses, 10000);
     return () => {
       active = false;
@@ -144,11 +144,20 @@ const NewBookingPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!form.companionId) return;
+    if (!form.companionId) return undefined;
     const status = onlineStatuses[form.companionId];
     if (status && !status.isOnline) {
-      setForm((current) => ({ ...current, companionId: "" }));
+      let active = true;
+      Promise.resolve().then(() => {
+        if (active) {
+          setForm((current) => ({ ...current, companionId: "" }));
+        }
+      });
+      return () => {
+        active = false;
+      };
     }
+    return undefined;
   }, [form.companionId, onlineStatuses]);
 
   useEffect(() => {
@@ -177,7 +186,7 @@ const NewBookingPage = () => {
       }
     };
 
-    loadReviews();
+    Promise.resolve().then(loadReviews);
     return () => {
       active = false;
     };

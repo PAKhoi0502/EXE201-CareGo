@@ -22,24 +22,25 @@ export default function SupportChatPanel({ conversation, onConversationChange, c
 
   useEffect(() => {
     if (!conversation?._id) {
-      setMessages([]);
       return undefined;
     }
 
     let active = true;
-    setLoading(true);
-    setError("");
-    api
-      .get(`/support/conversations/${conversation._id}/messages`)
-      .then((data) => {
+    const loadMessages = async () => {
+      setLoading(true);
+      setError("");
+      setMessages([]);
+      try {
+        const data = await api.get(`/support/conversations/${conversation._id}/messages`);
         if (active) setMessages(data.messages || []);
-      })
-      .catch((fetchError) => {
+      } catch (fetchError) {
         if (active) setError(fetchError.message);
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    };
+
+    Promise.resolve().then(loadMessages);
 
     connectLocationSocket();
     locationSocket.emit("support:join", { conversationId: conversation._id });

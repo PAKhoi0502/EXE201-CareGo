@@ -92,7 +92,7 @@ const getWithdrawalSummary = async (companionId) => {
     .map((id) => String(id))
     .filter((id, index, ids) => id !== "[object Object]" && ids.indexOf(id) === index);
 
-  let earningBookings = await Booking.find({
+  const earningBookings = await Booking.find({
     $and: [
       {
         $or: companionIds.flatMap((id) => [
@@ -113,18 +113,8 @@ const getWithdrawalSummary = async (companionId) => {
           {
             status: {
               $in: [
-                "completed",
-                "complete",
-                "finished",
-                "done",
                 "paid",
-                "COMPLETED",
-                "COMPLETE",
-                "FINISHED",
-                "DONE",
                 "PAID",
-                "Đã hoàn thành",
-                "Hoàn thành",
               ],
             },
           },
@@ -132,10 +122,8 @@ const getWithdrawalSummary = async (companionId) => {
             paymentStatus: {
               $in: [
                 "paid",
-                "completed",
                 "success",
                 "PAID",
-                "COMPLETED",
                 "SUCCESS",
                 "Đã thanh toán",
               ],

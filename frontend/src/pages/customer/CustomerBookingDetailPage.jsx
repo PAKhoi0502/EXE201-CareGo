@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { api } from "../../api/client.js";
-import { Button, Card, Input, PageHeader, StatusBadge, Textarea } from "../../components/Ui.jsx";
+import { Button, Card, Input, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
@@ -26,10 +26,6 @@ const ShiftPhoto = ({ label, url, onPreview }) => {
 
     return [...new Set(sources)];
   };
-
-  useEffect(() => {
-    setSourceIndices({});
-  }, [url]);
 
   if (urls.length === 0) {
     return (
@@ -146,6 +142,7 @@ const CustomerBookingDetailPage = () => {
   const penaltyAmount = isPaymentOverdue ? OVERDUE_PAYMENT_PENALTY_AMOUNT : 0;
   const payableAmount = Number(booking?.totalAmount || 0) + penaltyAmount;
   const canPay = booking?.status === "completed";
+  const canReview = booking?.status === "paid";
   const isWaitingForPayment = waitingPaymentStatuses.includes(booking?.status);
   const paymentBadge = booking?.status === "paid"
     ? { label: "Đã thanh toán", className: "bg-emerald-50 text-emerald-700" }
@@ -205,10 +202,15 @@ const CustomerBookingDetailPage = () => {
       }
     };
 
-    setPaymentLoading(false);
-    setSubmitError("");
-    setCurrentTime(new Date());
-    refreshBooking();
+    const startRefresh = async () => {
+      if (!active) return;
+      setPaymentLoading(false);
+      setSubmitError("");
+      setCurrentTime(new Date());
+      await refreshBooking();
+    };
+
+    Promise.resolve().then(startRefresh);
 
     if (!isPayOSReturn) {
       return () => {
@@ -249,6 +251,11 @@ const CustomerBookingDetailPage = () => {
   const submitReview = async (event) => {
     event.preventDefault();
     setSubmitError("");
+    if (!canReview) {
+      setSubmitError("Bạn chỉ có thể đánh giá sau khi booking đã thanh toán.");
+      return;
+    }
+
     try {
       await api.post(`/bookings/${id}/review`, {
         rating: Number(review.rating),
@@ -414,12 +421,16 @@ const CustomerBookingDetailPage = () => {
               <h2 className="text-2xl font-black">Đánh giá người đồng hành</h2>
               {data?.review ? (
                 <p className="mt-3 text-sm text-slate-600">Bạn đã đánh giá {data.review.rating}/5: {data.review.comment}</p>
-              ) : (
+              ) : canReview ? (
                 <form className="mt-4 grid gap-4" onSubmit={submitReview}>
                   <Input label="Số sao" type="number" min="1" max="5" value={review.rating} onChange={(e) => setReview({ ...review, rating: e.target.value })} />
                   <Textarea label="Nhận xét" value={review.comment} onChange={(e) => setReview({ ...review, comment: e.target.value })} />
                   <Button className="w-fit">Gửi đánh giá</Button>
                 </form>
+              ) : (
+                <p className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-700">
+                  Bạn có thể đánh giá sau khi booking đã được thanh toán.
+                </p>
               )}
             </Card>
           </section>

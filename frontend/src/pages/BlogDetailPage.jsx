@@ -59,7 +59,7 @@ const BlogDetailPage = () => {
   const { data: postsData } = useAsync(() => api.get("/blogs"), []);
   const [rating, setRating] = useState(5);
   const [commentForm, setCommentForm] = useState({ name: "", content: "", rating: 5 });
-  const [commentPage, setCommentPage] = useState(1);
+  const [commentPagination, setCommentPagination] = useState({ slug: "", page: 1 });
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -70,10 +70,24 @@ const BlogDetailPage = () => {
   );
   const comments = post?.comments || [];
   const totalCommentPages = Math.max(1, Math.ceil(comments.length / COMMENTS_PER_PAGE));
+  const rawCommentPage = commentPagination.slug === slug ? commentPagination.page : 1;
+  const commentPage = Math.min(rawCommentPage, totalCommentPages);
   const pagedComments = comments.slice(
     (commentPage - 1) * COMMENTS_PER_PAGE,
     commentPage * COMMENTS_PER_PAGE,
   );
+  const setCommentPage = (pageOrUpdater) => {
+    setCommentPagination((current) => {
+      const currentPage = current.slug === slug ? current.page : 1;
+      const nextPage =
+        typeof pageOrUpdater === "function" ? pageOrUpdater(currentPage) : pageOrUpdater;
+
+      return {
+        slug,
+        page: Math.min(Math.max(1, nextPage), totalCommentPages),
+      };
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -90,16 +104,6 @@ const BlogDetailPage = () => {
       active = false;
     };
   }, [slug, setData]);
-
-  useEffect(() => {
-    setCommentPage(1);
-  }, [slug]);
-
-  useEffect(() => {
-    if (commentPage > totalCommentPages) {
-      setCommentPage(totalCommentPages);
-    }
-  }, [commentPage, totalCommentPages]);
 
   const submitComment = async (event) => {
     event.preventDefault();
