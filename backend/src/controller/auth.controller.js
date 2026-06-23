@@ -13,6 +13,23 @@ import crypto from "crypto";
 
 const OTP_EXPIRES_IN_MS = 10 * 60 * 1000;
 const PENDING_REGISTER_EXPIRES_IN_MS = 30 * 60 * 1000;
+const PASSWORD_RESET_RESPONSE = {
+  message: "If this email is registered, a password reset link has been sent.",
+};
+const REFRESH_TOKEN_COOKIE = "refreshToken";
+const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const getRefreshTokenCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+  secure: process.env.NODE_ENV === "production",
+  maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+});
+
+const getClearRefreshTokenCookieOptions = () => {
+  const { maxAge, ...options } = getRefreshTokenCookieOptions();
+  return options;
+};
 
 export const attachEmailOtp = async (user) => {
   const otp = generateOtp();
@@ -120,16 +137,11 @@ export const loginController = async (req, res) => {
     );
     // {new:true} để trả về document đã được cập nhật
     //lưu refresh token vào cookies
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true, //chỉ cho phép truy cập cookie từ server
-      sameSite: "Strict", // ngăn chặn CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-    });
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, getRefreshTokenCookieOptions());
     // Signature: dùng để xác thực token, đảm bảo token không bị thay đổi
     return res.status(200).json({
       message: "login success",
       accessToken: accessToken,
-      refreshToken: refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -272,22 +284,19 @@ export const resendEmailOtpController = async (req, res) => {
 //logout xóa refresh token
 export const logoutController = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      return res.status(400).json({ message: "no refresh token provided" });
+    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+
+    if (refreshToken) {
+      const user = await User.findOne({ refreshToken });
+      if (user) {
+        await User.findByIdAndUpdate(
+          user._id,
+          { refreshToken: null },
+          { new: true },
+        );
+      }
     }
-    const user = await User.findOne({ refreshToken });
-    if (!user) {
-      return res.status(400).json({ message: "invalid refresh token" });
-    }
-    console.log("user:", user);
-    console.log("user id:", user._id);
-    await User.findByIdAndUpdate(
-      user._id,
-      { refreshToken: null },
-      { new: true },
-    );
-    res.clearCookie("refreshToken"); // xóa refresh token trên cookie
+    res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
     return res
       .status(200)
       .json({ success: true, message: "logout successfully" });
@@ -300,7 +309,7 @@ export const logoutController = async (req, res) => {
 
 //nhiệm vụ của refresh token giúp người dùng lấy accesstoken mới khi accesstoken hết hạn mà ko cần phải đăng nhập lại
 export const refreshTokenController = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
+  const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
   if (!refreshToken) {
     return res.status(401).json({ message: "no refresh token provided" });
   }
@@ -308,12 +317,26 @@ export const refreshTokenController = async (req, res) => {
   try {
     const user = await User.findOne({ refreshToken });
     if (!user) {
+      res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
       return res.status(403).json({ message: "invalid refresh token" });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: "account is inactive" });
+    }
+
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        message: "email is not verified",
+        code: "EMAIL_NOT_VERIFIED",
+        email: user.email,
+      });
     }
 
     const decode = jwt.verify(refreshToken, process.env.JWT_SECRET_KEY_REFRESH);
 
     if (user._id.toString() !== decode.userId) {
+      res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
       return res.status(403).json({ message: "invalid refresh token" });
     }
 
@@ -321,6 +344,11 @@ export const refreshTokenController = async (req, res) => {
     const newAccessToken = generateAccessToken(user, user.role);
     return res.status(200).json({ success: true, accessToken: newAccessToken });
   } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
+      return res.status(403).json({ message: "invalid refresh token" });
+    }
+
     return res
       .status(500)
       .json({ message: "internal server error", error: error.message });
@@ -480,38 +508,40 @@ export const changeCurrentUserPassword = async (req, res) => {
 export const forgetpasswordController = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+
+    if (!normalizedEmail) {
       return res.status(400).json({ message: "email is required" });
     }
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "user not found" });
+    const user = await User.findOne({ email: normalizedEmail });
+    if (user) {
+      //tạo token đặt lại mật khẩu
+      const resetToken = crypto.randomBytes(32).toString("hex"); // tạo chuỗi ngẫu nhiên 32 bytes và chuyển thành chuỗi hex
+      const resetTokenExpries = Date.now() + 5 * 60 * 1000; // token sẽ hết hạn sau 5 phút
+
+      //lưu token và thời hạn sẽ hết hạn vào database
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpries = resetTokenExpries;
+      await user.save();
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+      try {
+        await sendPasswordResetEmail({
+          to: user.email,
+          name: user.name,
+          resetUrl,
+        });
+      } catch (emailError) {
+        console.error("Failed to send password reset email:", emailError);
+      }
     }
-    //tạo token đặt lại mật khẩu
-    const resetToken = crypto.randomBytes(32).toString("hex"); // tạo chuỗi ngẫu nhiên 32 bytes và chuyển thành chuỗi hex
-    const resetTokenExpries = Date.now() + 5 * 60 * 1000; // token sẽ hết hạn sau 5 phút
 
-    //lưu token và thời hạn sẽ hết hạn vào database
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpries = resetTokenExpries;
-    await user.save();
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
-
-    await sendPasswordResetEmail({
-      to: user.email,
-      name: user.name,
-      resetUrl,
-    });
-
-    return res.status(200).json({
-      message: "password reset link has been sent to your email",
-      resetUrl: process.env.NODE_ENV === "production" ? undefined : resetUrl,
-    });
+    return res.status(200).json(PASSWORD_RESET_RESPONSE);
   } catch (err) {
     return res
       .status(500)
-      .json({ message: "interal server error", error: err.message });
+      .json({ message: "internal server error", error: err.message });
   }
 };
 
@@ -520,12 +550,21 @@ export const resetPasswordController = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: "password is required" });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({ message: "password must be at least 6 characters" });
+    }
+
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpries: { $gt: Date.now() }, //kiểm tra token chưa hết hạn $gt là lớn hơn
     });
     if (!user) {
-      return res.status(400).json({ message: "invalid or expride token" });
+      return res.status(400).json({ message: "invalid or expired token" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     user.password = hashedPassword;
@@ -539,6 +578,6 @@ export const resetPasswordController = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "interal server error", error: err.message });
+      .json({ message: "internal server error", error: error.message });
   }
 };

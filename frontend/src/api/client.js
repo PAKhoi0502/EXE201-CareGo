@@ -1,4 +1,16 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+const AUTH_PATHS_WITHOUT_REFRESH = [
+  "/auth/login",
+  "/auth/signup",
+  "/auth/verify-email",
+  "/auth/resend-otp",
+  "/auth/logout",
+  "/auth/refresh-token",
+  "/auth/forget-password",
+  "/auth/reset-password",
+];
+
+let refreshPromise = null;
 
 export const getToken = () => localStorage.getItem("carego_token");
 
@@ -10,27 +22,89 @@ export const setToken = (token) => {
   }
 };
 
-export const request = async (path, options = {}) => {
-  const token = getToken();
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
+const parseResponse = async (response) => {
+  const text = await response.text();
+  if (!text) return {};
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+};
+
+const createRequestError = (data, status, fallbackMessage = "Request failed") => {
+  const error = new Error(data?.message || data?.error || fallbackMessage);
+  error.status = status;
+  error.code = data?.code;
+  error.email = data?.email;
+  error.data = data;
+  return error;
+};
+
+const buildHeaders = (headers = {}, body, token = getToken()) => {
+  const nextHeaders = new Headers(headers);
+
+  if (!(body instanceof FormData) && !nextHeaders.has("Content-Type")) {
+    nextHeaders.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  if (token) {
+    nextHeaders.set("Authorization", `Bearer ${token}`);
+  }
+
+  return Object.fromEntries(nextHeaders.entries());
+};
+
+const shouldAttemptRefresh = (path, status, data = {}) => {
+  const isAuthFailure = status === 401 || (status === 403 && data?.message === "invalid token");
+  if (!isAuthFailure || !getToken()) return false;
+  return !AUTH_PATHS_WITHOUT_REFRESH.some((authPath) => path.startsWith(authPath));
+};
+
+export const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await parseResponse(response);
+
+      if (!response.ok || !data.accessToken) {
+        setToken(null);
+        throw createRequestError(data, response.status, "Session expired");
+      }
+
+      setToken(data.accessToken);
+      return data.accessToken;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+};
+
+const sendRequest = (path, options = {}, token = getToken()) =>
+  fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers,
+    credentials: "include",
+    headers: buildHeaders(options.headers, options.body, token),
   });
 
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+export const request = async (path, options = {}) => {
+  let response = await sendRequest(path, options);
+  let data = await parseResponse(response);
+
+  if (!response.ok && shouldAttemptRefresh(path, response.status, data)) {
+    const accessToken = await refreshAccessToken();
+    response = await sendRequest(path, options, accessToken);
+    data = await parseResponse(response);
+  }
 
   if (!response.ok) {
-    throw new Error(data.message || "Request failed");
+    throw createRequestError(data, response.status);
   }
 
   return data;
@@ -50,15 +124,25 @@ export const uploadImage = async ({ file, folder = "carego" }) => {
   formData.append("image", file);
   formData.append("folder", folder);
 
-  const response = await fetch(`${API_BASE_URL}/upload/image`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
-  });
+  const sendUploadRequest = (accessToken) =>
+    fetch(`${API_BASE_URL}/upload/image`, {
+      method: "POST",
+      credentials: "include",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      body: formData,
+    });
 
-  const data = await response.json();
+  let response = await sendUploadRequest(token);
+  let data = await parseResponse(response);
+
+  if (!response.ok && shouldAttemptRefresh("/upload/image", response.status, data)) {
+    const accessToken = await refreshAccessToken();
+    response = await sendUploadRequest(accessToken);
+    data = await parseResponse(response);
+  }
+
   if (!response.ok) {
-    throw new Error(data.error || data.message || "Upload failed");
+    throw createRequestError(data, response.status, "Upload failed");
   }
 
   return data;

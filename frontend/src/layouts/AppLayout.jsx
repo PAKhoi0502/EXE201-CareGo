@@ -41,12 +41,16 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const vettingStatus = user?.companionProfile?.vettingStatus;
   const isCustomer = user?.role === "customer";
+  const isApprovedCompanionUser = user?.role === "companion" && vettingStatus === "approved";
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
-  const { data: bookingsData } = useAsync(() => api.get("/bookings/my"), []);
+  const { data: bookingsData } = useAsync(
+    () => (isApprovedCompanionUser ? api.get("/bookings/my") : { bookings: [] }),
+    [isApprovedCompanionUser],
+  );
   const { data: withdrawalSummary, reload: reloadWithdrawalSummary } = useAsync(
-    () => api.get("/withdrawals/my"),
-    []
+    () => (isApprovedCompanionUser ? api.get("/withdrawals/my") : null),
+    [isApprovedCompanionUser],
   );
 
   const totalEarnings = useMemo(() => {
@@ -98,14 +102,14 @@ const AppLayout = () => {
   }, [menuOpen]);
 
   useEffect(() => {
-    if (user?.role !== "companion") return undefined;
+    if (!isApprovedCompanionUser) return undefined;
 
     const timer = window.setInterval(() => {
       reloadWithdrawalSummary?.();
     }, 5000);
 
     return () => window.clearInterval(timer);
-  }, [reloadWithdrawalSummary, user?.role]);
+  }, [isApprovedCompanionUser, reloadWithdrawalSummary]);
 
   if (isCustomer) {
     return (

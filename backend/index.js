@@ -34,6 +34,34 @@ const app = express();
 const server = createServer(app);
 const port = 3000;
 dotenv.config();
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
+const defaultAllowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const envAllowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  process.env.CORS_ORIGIN ||
+  process.env.FRONTEND_URL ||
+  ""
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = [...new Set([...envAllowedOrigins, ...defaultAllowedOrigins])];
+const allowedMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+const corsOrigin = (origin, callback) => {
+  if (!origin || allowedOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+  return callback(new Error(`CORS origin denied: ${origin}`));
+};
+const corsOptions = {
+  origin: corsOrigin,
+  methods: allowedMethods,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
 // --------------connect to mongodb--------------
 await databaseConnection();
 // ---------------------------------------------
@@ -41,14 +69,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: "8mb" })); // chuyển đổi dữ liệu từ client gửi lên thành định dạng json
 app.use(bodyParser.urlencoded({ extended: true, limit: "8mb" })); // xử lý dữ liệu form gửi lên
 
-app.use(
-  cors({
-    origin: "*", //cho phép domain này truy cập vào server
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"], // cho phép các phương thức này
-    allowedHeaders: "*", //cho phép các heder này gửi lên server
-    credentials: true, //cho phép gửi cookie
-  }),
-);
+app.use(cors(corsOptions));
 
 //thiết lập swagger
 setupSwagger(app);
@@ -72,8 +93,10 @@ app.use("/api/blogs", blogRouter);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    origin: corsOrigin,
+    methods: allowedMethods,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   },
 });
 

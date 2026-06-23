@@ -1,24 +1,52 @@
 import jwt from "jsonwebtoken";
+import User from "../models/user.models.js";
 
-export const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization; // token từ heade
-  // console.log("auth header:", authHeader);
-  const token = authHeader && authHeader.split(" ")[1]; // cắt chuỗi thành 2 phần: đầu là Bearer sau là token
+const getTokenFromHeader = (req) => {
+  const authHeader = req.headers.authorization || "";
+  if (!authHeader.startsWith("Bearer ")) return "";
+  return authHeader.slice(7);
+};
+
+export const verifyToken = async (req, res, next) => {
+  const token = getTokenFromHeader(req);
+
   if (!token) {
     return res.status(401).json({ message: "no token provided" });
   }
-  jwt.verify(token, process.env.JWT_SECRET_KEY, (err, user) => {
-    // so sánh token gửi lên và token đã ký khi đăng nhập
-    if (err) {
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const userId = decoded.userId || decoded.id || decoded._id;
+
+    if (!userId) {
       return res.status(403).json({ message: "invalid token" });
     }
-    // đây là payload được attach vào token khi đăng nhập
-    // attach là gắn thêm thông tin vào token
-    // payload có thể là id, email,role ,....
-    // tùy vào mục đích của ứng dụng mà ta có thễ attach các thông tin khác nhau
-    // nhưng không nên attach các thông tin nhạy cảm như password, thẻ tín dụng,...
-    req.user = user; //lưu thông tin user vào request để dùng ở các middleware hoặc controller tiếp theo
-    // console.log("verify user:", user);
-    next();
-  });
+
+    const user = await User.findById(userId).select("_id role isActive isEmailVerified email");
+    if (!user) {
+      return res.status(401).json({ message: "user not found" });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: "account is inactive" });
+    }
+
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        message: "email is not verified",
+        code: "EMAIL_NOT_VERIFIED",
+        email: user.email,
+      });
+    }
+
+    req.user = {
+      ...decoded,
+      userId: user._id.toString(),
+      role: user.role,
+    };
+
+    return next();
+  } catch {
+    return res.status(403).json({ message: "invalid token" });
+  }
 };

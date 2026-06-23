@@ -21,6 +21,7 @@ import CompanionBookingHistoryPage from "./pages/companion/CompanionBookingHisto
 import CompanionBookingsPage from "./pages/companion/CompanionBookingsPage.jsx";
 import CompanionEarningsPage from "./pages/companion/CompanionEarningsPage.jsx";
 import CompanionProfilePage from "./pages/companion/CompanionProfilePage.jsx";
+import CompanionStatusPage from "./pages/companion/CompanionStatusPage.jsx";
 import CompanionWithdrawalsPage from "./pages/companion/CompanionWithdrawalsPage.jsx";
 import CustomerBookingDetailPage from "./pages/customer/CustomerBookingDetailPage.jsx";
 import CustomerBookingsPage from "./pages/customer/CustomerBookingsPage.jsx";
@@ -34,6 +35,7 @@ import SupportPage from "./pages/support/SupportPage.jsx";
 import AdminLayout from "./layouts/AdminLayout.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import { getUserHomePath, needsCompanionApproval } from "./utils/authNavigation.js";
 
 const RoleRoute = ({ role, children }) => {
   const { user, loading } = useAuth();
@@ -47,7 +49,11 @@ const RoleRoute = ({ role, children }) => {
   }
 
   if (user.role !== role) {
-    return <Navigate to={`/${user.role}`} replace />;
+    return <Navigate to={getUserHomePath(user)} replace />;
+  }
+
+  if (role === "companion" && needsCompanionApproval(user)) {
+    return <Navigate to="/companion-status" replace />;
   }
 
   return children;
@@ -65,6 +71,7 @@ const App = () => {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/companion-register" element={<RegisterCompanionPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/companion-status" element={<CompanionStatusPage />} />
 
       <Route
         path="/customer"

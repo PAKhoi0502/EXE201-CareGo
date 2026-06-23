@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, setToken } from "../api/client.js";
 import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
+import { isApprovedCompanion, needsCompanionApproval } from "../utils/authNavigation.js";
 
 const AuthContext = createContext(null);
 
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(() => Boolean(localStorage.getItem("carego_token")));
   const userId = user?.id || user?._id;
-  const isCompanion = user?.role === "companion";
+  const isApprovedCompanionUser = isApprovedCompanion(user);
 
   useEffect(() => {
     const loadMe = async () => {
@@ -76,9 +77,9 @@ export const AuthProvider = ({ children }) => {
     return api.post("/auth/resend-otp", { email });
   };
 
-  const logout = useCallback(() => {
+  const clearClientSession = useCallback(() => {
     if (userId) {
-      if (isCompanion) {
+      if (isApprovedCompanionUser) {
         locationSocket.emit("companion:gps:stop", { companionId: userId });
       }
       locationSocket.emit("user:offline");
@@ -86,10 +87,20 @@ export const AuthProvider = ({ children }) => {
     }
     setToken(null);
     setUser(null);
-  }, [isCompanion, userId]);
+  }, [isApprovedCompanionUser, userId]);
+
+  const logout = useCallback(async () => {
+    clearClientSession();
+
+    try {
+      await api.post("/auth/logout", {});
+    } catch {
+      // Local session is already cleared, so a network/server logout failure should not block the user.
+    }
+  }, [clearClientSession]);
 
   useEffect(() => {
-    if (!userId) return undefined;
+    if (!userId || needsCompanionApproval(user)) return undefined;
 
     connectLocationSocket();
     locationSocket.emit("user:online", { userId });
@@ -109,10 +120,10 @@ export const AuthProvider = ({ children }) => {
       window.removeEventListener("beforeunload", markOffline);
       locationSocket.emit("user:offline");
     };
-  }, [userId]);
+  }, [user, userId]);
 
   useEffect(() => {
-    if (!userId || !isCompanion) return undefined;
+    if (!userId || !isApprovedCompanionUser) return undefined;
 
     connectLocationSocket();
 
@@ -150,7 +161,7 @@ export const AuthProvider = ({ children }) => {
       window.removeEventListener("beforeunload", stopGps);
       stopGps();
     };
-  }, [userId, isCompanion]);
+  }, [userId, isApprovedCompanionUser]);
 
   const value = useMemo(
     () => ({

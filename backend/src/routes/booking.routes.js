@@ -19,8 +19,8 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.post("/", allowRoles("customer"), createBooking);
-router.get("/my", allowRoles("customer", "companion"), getMyBookings);
-router.get("/:id", allowRoles("customer", "companion", "admin"), getBookingById);
+router.get("/my", allowRoles("customer", "companion"), requireApprovedCompanion, getMyBookings);
+router.get("/:id", allowRoles("customer", "companion", "admin"), requireApprovedCompanion, getBookingById);
 router.patch(
   "/:id/status",
   allowRoles("companion", "admin"),

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Button, Input } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { getUserHomePath } from "../../utils/authNavigation.js";
 import AuthShell from "./AuthShell.jsx";
+
+const VERIFY_EMAIL_STORAGE_KEY = "carego_verify_email";
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -17,8 +20,19 @@ const LoginPage = () => {
     setError("");
     try {
       const user = await login(form);
-      navigate(user.role === "customer" ? "/" : user.role === "companion" ? "/companion/bookings" : `/${user.role}`);
+      navigate(getUserHomePath(user));
     } catch (err) {
+      if (err.code === "EMAIL_NOT_VERIFIED") {
+        const email = err.email || form.email.trim();
+        if (email) {
+          sessionStorage.setItem(VERIFY_EMAIL_STORAGE_KEY, email);
+          navigate(`/verify-email?email=${encodeURIComponent(email)}`, {
+            state: { email, password: form.password },
+          });
+          return;
+        }
+      }
+
       setError(err.message);
     } finally {
       setSubmitting(false);

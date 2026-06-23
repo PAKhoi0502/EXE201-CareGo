@@ -257,11 +257,10 @@ const NewBookingPage = () => {
                       }`}
                   >
                     <div
-                      className={`mb-4 grid h-14 w-14 place-items-center rounded-[20px] transition ${
-                        active
+                      className={`mb-4 grid h-14 w-14 place-items-center rounded-[20px] transition ${active
                           ? "bg-teal-700 text-white shadow-lg shadow-teal-700/20"
                           : "bg-gradient-to-br from-teal-100 to-sky-100 text-teal-700"
-                      }`}
+                        }`}
                     >
                       <ServiceIcon serviceName={service.name} index={index} />
                     </div>
@@ -285,7 +284,7 @@ const NewBookingPage = () => {
 
             <div className="grid gap-4 md:grid-cols-2">
               <Select
-                label="Ho so nguoi than"
+                label="Hồ sơ người thân"
                 value={form.elderProfileId}
                 onChange={(event) => setForm({ ...form, elderProfileId: event.target.value })}
                 required
@@ -366,10 +365,17 @@ const NewBookingPage = () => {
                 const ratingAverage = Number(item.ratingAverage || 0);
                 const ratingCount = Number(item.ratingCount || 0);
                 return (
-                  <button
+                  <div
                     key={item._id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setForm((current) => ({ ...current, companionId: companionUserId }))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setForm((current) => ({ ...current, companionId: companionUserId }));
+                      }
+                    }}
                     className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
                       }`}
                   >
@@ -407,7 +413,7 @@ const NewBookingPage = () => {
                         Xem chi tiết
                       </Button>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

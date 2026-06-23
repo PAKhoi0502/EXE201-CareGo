@@ -1,14 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Button, Input } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { getUserHomePath } from "../../utils/authNavigation.js";
 import AuthShell from "./AuthShell.jsx";
+
+const VERIFY_EMAIL_STORAGE_KEY = "carego_verify_email";
 
 const VerifyEmailPage = () => {
   const { verifyEmail, resendOtp, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email] = useState(location.state?.email || "");
+  const searchParams = new URLSearchParams(location.search);
+  const [email, setEmail] = useState(
+    location.state?.email ||
+    searchParams.get("email") ||
+    sessionStorage.getItem(VERIFY_EMAIL_STORAGE_KEY) ||
+    "",
+  );
   const [password] = useState(location.state?.password || "");
   const [role] = useState(location.state?.role || "customer");
   const [otp, setOtp] = useState("");
@@ -16,17 +25,31 @@ const VerifyEmailPage = () => {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (email) {
+      sessionStorage.setItem(VERIFY_EMAIL_STORAGE_KEY, email);
+    }
+  }, [email]);
+
   const submit = async (event) => {
     event.preventDefault();
-    setSubmitting(true);
     setError("");
     setMessage("");
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      setError("Vui lòng nhập email để xác thực.");
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await verifyEmail({ email, otp });
+      await verifyEmail({ email: normalizedEmail, otp });
+      sessionStorage.removeItem(VERIFY_EMAIL_STORAGE_KEY);
       setMessage("Xac thuc thanh cong.");
       if (password) {
-        const user = await login({ email, password });
-        navigate(`/${user.role}`);
+        const user = await login({ email: normalizedEmail, password });
+        navigate(getUserHomePath(user));
       } else {
         navigate("/login");
       }
@@ -40,8 +63,15 @@ const VerifyEmailPage = () => {
   const resend = async () => {
     setError("");
     setMessage("");
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      setError("Vui lòng nhập email để gửi lại OTP.");
+      return;
+    }
+
     try {
-      await resendOtp(email);
+      await resendOtp(normalizedEmail);
       setMessage("Da gui lai OTP. Neu chua cau hinh SMTP, xem OTP trong terminal backend.");
     } catch (err) {
       setError(err.message);
@@ -60,8 +90,9 @@ const VerifyEmailPage = () => {
           label="Email"
           type="email"
           value={email}
-          readOnly
-          className="min-h-14 cursor-not-allowed rounded-2xl border-teal-100 bg-slate-50 text-slate-500"
+          onChange={(event) => setEmail(event.target.value)}
+          className="min-h-14 rounded-2xl border-teal-100 bg-white"
+          placeholder="Nhập email cần xác thực"
         />
         <Input label="Mã OTP" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="min-h-14 rounded-2xl border-teal-100" />
         {message ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p> : null}
