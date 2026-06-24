@@ -13,6 +13,11 @@ const initials = (name = "CG") =>
     .slice(0, 2)
     .toUpperCase();
 
+const getReviewerName = (companion) => {
+  const reviewer = companion?.reviewedBy || {};
+  return reviewer.name || reviewer.email || "-";
+};
+
 const vettingLabel = {
   pending: "Chờ xác thực",
   approved: "Đã duyệt",
@@ -45,6 +50,19 @@ const GpsBadge = ({ status }) => (
   >
     GPS {status?.isGpsOn ? "đang bật" : "đang tắt"}
   </span>
+);
+
+const DocumentImage = ({ label, src }) => (
+  <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+    {src ? (
+      <a href={src} target="_blank" rel="noreferrer" className="mt-2 block overflow-hidden rounded-xl border border-teal-100 bg-white">
+        <img src={src} alt={label} className="h-40 w-full object-cover" />
+      </a>
+    ) : (
+      <p className="mt-2 text-sm font-semibold text-slate-500">Chưa bổ sung</p>
+    )}
+  </div>
 );
 
 const AdminUsersPage = () => {
@@ -126,8 +144,22 @@ const AdminUsersPage = () => {
   };
 
   const updateCompanionStatus = async (id, vettingStatus) => {
-    await api.patch(`/companions/${id}/status`, { vettingStatus });
-    reloadCompanions();
+    const payload = { vettingStatus };
+    if (vettingStatus === "rejected") {
+      const rejectionReason = window.prompt("Nhập lý do từ chối hồ sơ companion:");
+      if (!rejectionReason?.trim()) return;
+      payload.rejectionReason = rejectionReason.trim();
+    }
+
+    const response = await api.patch(`/companions/${id}/status`, payload);
+    await reloadCompanions();
+    if (response?.companion) {
+      setSelectedDetail((current) =>
+        current?.type === "companion" && current.data?._id === id
+          ? { ...current, data: { ...current.data, ...response.companion } }
+          : current,
+      );
+    }
   };
 
   return (
@@ -329,20 +361,7 @@ const AdminUsersPage = () => {
                       >
                         Chi tiết
                       </Button>
-                      {item.vettingStatus === "pending" ? (
-                        <>
-                          <Button className="min-h-8 px-2.5 text-xs" onClick={() => updateCompanionStatus(item._id, "approved")}>
-                            Phê duyệt
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            className="min-h-8 px-2.5 text-xs"
-                            onClick={() => updateCompanionStatus(item._id, "rejected")}
-                          >
-                            Từ chối
-                          </Button>
-                        </>
-                      ) : (
+                      {item.vettingStatus === "approved" || item.vettingStatus === "suspended" ? (
                         <Button
                           variant={item.vettingStatus === "suspended" ? "secondary" : "danger"}
                           className="min-h-8 px-2.5 text-xs"
@@ -355,7 +374,7 @@ const AdminUsersPage = () => {
                         >
                           {item.vettingStatus === "suspended" ? "Mở khóa" : "Tạm khóa"}
                         </Button>
-                      )}
+                      ) : null}
                     </td>
                   </tr>
                 ))}
@@ -471,6 +490,8 @@ const AdminUsersPage = () => {
               <DetailItem label="Truong" value={selectedDetail.data.university} />
               <DetailItem label="Chuyen nganh" value={selectedDetail.data.major} />
               <DetailItem label="Ngay tao" value={dateTime(selectedDetail.data.createdAt)} />
+              <DetailItem label="Nguoi xu ly" value={getReviewerName(selectedDetail.data)} />
+              <DetailItem label="Xu ly luc" value={dateTime(selectedDetail.data.reviewedAt)} />
               <DetailItem label="So ca hoan thanh" value={`${selectedDetail.data.completedBookings || 0} ca`} />
               <DetailItem label="Trang thai tai khoan">
                 <AccountLockBadge active={selectedDetail.data.userId?.isActive} />
@@ -486,6 +507,14 @@ const AdminUsersPage = () => {
                 value={`${Number(selectedDetail.data.ratingAverage || 0).toFixed(1)} / 5 (${selectedDetail.data.ratingCount || 0})`}
               />
             </DetailGrid>
+            {selectedDetail.data.vettingStatus === "rejected" ? (
+              <section className="rounded-xl border border-rose-100 bg-rose-50 p-4">
+                <h3 className="font-bold text-rose-700">Ly do tu choi</h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm font-semibold text-rose-700">
+                  {selectedDetail.data.rejectionReason || "Chua co ly do tu choi."}
+                </p>
+              </section>
+            ) : null}
             <section className="rounded-xl border border-slate-100 p-4">
               <h3 className="font-bold text-slate-900">Ky nang / khu vuc</h3>
               <div className="mt-3 space-y-3">
@@ -493,12 +522,54 @@ const AdminUsersPage = () => {
                 <DetailTags items={selectedDetail.data.serviceAreas || []} tone="teal" empty="Chua co khu vuc" />
               </div>
             </section>
-            <DetailGrid>
-              <DetailItem label="CCCD" value={selectedDetail.data.documents?.citizenId || "Chua bo sung"} />
-              <DetailItem label="The sinh vien" value={selectedDetail.data.documents?.studentCardUrl ? "Da co file" : "Chua bo sung"} />
-              <DetailItem label="Ly lich tu phap" value={selectedDetail.data.documents?.backgroundCheckUrl ? "Da co file" : "Chua bo sung"} />
-              <DetailItem label="Cap nhat lan cuoi" value={dateTime(selectedDetail.data.updatedAt)} />
-            </DetailGrid>
+            <section className="rounded-xl border border-slate-100 p-4">
+              <h3 className="font-bold text-slate-900">Kiểm duyệt 3 lớp</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <DetailItem
+                  label="CCCD"
+                  value={
+                    selectedDetail.data.documents?.citizenIdFrontUrl && selectedDetail.data.documents?.citizenIdBackUrl
+                      ? "Đã chụp đủ mặt trước / mặt sau"
+                      : selectedDetail.data.documents?.citizenId || "Chưa bổ sung"
+                  }
+                />
+                <DetailItem label="Thẻ sinh viên" value={selectedDetail.data.documents?.studentCardUrl ? "Đã có file" : "Chưa bổ sung"} />
+                <DetailItem label="Lý lịch tư pháp" value={selectedDetail.data.documents?.backgroundCheckUrl ? "Đã có file" : "Chưa bổ sung"} />
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <DocumentImage label="CCCD mặt trước" src={selectedDetail.data.documents?.citizenIdFrontUrl} />
+                <DocumentImage label="CCCD mặt sau" src={selectedDetail.data.documents?.citizenIdBackUrl} />
+              </div>
+              <p className="mt-3 text-xs font-semibold text-slate-400">
+                Cập nhật lần cuối: {dateTime(selectedDetail.data.updatedAt)}
+              </p>
+            </section>
+
+            {selectedDetail.data.vettingStatus === "pending" ? (
+              <section className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-900">Quyết định kiểm duyệt</h3>
+                    <div className="mt-2">
+                      <StatusBadge status={selectedDetail.data.vettingStatus} />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" className="min-h-9 px-3 text-xs" onClick={() => updateCompanionStatus(selectedDetail.data._id, "approved")}>
+                      Duyệt hồ sơ
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-9 px-3 text-xs"
+                      onClick={() => updateCompanionStatus(selectedDetail.data._id, "rejected")}
+                    >
+                      Từ chối
+                    </Button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </div>
         </AdminDetailModal>
       ) : null}

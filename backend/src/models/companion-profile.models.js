@@ -64,6 +64,20 @@ const CompanionProfileSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected", "suspended"],
       default: "pending",
     },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+      default: null,
+    },
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     serviceAreas: [
       {
         type: String,

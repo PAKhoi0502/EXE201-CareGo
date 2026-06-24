@@ -25,6 +25,11 @@ const initials = (name = "CG") =>
     .slice(0, 2)
     .toUpperCase();
 
+const getReviewerName = (companion) => {
+  const reviewer = companion?.reviewedBy || {};
+  return reviewer.name || reviewer.email || "-";
+};
+
 const GpsBadge = ({ status }) => (
   <span
     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${status?.isGpsOn ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
@@ -160,8 +165,20 @@ const AdminCompanionsPage = () => {
   };
 
   const updateStatus = async (id, vettingStatus) => {
-    await api.patch(`/companions/${id}/status`, { vettingStatus });
-    reload();
+    const payload = { vettingStatus };
+    if (vettingStatus === "rejected") {
+      const rejectionReason = window.prompt("Nhập lý do từ chối hồ sơ companion:");
+      if (!rejectionReason?.trim()) return;
+      payload.rejectionReason = rejectionReason.trim();
+    }
+
+    const response = await api.patch(`/companions/${id}/status`, payload);
+    await reload();
+    if (response?.companion) {
+      setSelectedCompanion((current) =>
+        current?._id === id ? { ...current, ...response.companion } : current,
+      );
+    }
   };
 
   return (
@@ -318,16 +335,7 @@ const AdminCompanionsPage = () => {
                     <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedCompanion(item)}>
                       Chi tiết
                     </Button>
-                    {item.vettingStatus === "pending" ? (
-                      <>
-                        <Button className="min-h-8 px-2.5 text-xs" onClick={() => updateStatus(item._id, "approved")}>
-                          Duyệt
-                        </Button>
-                        <Button variant="secondary" className="min-h-8 px-2.5 text-xs" onClick={() => updateStatus(item._id, "rejected")}>
-                          Từ chối
-                        </Button>
-                      </>
-                    ) : (
+                    {item.vettingStatus === "approved" || item.vettingStatus === "suspended" ? (
                       <Button
                         variant={item.vettingStatus === "suspended" ? "secondary" : "danger"}
                         className="min-h-8 px-2.5 text-xs"
@@ -335,7 +343,7 @@ const AdminCompanionsPage = () => {
                       >
                         {item.vettingStatus === "suspended" ? "Mở khóa" : "Tạm khóa"}
                       </Button>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -358,7 +366,7 @@ const AdminCompanionsPage = () => {
               <div>
                 <h2 className="font-bold text-slate-900">Tạo nhanh companion</h2>
                 <p className="mt-1 text-xs text-slate-400">
-                  Tài khoản tạo từ admin sẽ được duyệt sẵn và có thể đăng nhập sau khi có thông tin.
+                  Tài khoản tạo từ admin chỉ được duyệt khi hồ sơ có đủ ảnh CCCD hợp lệ.
                 </p>
               </div>
               <button
@@ -391,7 +399,7 @@ const AdminCompanionsPage = () => {
                 <Button type="button" variant="secondary" onClick={closeCreateModal}>
                   Hủy
                 </Button>
-                <Button>Tạo và duyệt companion</Button>
+                <Button>Tạo companion</Button>
               </div>
             </form>
           </div>
@@ -413,6 +421,8 @@ const AdminCompanionsPage = () => {
               <DetailItem label="Chuyen nganh" value={selectedCompanion.major} />
               <DetailItem label="Gioi tinh" value={selectedCompanion.gender} />
               <DetailItem label="Ngay tao ho so" value={dateTime(selectedCompanion.createdAt)} />
+              <DetailItem label="Nguoi xu ly" value={getReviewerName(selectedCompanion)} />
+              <DetailItem label="Xu ly luc" value={dateTime(selectedCompanion.reviewedAt)} />
               <DetailItem label="So ca hoan thanh" value={`${selectedCompanion.completedBookings || 0} ca`} />
               <DetailItem label="Trang thai tai khoan">
                 <AccountLockBadge active={selectedCompanion.userId?.isActive} />
@@ -441,6 +451,15 @@ const AdminCompanionsPage = () => {
               />
             </DetailGrid>
 
+            {selectedCompanion.vettingStatus === "rejected" ? (
+              <section className="rounded-xl border border-rose-100 bg-rose-50 p-4">
+                <h3 className="font-bold text-rose-700">Ly do tu choi</h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm font-semibold text-rose-700">
+                  {selectedCompanion.rejectionReason || "Chua co ly do tu choi."}
+                </p>
+              </section>
+            ) : null}
+
             <section className="rounded-xl border border-slate-100 p-4">
               <h3 className="font-bold text-slate-900">Ky nang va khu vuc hoat dong</h3>
               <div className="mt-3 space-y-3">
@@ -468,6 +487,32 @@ const AdminCompanionsPage = () => {
                 <DocumentImage label="CCCD mat sau" src={selectedCompanion.documents?.citizenIdBackUrl} />
               </div>
             </section>
+
+            {selectedCompanion.vettingStatus === "pending" ? (
+              <section className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-900">Quyết định kiểm duyệt</h3>
+                    <div className="mt-2">
+                      <StatusBadge status={selectedCompanion.vettingStatus} />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" className="min-h-9 px-3 text-xs" onClick={() => updateStatus(selectedCompanion._id, "approved")}>
+                      Duyệt hồ sơ
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-9 px-3 text-xs"
+                      onClick={() => updateStatus(selectedCompanion._id, "rejected")}
+                    >
+                      Từ chối
+                    </Button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </div>
         </AdminDetailModal>
       ) : null}

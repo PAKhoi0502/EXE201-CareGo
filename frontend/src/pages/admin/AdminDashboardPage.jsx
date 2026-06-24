@@ -112,7 +112,7 @@ const StatCard = ({ label, value, accent = "teal", hint, icon }) => {
 const AdminDashboardPage = () => {
   const { data, loading, error } = useAsync(() => api.get("/admin/dashboard"), []);
   const { data: bookingsData } = useAsync(() => api.get("/admin/bookings"), []);
-  const { data: companionsData, reload: reloadCompanions } = useAsync(
+  const { data: companionsData } = useAsync(
     () => api.get("/companions/admin/all"),
     [],
   );
@@ -126,11 +126,6 @@ const AdminDashboardPage = () => {
   const monthlyStats = getMonthlyStats(bookings);
   const serviceShare = getServiceShare(bookings);
   const blogStats = data?.blogStats || [];
-
-  const approveCompanion = async (id, vettingStatus) => {
-    await api.patch(`/companions/${id}/status`, { vettingStatus });
-    reloadCompanions();
-  };
 
   const revenueChartData = {
     labels: monthlyStats.map((item) => item.label),
@@ -449,21 +444,12 @@ const AdminDashboardPage = () => {
                       {companion.university || "Chưa có trường"} - {companion.major || "Chưa có ngành"}
                     </p>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      className="min-h-8 px-3"
-                      onClick={() => approveCompanion(companion._id, "approved")}
-                    >
-                      Duyệt
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      className="min-h-8 px-3"
-                      onClick={() => approveCompanion(companion._id, "rejected")}
-                    >
-                      Từ chối
-                    </Button>
-                  </div>
+                  <Link
+                    to="/admin/companions"
+                    className="inline-flex min-h-8 items-center justify-center rounded-md bg-teal-700 px-3 text-xs font-semibold text-white transition hover:bg-teal-800"
+                  >
+                    Mở hồ sơ
+                  </Link>
                 </div>
               ))}
               {!pendingCompanions.length ? (
