@@ -8,16 +8,21 @@ const formatTime = (value) =>
     ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(new Date(value))
     : "";
 
+const SUPPORT_MESSAGE_PAGE_SIZE = 50;
+
 export default function SupportChatPanel({ conversation, onConversationChange, compact = false }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
+  const [pagination, setPagination] = useState({ hasMore: false, nextBefore: null });
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [typingName, setTypingName] = useState("");
   const bottomRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const shouldScrollToBottomRef = useRef(true);
   const userId = String(user?.id || user?._id || "");
 
   useEffect(() => {
@@ -30,9 +35,15 @@ export default function SupportChatPanel({ conversation, onConversationChange, c
       setLoading(true);
       setError("");
       setMessages([]);
+      setPagination({ hasMore: false, nextBefore: null });
+      shouldScrollToBottomRef.current = true;
       try {
-        const data = await api.get(`/support/conversations/${conversation._id}/messages`);
-        if (active) setMessages(data.messages || []);
+        const params = new URLSearchParams({ limit: String(SUPPORT_MESSAGE_PAGE_SIZE) });
+        const data = await api.get(`/support/conversations/${conversation._id}/messages?${params}`);
+        if (active) {
+          setMessages(data.messages || []);
+          setPagination(data.pagination || { hasMore: false, nextBefore: null });
+        }
       } catch (fetchError) {
         if (active) setError(fetchError.message);
       } finally {
@@ -78,6 +89,11 @@ export default function SupportChatPanel({ conversation, onConversationChange, c
   }, [conversation?._id, onConversationChange, userId]);
 
   useEffect(() => {
+    if (!shouldScrollToBottomRef.current) {
+      shouldScrollToBottomRef.current = true;
+      return;
+    }
+
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typingName]);
 
@@ -97,6 +113,31 @@ export default function SupportChatPanel({ conversation, onConversationChange, c
         isTyping: false,
       });
     }, 900);
+  };
+
+  const loadOlderMessages = async () => {
+    if (!conversation?._id || !pagination.hasMore || !pagination.nextBefore || loadingOlder) return;
+
+    setLoadingOlder(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        limit: String(SUPPORT_MESSAGE_PAGE_SIZE),
+        before: pagination.nextBefore,
+      });
+      const data = await api.get(`/support/conversations/${conversation._id}/messages?${params}`);
+      shouldScrollToBottomRef.current = false;
+      setMessages((current) => {
+        const existingIds = new Set(current.map((message) => message._id));
+        const olderMessages = (data.messages || []).filter((message) => !existingIds.has(message._id));
+        return [...olderMessages, ...current];
+      });
+      setPagination(data.pagination || { hasMore: false, nextBefore: null });
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoadingOlder(false);
+    }
   };
 
   const sendMessage = async (event) => {
@@ -162,6 +203,18 @@ export default function SupportChatPanel({ conversation, onConversationChange, c
       </header>
 
       <div className={`min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#f8fdfc] ${compact ? "p-3" : "p-5"}`}>
+        {pagination.hasMore ? (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={loadOlderMessages}
+              disabled={loadingOlder}
+              className="rounded-full border border-teal-100 bg-white px-4 py-2 text-xs font-black text-teal-700 shadow-sm transition hover:border-teal-200 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loadingOlder ? "Đang tải..." : "Tải tin cũ hơn"}
+            </button>
+          </div>
+        ) : null}
         {loading ? <p className="text-center text-sm font-bold text-slate-400">Đang tải tin nhắn...</p> : null}
         {messages.map((message) => {
           const senderId = String(message.senderId?._id || message.senderId || "");

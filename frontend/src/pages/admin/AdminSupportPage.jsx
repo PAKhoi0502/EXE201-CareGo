@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client.js";
 import SupportChatPanel from "../../components/support/SupportChatPanel.jsx";
 import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
@@ -9,6 +9,7 @@ export default function AdminSupportPage() {
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [summary, setSummary] = useState({ total: 0, urgent: 0, waiting: 0 });
   const [error, setError] = useState("");
 
   const loadConversations = useCallback(async () => {
@@ -16,6 +17,7 @@ export default function AdminSupportPage() {
       const data = await api.get(`/support/admin/conversations?status=${statusFilter}`);
       setError("");
       setConversations(data.conversations || []);
+      setSummary(data.summary || { total: 0, urgent: 0, waiting: 0 });
       setSelected((current) =>
         current ? data.conversations?.find((item) => item._id === current._id) || current : data.conversations?.[0] || null,
       );
@@ -38,15 +40,6 @@ export default function AdminSupportPage() {
       locationSocket.off("support:conversation-updated", refresh);
     };
   }, [loadConversations]);
-
-  const stats = useMemo(
-    () => ({
-      total: conversations.length,
-      urgent: conversations.filter((item) => item.priority === "urgent").length,
-      waiting: conversations.filter((item) => item.status === "waiting").length,
-    }),
-    [conversations],
-  );
 
   const updateConversationLocally = useCallback((updated) => {
     if (!updated?._id) return;
@@ -73,7 +66,7 @@ export default function AdminSupportPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        {[["Tổng hội thoại", stats.total], ["Đang chờ", stats.waiting], ["Khẩn cấp", stats.urgent]].map(([label, value]) => (
+        {[["Tổng hội thoại", summary.total], ["Đang chờ", summary.waiting], ["Khẩn cấp", summary.urgent]].map(([label, value]) => (
           <div key={label} className="rounded-3xl border border-teal-100 bg-white p-5 shadow-lg shadow-teal-900/5">
             <p className="text-sm font-bold text-slate-500">{label}</p>
             <p className="mt-2 text-3xl font-black text-teal-700">{value}</p>
