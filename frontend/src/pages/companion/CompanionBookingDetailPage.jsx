@@ -49,6 +49,28 @@ const flowSteps = [
   ["Hoàn thành", "completed"],
 ];
 
+const shiftRequirementMessages = {
+  checkInPhotoUrl: "ảnh check-in",
+  gpsLocationNearAddress: "GPS gần địa chỉ đặt lịch",
+  checklist: "checklist đã hoàn tất",
+  companionNote: "ghi chú trong ca",
+  checkOutPhotoUrl: "ảnh sau ca",
+};
+
+const formatShiftError = (err) => {
+  const missingRequirements = err?.data?.missingRequirements;
+  if (Array.isArray(missingRequirements) && missingRequirements.length > 0) {
+    const labels = missingRequirements.map((item) => shiftRequirementMessages[item] || item);
+    return `Bạn cần lưu ${labels.join(", ")} trước khi tiếp tục.`;
+  }
+
+  if (err?.message === "gps location is too far from booking address") {
+    return "GPS hiện tại đang quá xa địa chỉ đặt lịch. Vui lòng đến đúng vị trí rồi thử lại.";
+  }
+
+  return err?.message || "Không thể cập nhật ca làm. Vui lòng thử lại.";
+};
+
 const InfoMini = ({ label, value }) => (
   <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-3">
     <span className="block text-xs font-semibold text-slate-400">{label}</span>
@@ -195,6 +217,58 @@ const CompanionBookingDetailPage = () => {
     return false;
   };
 
+  const getCurrentLocation = () =>
+    new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Trình duyệt không hỗ trợ GPS"));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => reject(error),
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 10000,
+        },
+      );
+    });
+
+  const saveCurrentLocation = async (note = "Check-in GPS") => {
+    if (!ensureGps()) return false;
+
+    const location = await getCurrentLocation();
+    const response = await api.post(`/bookings/${id}/location`, { ...location, note });
+    const nextLocation = {
+      bookingId: id,
+      companionId: companionUserId,
+      ...location,
+      note,
+      recordedAt: new Date().toISOString(),
+    };
+
+    setLiveLocations((current) => [...current, nextLocation]);
+    setData((current) =>
+      current
+        ? {
+          ...current,
+          shiftLog: {
+            ...(current.shiftLog || {}),
+            ...(response.shiftLog || {}),
+          },
+        }
+        : current,
+    );
+
+    return true;
+  };
+
   const keepScrollPosition = () => {
     const scrollY = window.scrollY;
     const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -235,7 +309,7 @@ const CompanionBookingDetailPage = () => {
       restoreScroll();
       return true;
     } catch (err) {
-      setSubmitError(err.message);
+      setSubmitError(formatShiftError(err));
       restoreScroll();
       return false;
     }
@@ -281,7 +355,7 @@ const CompanionBookingDetailPage = () => {
       restoreScroll();
       return true;
     } catch (err) {
-      setSubmitError(err.message);
+      setSubmitError(formatShiftError(err));
       restoreScroll();
       return false;
     }
@@ -295,9 +369,20 @@ const CompanionBookingDetailPage = () => {
       return;
     }
 
-    const saved = await updateShift(checklist);
-    if (saved) {
-      await updateStatus("in_progress");
+    const restoreScroll = keepScrollPosition();
+    setSubmitError("");
+    try {
+      const locationSaved = await saveCurrentLocation();
+      if (!locationSaved) return;
+
+      const saved = await updateShift(checklist);
+      if (saved) {
+        await updateStatus("in_progress");
+      }
+    } catch (err) {
+      setSubmitError(formatShiftError(err));
+    } finally {
+      restoreScroll();
     }
   };
 

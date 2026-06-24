@@ -14,13 +14,15 @@ const markerIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+const MAP_PICKED_LABEL = "Vị trí đã chọn trên bản đồ";
+
 const ClickPicker = ({ onPick }) => {
   useMapEvents({
     click(event) {
       onPick({
         lat: event.latlng.lat,
         lng: event.latlng.lng,
-        displayName: "Vị trí đã chọn trên bản đồ",
+        displayName: MAP_PICKED_LABEL,
       });
     },
   });
@@ -33,10 +35,19 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
   const [error, setError] = useState("");
   const defaultCenter = [10.762622, 106.660172];
   const center = location ? [Number(location.lat), Number(location.lng)] : defaultCenter;
+  const trimmedAddress = address?.trim() || "";
+  const hasMapPickedLabel = trimmedAddress === MAP_PICKED_LABEL;
+  const isMapPickReady = Boolean(location) && hasMapPickedLabel;
+  const searchButtonLabel = isMapPickReady ? "Đã chọn trên bản đồ" : searching ? "Đang tìm..." : "Tìm trên bản đồ";
 
   const searchAddress = async () => {
-    if (!address?.trim()) {
-      setError("Vui long nhap dia chi truoc khi tim");
+    if (hasMapPickedLabel) {
+      setError(location ? "" : "Vui lòng nhập địa chỉ cụ thể để tìm kiếm.");
+      return;
+    }
+
+    if (!trimmedAddress) {
+      setError("Vui lòng nhập địa chỉ để tìm kiếm.");
       return;
     }
 
@@ -44,7 +55,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
     setError("");
     try {
       const params = new URLSearchParams({
-        q: address,
+        q: trimmedAddress,
         format: "json",
         limit: "1",
         countrycodes: "vn",
@@ -53,7 +64,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
       const results = await response.json();
 
       if (!results.length) {
-        setError("Khong tim thay dia chi nay");
+        setError("Không tìm thấy địa chỉ. Vui lòng thử lại.");
         return;
       }
 
@@ -65,13 +76,14 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
       });
       onAddressChange(result.display_name);
     } catch (err) {
-      setError(err.message || "Khong the tim dia chi");
+      setError(err.message || "Không thể tìm địa chỉ. Vui lòng thử lại sau.");
     } finally {
       setSearching(false);
     }
   };
 
   const handleAddressInputChange = (event) => {
+    setError("");
     onAddressChange(event.target.value);
     if (location) {
       onLocationChange(null);
@@ -79,9 +91,10 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
   };
 
   const handleMapPick = (addressLocation) => {
+    setError("");
     onLocationChange(addressLocation);
     if (!address?.trim()) {
-      onAddressChange(addressLocation.displayName || "Vi tri da chon tren ban do");
+      onAddressChange(addressLocation.displayName || MAP_PICKED_LABEL);
     }
   };
 
@@ -95,8 +108,8 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
           required
         />
         <div className="flex items-end">
-          <Button type="button" className="w-full md:w-auto" onClick={searchAddress} disabled={searching}>
-            {searching ? "Dang tim..." : "Tim tren ban do"}
+          <Button type="button" className="w-full md:w-auto" onClick={searchAddress} disabled={searching || isMapPickReady}>
+            {searchButtonLabel}
           </Button>
         </div>
       </div>
@@ -123,9 +136,10 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
       {location ? (
         <p className="text-sm text-slate-500">
           Đã ghim: {Number(location.lat).toFixed(6)}, {Number(location.lng).toFixed(6)}
+          {isMapPickReady ? ". Nhập địa chỉ nếu muốn tìm vị trí khác." : null}
         </p>
       ) : (
-        <p className="text-sm text-slate-500">Ban co the tim dia chi hoac bam truc tiep tren ban do de ghim vi tri.</p>
+        <p className="text-sm text-slate-500">Bạn có thể tìm địa chỉ hoặc bấm trực tiếp trên bản đồ để ghim vị trí</p>
       )}
     </div>
   );

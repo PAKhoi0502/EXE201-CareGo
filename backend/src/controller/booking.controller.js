@@ -79,9 +79,9 @@ const SHIFT_GPS_MAX_DISTANCE_METERS = getPositiveEnvNumber(
 const getPlatformFeeRate = () => {
   const rate = Number(
     process.env.CAREGO_PLATFORM_FEE_RATE ??
-      process.env.PLATFORM_FEE_RATE ??
-      process.env.COMPANION_PLATFORM_FEE_RATE ??
-      0.2,
+    process.env.PLATFORM_FEE_RATE ??
+    process.env.COMPANION_PLATFORM_FEE_RATE ??
+    0.2,
   );
 
   if (!Number.isFinite(rate) || rate < 0) return 0.2;
@@ -318,9 +318,9 @@ const isReusablePendingPayOSPayment = (payment, paidAmount, now) => {
   const existingPaidAmount = Number(payment.paidAmount || payment.amount || 0);
   return Boolean(
     payment.checkoutUrl &&
-      payment.expiresAt &&
-      payment.expiresAt > now &&
-      existingPaidAmount === paidAmount,
+    payment.expiresAt &&
+    payment.expiresAt > now &&
+    existingPaidAmount === paidAmount,
   );
 };
 
@@ -601,7 +601,7 @@ export const createBooking = async (req, res) => {
 
     const now = new Date();
     if (parsedStartTime <= now) {
-      return res.status(400).json({ message: "booking start time must be in the future" });
+      return res.status(400).json({ message: "Thời gian bắt đầu sai, quý khách vui lòng chọn lại." });
     }
 
     const normalizedAddressLocation = normalizeAddressLocation(addressLocation);
@@ -1080,12 +1080,12 @@ export const payBooking = async (req, res) => {
           },
           ...(penaltyAmount > 0
             ? [
-                {
-                  name: "Phi qua han",
-                  quantity: 1,
-                  price: penaltyAmount,
-                },
-              ]
+              {
+                name: "Phi qua han",
+                quantity: 1,
+                price: penaltyAmount,
+              },
+            ]
             : []),
         ],
       });
