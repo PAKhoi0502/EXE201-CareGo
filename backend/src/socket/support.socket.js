@@ -1,9 +1,16 @@
 import mongoose from "mongoose";
+import { createRateLimitChecker, getPositiveEnvNumber } from "../middlleware/rate-limit.middleware.js";
 import SupportConversation from "../models/support-conversation.models.js";
+import { revalidateSocketUser } from "./auth.socket.js";
 
 let supportIo = null;
 
 const roomName = (conversationId) => `support:${conversationId}`;
+const supportTypingRateLimit = createRateLimitChecker({
+  windowMs: getPositiveEnvNumber(["CAREGO_CHAT_TYPING_RATE_LIMIT_WINDOW_MS", "CHAT_TYPING_RATE_LIMIT_WINDOW_MS"], 10000),
+  max: getPositiveEnvNumber(["CAREGO_CHAT_TYPING_RATE_LIMIT_MAX", "CHAT_TYPING_RATE_LIMIT_MAX"], 20),
+  keyGenerator: ({ userId, conversationId }) => `${userId}:support:${conversationId}`,
+});
 
 const canAccessConversation = async (conversationId, user) => {
   if (!mongoose.isValidObjectId(conversationId)) return false;
@@ -25,7 +32,8 @@ export const setupSupportSocket = (io) => {
   io.on("connection", (socket) => {
     socket.on("support:join", async ({ conversationId }) => {
       try {
-        if (await canAccessConversation(conversationId, socket.user)) {
+        const activeUser = await revalidateSocketUser(socket);
+        if (activeUser && await canAccessConversation(conversationId, activeUser)) {
           socket.join(roomName(conversationId));
         }
       } catch {
@@ -37,15 +45,27 @@ export const setupSupportSocket = (io) => {
       if (conversationId) socket.leave(roomName(conversationId));
     });
 
-    socket.on("support:admin:join", () => {
-      if (socket.user.role === "admin") socket.join("support:admins");
+    socket.on("support:admin:join", async () => {
+      const activeUser = await revalidateSocketUser(socket);
+      if (activeUser?.role === "admin") socket.join("support:admins");
     });
 
-    socket.on("support:typing", ({ conversationId, isTyping }) => {
+    socket.on("support:typing", async ({ conversationId, isTyping }) => {
       if (!conversationId || !socket.rooms.has(roomName(conversationId))) return;
+      const activeUser = await revalidateSocketUser(socket);
+      if (!activeUser) return;
+      const rateLimit = supportTypingRateLimit({ userId: activeUser.userId, conversationId });
+      if (!rateLimit.allowed) {
+        socket.emit("support:rate-limit", {
+          event: "typing",
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        });
+        return;
+      }
+
       socket.to(roomName(conversationId)).emit("support:typing", {
         conversationId,
-        userId: socket.user.userId,
+        userId: activeUser.userId,
         isTyping: Boolean(isTyping),
       });
     });

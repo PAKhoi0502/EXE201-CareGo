@@ -1,5 +1,5 @@
 import Booking from "../models/booking.models.js";
-import BookingMessage from "../models/booking-message.models.js";
+import BookingMessage, { BOOKING_MESSAGE_MAX_LENGTH } from "../models/booking-message.models.js";
 import { emitBookingChatMessage } from "../socket/booking-chat.socket.js";
 import {
   BOOKING_CHAT_AFTER_COMPLETION_MS,
@@ -29,6 +29,39 @@ const serializeChat = (booking, now = new Date()) => ({
   booking,
   ...getBookingChatState(booking, now),
 });
+
+const normalizeMessageText = (value) => (typeof value === "string" ? value.trim() : "");
+
+const getMessageTextError = (text) => {
+  if (!text) {
+    return { statusCode: 400, message: "Vui lòng nhập nội dung tin nhắn." };
+  }
+
+  if (text.length > BOOKING_MESSAGE_MAX_LENGTH) {
+    return {
+      statusCode: 413,
+      message: `Tin nhắn tối đa ${BOOKING_MESSAGE_MAX_LENGTH} ký tự.`,
+      maxLength: BOOKING_MESSAGE_MAX_LENGTH,
+    };
+  }
+
+  return null;
+};
+
+const getValidationErrorResponse = (error) => {
+  if (error?.name !== "ValidationError") {
+    return null;
+  }
+
+  const isTooLong = Object.values(error.errors || {}).some((item) => item?.kind === "maxlength");
+  return {
+    statusCode: isTooLong ? 413 : 400,
+    message: isTooLong
+      ? `Tin nhắn tối đa ${BOOKING_MESSAGE_MAX_LENGTH} ký tự.`
+      : "Nội dung tin nhắn không hợp lệ.",
+    maxLength: isTooLong ? BOOKING_MESSAGE_MAX_LENGTH : undefined,
+  };
+};
 
 export const getActiveBookingChats = async (req, res) => {
   try {
@@ -92,9 +125,10 @@ export const sendBookingChatMessage = async (req, res) => {
       return res.status(403).json({ message: "Cuộc trò chuyện đã đóng.", chat });
     }
 
-    const text = req.body.message?.trim();
-    if (!text) {
-      return res.status(400).json({ message: "Vui lòng nhập nội dung tin nhắn." });
+    const text = normalizeMessageText(req.body?.message);
+    const textError = getMessageTextError(text);
+    if (textError) {
+      return res.status(textError.statusCode).json(textError);
     }
 
     const created = await BookingMessage.create({
@@ -110,6 +144,11 @@ export const sendBookingChatMessage = async (req, res) => {
     emitBookingChatMessage(booking._id, message, chat);
     return res.status(201).json({ message, chat });
   } catch (error) {
+    const validationError = getValidationErrorResponse(error);
+    if (validationError) {
+      return res.status(validationError.statusCode).json(validationError);
+    }
+
     return res.status(500).json({ message: error.message });
   }
 };

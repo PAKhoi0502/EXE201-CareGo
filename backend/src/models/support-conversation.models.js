@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+export const SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH = 160;
+
 const SupportConversationSchema = new mongoose.Schema(
   {
     userId: {
@@ -22,7 +24,7 @@ const SupportConversationSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 160,
+      maxlength: SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH,
     },
     category: {
       type: String,

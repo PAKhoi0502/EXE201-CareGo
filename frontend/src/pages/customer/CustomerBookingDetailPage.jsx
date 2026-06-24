@@ -7,6 +7,11 @@ import { useAsync } from "../../hooks/useAsync.js";
 import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 import { dateTime, money } from "../../utils/format.js";
 
+const MAX_LIVE_LOCATION_POINTS = 100;
+
+const appendLiveLocation = (locations, location) =>
+  [...locations, location].slice(-MAX_LIVE_LOCATION_POINTS);
+
 const ShiftPhoto = ({ label, url, onPreview }) => {
   // Normalize to array
   const urls = Array.isArray(url) ? url : (url ? [url] : []);
@@ -122,7 +127,7 @@ const CustomerBookingDetailPage = () => {
   const shiftLog = data?.shiftLog;
   const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
   const allLocations = useMemo(
-    () => [...(shiftLog?.locations || []), ...liveLocations],
+    () => [...(shiftLog?.locations || []), ...liveLocations].slice(-MAX_LIVE_LOCATION_POINTS),
     [shiftLog?.locations, liveLocations],
   );
   const latestLocation = allLocations[allLocations.length - 1];
@@ -158,7 +163,7 @@ const CustomerBookingDetailPage = () => {
 
     const handleLocation = (location) => {
       if (location.bookingId === id) {
-        setLiveLocations((current) => [...current, location]);
+        setLiveLocations((current) => appendLiveLocation(current, location));
       }
     };
 

@@ -21,6 +21,10 @@ const ShiftLogSchema = new mongoose.Schema(
         lat: Number,
         lng: Number,
         note: String,
+        createdBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "user",
+        },
         recordedAt: {
           type: Date,
           default: Date.now,

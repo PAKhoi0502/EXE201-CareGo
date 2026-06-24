@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+export const BOOKING_MESSAGE_MAX_LENGTH = 2000;
+
 const BookingMessageSchema = new mongoose.Schema(
   {
     bookingId: {
@@ -17,7 +19,7 @@ const BookingMessageSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 2000,
+      maxlength: BOOKING_MESSAGE_MAX_LENGTH,
     },
   },
   { timestamps: true },

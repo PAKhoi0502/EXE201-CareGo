@@ -4,7 +4,7 @@ import PendingRegistration from "../models/pending-registration.models.js";
 import Review from "../models/review.models.js";
 import User from "../models/user.models.js";
 import { sendOtpEmail } from "../utils/email.js";
-import { getUserOnlineStatuses } from "../socket/location.socket.js";
+import { disconnectUserSockets, getUserOnlineStatuses } from "../socket/location.socket.js";
 import { generateOtp, hashOtp } from "../utils/otp.js";
 
 const OTP_EXPIRES_IN_MS = 10 * 60 * 1000;
@@ -464,6 +464,10 @@ export const updateMyCompanionProfile = async (req, res) => {
       return res.status(404).json({ message: "user not found" });
     }
 
+    if (currentProfile.vettingStatus === "approved" && profile.vettingStatus !== "approved") {
+      disconnectUserSockets(userId, "companion profile requires approval again");
+    }
+
     return res.status(200).json({
       message: "companion profile updated",
       user,
@@ -559,6 +563,10 @@ export const adminUpdateCompanion = async (req, res) => {
       return res.status(409).json({ message: "companion status changed, please retry" });
     }
 
+    if (isStatusChange && nextVettingStatus !== "approved") {
+      disconnectUserSockets(profile.userId?._id || profile.userId, "companion approval status changed");
+    }
+
     return res
       .status(200)
       .json({ message: "companion updated", companion: profile });
@@ -620,6 +628,10 @@ export const adminUpdateCompanionStatus = async (req, res) => {
       .populate("reviewedBy", "name email");
     if (!updatedProfile) {
       return res.status(409).json({ message: "companion status changed, please retry" });
+    }
+
+    if (isStatusChange && nextVettingStatus !== "approved") {
+      disconnectUserSockets(updatedProfile.userId?._id || updatedProfile.userId, "companion approval status changed");
     }
 
     return res

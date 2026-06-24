@@ -75,6 +75,18 @@ const SHIFT_GPS_MAX_DISTANCE_METERS = getPositiveEnvNumber(
   ["CAREGO_SHIFT_GPS_MAX_DISTANCE_METERS", "SHIFT_GPS_MAX_DISTANCE_METERS"],
   500,
 );
+const SHIFT_GPS_MIN_INTERVAL_MS = getPositiveEnvNumber(
+  ["CAREGO_SHIFT_GPS_MIN_INTERVAL_MS", "SHIFT_GPS_MIN_INTERVAL_MS"],
+  10000,
+);
+const SHIFT_GPS_MIN_DISTANCE_METERS = getPositiveEnvNumber(
+  ["CAREGO_SHIFT_GPS_MIN_DISTANCE_METERS", "SHIFT_GPS_MIN_DISTANCE_METERS"],
+  10,
+);
+const SHIFT_GPS_MAX_LOCATIONS = Math.max(
+  1,
+  Math.floor(getPositiveEnvNumber(["CAREGO_SHIFT_GPS_MAX_LOCATIONS", "SHIFT_GPS_MAX_LOCATIONS"], 100)),
+);
 
 const getPlatformFeeRate = () => {
   const rate = Number(
@@ -217,6 +229,48 @@ const isGpsNearBookingAddress = (location, booking) => {
   }
 
   return getDistanceMeters(currentLocation, addressLocation) <= SHIFT_GPS_MAX_DISTANCE_METERS;
+};
+
+const getRecordedAtMs = (location) => {
+  const recordedAtMs = new Date(location?.recordedAt).getTime();
+  return Number.isFinite(recordedAtMs) ? recordedAtMs : 0;
+};
+
+const getLatestShiftGpsLocation = (locations, userId) => {
+  const entries = Array.isArray(locations) ? locations : [];
+  const fallback = [...entries].reverse().find((location) => normalizeGpsLocation(location));
+  const userLocation = [...entries]
+    .reverse()
+    .find((location) => normalizeGpsLocation(location) && toIdString(location.createdBy) === userId);
+
+  return userLocation || fallback || null;
+};
+
+const shouldStoreShiftGpsLocation = ({ locations, userId, location }) => {
+  const previous = getLatestShiftGpsLocation(locations, userId);
+  if (!previous) {
+    return { shouldStore: true };
+  }
+
+  const elapsedMs = location.recordedAt.getTime() - getRecordedAtMs(previous);
+  if (elapsedMs >= 0 && elapsedMs < SHIFT_GPS_MIN_INTERVAL_MS) {
+    return {
+      shouldStore: false,
+      reason: "gps location was sampled too recently",
+      retryAfterMs: SHIFT_GPS_MIN_INTERVAL_MS - elapsedMs,
+    };
+  }
+
+  const previousLocation = normalizeGpsLocation(previous);
+  if (previousLocation && getDistanceMeters(previousLocation, location) < SHIFT_GPS_MIN_DISTANCE_METERS) {
+    return {
+      shouldStore: false,
+      reason: "gps location has not moved enough",
+      minDistanceMeters: SHIFT_GPS_MIN_DISTANCE_METERS,
+    };
+  }
+
+  return { shouldStore: true };
 };
 
 const hasGpsEvidence = (shiftLog, booking) =>
@@ -865,8 +919,8 @@ export const addLocation = async (req, res) => {
       return res.status(400).json({ message: "lat and lng are required" });
     }
 
-    const location = normalizeGpsLocation({ lat, lng });
-    if (!location) {
+    const gpsLocation = normalizeGpsLocation({ lat, lng });
+    if (!gpsLocation) {
       return res.status(400).json({ message: "valid lat and lng are required" });
     }
 
@@ -879,6 +933,13 @@ export const addLocation = async (req, res) => {
       return res.status(409).json({ message: "booking shift evidence cannot be updated in current status" });
     }
 
+    const location = {
+      ...gpsLocation,
+      note,
+      createdBy: req.user.userId,
+      recordedAt: new Date(),
+    };
+
     if (!isGpsNearBookingAddress(location, booking)) {
       return res.status(409).json({
         message: "gps location is too far from booking address",
@@ -886,13 +947,35 @@ export const addLocation = async (req, res) => {
       });
     }
 
+    const existingShiftLog = await ShiftLog.findOne({ bookingId: booking._id }).select("locations");
+    const sampleDecision = shouldStoreShiftGpsLocation({
+      locations: existingShiftLog?.locations,
+      userId: req.user.userId,
+      location,
+    });
+    if (!sampleDecision.shouldStore) {
+      return res.status(200).json({
+        message: "location already sampled",
+        ...sampleDecision,
+        maxLocations: SHIFT_GPS_MAX_LOCATIONS,
+        shiftLog: existingShiftLog,
+      });
+    }
+
     const shiftLog = await ShiftLog.findOneAndUpdate(
       { bookingId: booking._id },
-      { $push: { locations: { ...location, note } } },
+      {
+        $push: {
+          locations: {
+            $each: [location],
+            $slice: -SHIFT_GPS_MAX_LOCATIONS,
+          },
+        },
+      },
       { new: true, upsert: true },
     );
 
-    return res.status(200).json({ message: "location added", shiftLog });
+    return res.status(200).json({ message: "location added", maxLocations: SHIFT_GPS_MAX_LOCATIONS, shiftLog });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }

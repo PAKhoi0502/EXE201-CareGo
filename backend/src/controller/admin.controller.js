@@ -5,7 +5,11 @@ import Service from "../models/service.models.js";
 import User from "../models/user.models.js";
 import { ensureDefaultBlogPosts } from "./blog.controller.js";
 import BlogPost from "../models/blog-post.models.js";
-import { getCompanionGpsStatuses, getUserOnlineStatuses } from "../socket/location.socket.js";
+import {
+  disconnectUserSockets,
+  getCompanionGpsStatuses,
+  getUserOnlineStatuses,
+} from "../socket/location.socket.js";
 
 export const getAdminDashboard = async (req, res) => {
   try {
@@ -87,11 +91,19 @@ export const getAdminUsers = async (req, res) => {
 export const updateUserStatus = async (req, res) => {
   try {
     const { isActive } = req.body;
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({ message: "isActive must be boolean" });
+    }
+
     const user = await User.findByIdAndUpdate(req.params.id, { isActive }, { new: true }).select(
       "-password -refreshToken",
     );
     if (!user) {
       return res.status(404).json({ message: "user not found" });
+    }
+
+    if (!user.isActive) {
+      disconnectUserSockets(user._id, "account has been disabled");
     }
 
     return res.status(200).json({ message: "user status updated", user });

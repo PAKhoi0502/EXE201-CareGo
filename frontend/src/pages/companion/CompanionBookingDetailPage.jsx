@@ -50,6 +50,10 @@ const flowSteps = [
 ];
 
 const isDevDemoMode = import.meta.env.DEV;
+const MAX_LIVE_LOCATION_POINTS = 100;
+
+const appendLiveLocation = (locations, location) =>
+  [...locations, location].slice(-MAX_LIVE_LOCATION_POINTS);
 
 const shiftRequirementMessages = {
   checkInPhotoUrl: "ảnh check-in",
@@ -130,8 +134,9 @@ const CompanionBookingDetailPage = () => {
   const hasChecklist = checklist.length > 0;
   const isChecklistDone = !hasChecklist || checklist.every((item) => item.done);
   const canEditRealtimeNote = booking?.status === "in_progress" && isChecklistDone;
+  const canTrackLiveLocation = ["accepted", "in_progress"].includes(booking?.status);
   const allLocations = useMemo(
-    () => [...(shiftLog?.locations || []), ...liveLocations],
+    () => [...(shiftLog?.locations || []), ...liveLocations].slice(-MAX_LIVE_LOCATION_POINTS),
     [shiftLog?.locations, liveLocations],
   );
   const latestLocation = allLocations[allLocations.length - 1];
@@ -147,18 +152,43 @@ const CompanionBookingDetailPage = () => {
     connectLocationSocket();
     locationSocket.emit("booking:join", { bookingId: id });
 
+    return () => {
+      locationSocket.emit("booking:leave", { bookingId: id });
+    };
+  }, [id]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!canTrackLiveLocation) {
+      Promise.resolve().then(() => {
+        if (!active) return;
+        setGpsReady(false);
+        setGpsError("");
+      });
+      locationSocket.emit("location:stop", { bookingId: id, companionId: companionUserId });
+      return () => {
+        active = false;
+      };
+    }
+
+    connectLocationSocket();
+
     if (!navigator.geolocation) {
       Promise.resolve().then(() => {
+        if (!active) return;
         setGpsReady(false);
         setGpsError("Trình duyệt không hỗ trợ GPS");
       });
       return () => {
-        locationSocket.emit("booking:leave", { bookingId: id });
+        active = false;
       };
     }
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
+        if (!active) return;
+
         const nextLocation = {
           bookingId: id,
           companionId: companionUserId,
@@ -168,12 +198,14 @@ const CompanionBookingDetailPage = () => {
           recordedAt: new Date().toISOString(),
         };
 
-        setLiveLocations((current) => [...current, nextLocation]);
+        setLiveLocations((current) => appendLiveLocation(current, nextLocation));
         locationSocket.emit("location:send", nextLocation);
         setGpsReady(true);
         setGpsError("");
       },
       (error) => {
+        if (!active) return;
+
         setGpsReady(false);
         setGpsError(error.message);
         locationSocket.emit("location:stop", { bookingId: id, companionId: companionUserId });
@@ -186,16 +218,15 @@ const CompanionBookingDetailPage = () => {
     );
 
     return () => {
+      active = false;
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
 
-      setGpsReady(false);
       locationSocket.emit("location:stop", { bookingId: id, companionId: companionUserId });
-      locationSocket.emit("booking:leave", { bookingId: id });
     };
-  }, [id, companionUserId]);
+  }, [id, companionUserId, canTrackLiveLocation]);
 
   useEffect(() => {
     if (!shiftLog) return;
@@ -275,7 +306,7 @@ const CompanionBookingDetailPage = () => {
       recordedAt: new Date().toISOString(),
     };
 
-    setLiveLocations((current) => [...current, nextLocation]);
+    setLiveLocations((current) => appendLiveLocation(current, nextLocation));
     setData((current) =>
       current
         ? {
@@ -505,7 +536,10 @@ const CompanionBookingDetailPage = () => {
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <InfoMini label="Khoảng cách" value={latestLocation && serviceLocation ? "GPS đang tính" : "Chờ GPS"} />
-              <InfoMini label="GPS thời gian thực" value={gpsReady ? "Đang bật" : "Cần cấp quyền"} />
+              <InfoMini
+                label="GPS thời gian thực"
+                value={canTrackLiveLocation ? (gpsReady ? "Đang bật" : "Cần cấp quyền") : "Bật sau khi nhận ca"}
+              />
               <InfoMini label="Thu nhập dự kiến" value={money(earning)} />
             </div>
           </div>
@@ -538,9 +572,9 @@ const CompanionBookingDetailPage = () => {
 
       <main className="mx-auto grid w-[min(1180px,92%)] gap-6 py-8 lg:grid-cols-[1fr_370px] lg:items-start">
         <section className="grid gap-6">
-          {!gpsReady ? (
+          {canTrackLiveLocation && !gpsReady ? (
             <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-              Bạn cần bật GPS và cho phép trình duyệt truy cập vị trí. Nếu không bật GPS, bạn sẽ không thể nhận ca, check-in hay cập nhật checklist.
+              Bạn cần bật GPS và cho phép trình duyệt truy cập vị trí. Nếu không bật GPS, bạn sẽ không thể check-in hay cập nhật checklist.
               {gpsError ? <p className="mt-1">Lỗi GPS: {gpsError}</p> : null}
             </div>
           ) : null}

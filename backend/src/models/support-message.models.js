@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+export const SUPPORT_MESSAGE_MAX_LENGTH = 3000;
+
 const SupportMessageSchema = new mongoose.Schema(
   {
     conversationId: {
@@ -17,7 +19,7 @@ const SupportMessageSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 3000,
+      maxlength: SUPPORT_MESSAGE_MAX_LENGTH,
     },
     isRead: {
       type: Boolean,

@@ -122,47 +122,6 @@ export const AuthProvider = ({ children }) => {
     };
   }, [user, userId]);
 
-  useEffect(() => {
-    if (!userId || !isApprovedCompanionUser) return undefined;
-
-    connectLocationSocket();
-
-    if (!navigator.geolocation) {
-      locationSocket.emit("companion:gps:stop", { companionId: userId });
-      return undefined;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        locationSocket.emit("companion:gps:update", {
-          companionId: userId,
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      () => {
-        locationSocket.emit("companion:gps:stop", { companionId: userId });
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 10000,
-        timeout: 15000,
-      },
-    );
-
-    const stopGps = () => {
-      locationSocket.emit("companion:gps:stop", { companionId: userId });
-    };
-
-    window.addEventListener("beforeunload", stopGps);
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-      window.removeEventListener("beforeunload", stopGps);
-      stopGps();
-    };
-  }, [userId, isApprovedCompanionUser]);
-
   const value = useMemo(
     () => ({
       user,

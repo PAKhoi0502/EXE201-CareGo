@@ -1,9 +1,71 @@
-import SupportConversation from "../models/support-conversation.models.js";
-import SupportMessage from "../models/support-message.models.js";
+import SupportConversation, {
+  SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH,
+} from "../models/support-conversation.models.js";
+import SupportMessage, { SUPPORT_MESSAGE_MAX_LENGTH } from "../models/support-message.models.js";
 import { emitSupportConversation, emitSupportMessage } from "../socket/support.socket.js";
 
 const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 const isAdmin = (req) => req.user?.role === "admin";
+
+const normalizeMessageText = (value) => (typeof value === "string" ? value.trim() : "");
+const normalizeSubjectText = (value) => (typeof value === "string" ? value.trim() : "");
+
+const getSubjectTextError = (text) => {
+  if (!text) {
+    return { statusCode: 400, message: "Vui lòng nhập chủ đề và nội dung cần hỗ trợ." };
+  }
+
+  if (text.length > SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH) {
+    return {
+      statusCode: 413,
+      message: `Chủ đề tối đa ${SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH} ký tự.`,
+      maxLength: SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH,
+    };
+  }
+
+  return null;
+};
+
+const getMessageTextError = (text) => {
+  if (!text) {
+    return { statusCode: 400, message: "Vui lòng nhập nội dung tin nhắn." };
+  }
+
+  if (text.length > SUPPORT_MESSAGE_MAX_LENGTH) {
+    return {
+      statusCode: 413,
+      message: `Tin nhắn tối đa ${SUPPORT_MESSAGE_MAX_LENGTH} ký tự.`,
+      maxLength: SUPPORT_MESSAGE_MAX_LENGTH,
+    };
+  }
+
+  return null;
+};
+
+const getValidationErrorResponse = (error) => {
+  if (error?.name !== "ValidationError") {
+    return null;
+  }
+
+  const errors = Object.values(error.errors || {});
+  const subjectTooLong = errors.some((item) => item?.path === "subject" && item?.kind === "maxlength");
+  const messageTooLong = errors.some((item) => item?.path === "message" && item?.kind === "maxlength");
+  if (subjectTooLong) {
+    return {
+      statusCode: 413,
+      message: `Chủ đề tối đa ${SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH} ký tự.`,
+      maxLength: SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH,
+    };
+  }
+
+  return {
+    statusCode: messageTooLong ? 413 : 400,
+    message: messageTooLong
+      ? `Tin nhắn tối đa ${SUPPORT_MESSAGE_MAX_LENGTH} ký tự.`
+      : "Dữ liệu hỗ trợ không hợp lệ.",
+    maxLength: messageTooLong ? SUPPORT_MESSAGE_MAX_LENGTH : undefined,
+  };
+};
 
 const populateConversation = (query) =>
   query
@@ -21,25 +83,33 @@ export const createSupportConversation = async (req, res) => {
   try {
     const userId = getUserId(req);
     const { subject, category = "other", priority = "normal", bookingId, message } = req.body;
+    const subjectText = normalizeSubjectText(subject);
+    const messageText = normalizeMessageText(message);
 
-    if (!subject?.trim() || !message?.trim()) {
-      return res.status(400).json({ message: "Vui lòng nhập chủ đề và nội dung cần hỗ trợ." });
+    const subjectError = getSubjectTextError(subjectText);
+    if (subjectError) {
+      return res.status(subjectError.statusCode).json(subjectError);
+    }
+
+    const messageError = getMessageTextError(messageText);
+    if (messageError) {
+      return res.status(messageError.statusCode).json(messageError);
     }
 
     const conversation = await SupportConversation.create({
       userId,
-      subject: subject.trim(),
+      subject: subjectText,
       category,
       priority,
       bookingId: bookingId || null,
-      lastMessage: message.trim(),
+      lastMessage: messageText,
       lastMessageAt: new Date(),
     });
 
     const supportMessage = await SupportMessage.create({
       conversationId: conversation._id,
       senderId: userId,
-      message: message.trim(),
+      message: messageText,
     });
 
     const populatedConversation = await populateConversation(
@@ -53,6 +123,11 @@ export const createSupportConversation = async (req, res) => {
     emitSupportConversation("support:new-conversation", populatedConversation);
     return res.status(201).json({ conversation: populatedConversation, message: populatedMessage });
   } catch (error) {
+    const validationError = getValidationErrorResponse(error);
+    if (validationError) {
+      return res.status(validationError.statusCode).json(validationError);
+    }
+
     return res.status(500).json({ message: error.message });
   }
 };
@@ -111,8 +186,9 @@ export const sendSupportMessage = async (req, res) => {
       return res.status(400).json({ message: "Cuộc trò chuyện đã được giải quyết." });
     }
 
-    const text = req.body.message?.trim();
-    if (!text) return res.status(400).json({ message: "Vui lòng nhập nội dung tin nhắn." });
+    const text = normalizeMessageText(req.body?.message);
+    const textError = getMessageTextError(text);
+    if (textError) return res.status(textError.statusCode).json(textError);
 
     if (isAdmin(req) && !conversation.assignedAdminId) {
       conversation.assignedAdminId = getUserId(req);
@@ -138,6 +214,11 @@ export const sendSupportMessage = async (req, res) => {
     emitSupportMessage(conversation._id, populatedMessage, populatedConversation);
     return res.status(201).json({ message: populatedMessage, conversation: populatedConversation });
   } catch (error) {
+    const validationError = getValidationErrorResponse(error);
+    if (validationError) {
+      return res.status(validationError.statusCode).json(validationError);
+    }
+
     return res.status(500).json({ message: error.message });
   }
 };

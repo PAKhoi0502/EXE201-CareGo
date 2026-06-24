@@ -1,10 +1,17 @@
 import mongoose from "mongoose";
+import { createRateLimitChecker, getPositiveEnvNumber } from "../middlleware/rate-limit.middleware.js";
 import Booking from "../models/booking.models.js";
 import { getBookingChatState, isBookingChatParticipant } from "../utils/booking-chat.js";
+import { revalidateSocketUser } from "./auth.socket.js";
 
 let bookingChatIo = null;
 
 const roomName = (bookingId) => `booking-chat:${bookingId}`;
+const bookingChatTypingRateLimit = createRateLimitChecker({
+  windowMs: getPositiveEnvNumber(["CAREGO_CHAT_TYPING_RATE_LIMIT_WINDOW_MS", "CHAT_TYPING_RATE_LIMIT_WINDOW_MS"], 10000),
+  max: getPositiveEnvNumber(["CAREGO_CHAT_TYPING_RATE_LIMIT_MAX", "CHAT_TYPING_RATE_LIMIT_MAX"], 20),
+  keyGenerator: ({ userId, bookingId }) => `${userId}:booking:${bookingId}`,
+});
 
 const findAvailableBooking = async (bookingId, user) => {
   if (!mongoose.isValidObjectId(bookingId)) return null;
@@ -20,7 +27,8 @@ export const setupBookingChatSocket = (io) => {
   io.on("connection", (socket) => {
     socket.on("booking-chat:join", async ({ bookingId }, acknowledge) => {
       try {
-        const result = bookingId ? await findAvailableBooking(bookingId, socket.user) : null;
+        const activeUser = await revalidateSocketUser(socket);
+        const result = activeUser && bookingId ? await findAvailableBooking(bookingId, activeUser) : null;
         if (!result) {
           acknowledge?.({ ok: false });
           return;
@@ -40,7 +48,18 @@ export const setupBookingChatSocket = (io) => {
     socket.on("booking-chat:typing", async ({ bookingId, isTyping }) => {
       if (!bookingId || !socket.rooms.has(roomName(bookingId))) return;
       try {
-        const result = await findAvailableBooking(bookingId, socket.user);
+        const activeUser = await revalidateSocketUser(socket);
+        if (!activeUser) return;
+        const rateLimit = bookingChatTypingRateLimit({ userId: activeUser.userId, bookingId });
+        if (!rateLimit.allowed) {
+          socket.emit("booking-chat:rate-limit", {
+            event: "typing",
+            retryAfterSeconds: rateLimit.retryAfterSeconds,
+          });
+          return;
+        }
+
+        const result = await findAvailableBooking(bookingId, activeUser);
         if (!result) {
           socket.leave(roomName(bookingId));
           return;
