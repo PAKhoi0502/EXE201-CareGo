@@ -49,6 +49,8 @@ const flowSteps = [
   ["Hoàn thành", "completed"],
 ];
 
+const isDevDemoMode = import.meta.env.DEV;
+
 const shiftRequirementMessages = {
   checkInPhotoUrl: "ảnh check-in",
   gpsLocationNearAddress: "GPS gần địa chỉ đặt lịch",
@@ -102,6 +104,9 @@ const CompanionBookingDetailPage = () => {
     companionNote: "",
   });
   const [submitError, setSubmitError] = useState("");
+  const [checkInError, setCheckInError] = useState("");
+  const [realtimeNoteFeedback, setRealtimeNoteFeedback] = useState(null);
+  const [completionFeedback, setCompletionFeedback] = useState(null);
   const [gpsReady, setGpsReady] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [liveLocations, setLiveLocations] = useState([]);
@@ -113,6 +118,7 @@ const CompanionBookingDetailPage = () => {
   const emergencyContact = elderProfile?.emergencyContact || {};
   const companionUserId = booking?.companionId?._id || booking?.companionId;
   const serviceLocation = booking?.addressLocation?.lat ? booking.addressLocation : null;
+  const canUseDemoCheckInGps = isDevDemoMode && Boolean(serviceLocation) && booking?.status === "accepted";
   const checklist = useMemo(() => shiftLog?.checklist || [], [shiftLog]);
   const savedCheckInPhotoUrls = Array.isArray(shiftLog?.checkInPhotoUrl) ? shiftLog.checkInPhotoUrl : [];
   const hasSavedCheckInPhoto = savedCheckInPhotoUrls.length > 0;
@@ -144,7 +150,7 @@ const CompanionBookingDetailPage = () => {
     if (!navigator.geolocation) {
       Promise.resolve().then(() => {
         setGpsReady(false);
-      setGpsError("Trình duyệt không hỗ trợ GPS");
+        setGpsError("Trình duyệt không hỗ trợ GPS");
       });
       return () => {
         locationSocket.emit("booking:leave", { bookingId: id });
@@ -198,12 +204,12 @@ const CompanionBookingDetailPage = () => {
     Promise.resolve().then(() => {
       if (!active) return;
       setShift({
-      checkInPhotoUrl: Array.isArray(shiftLog.checkInPhotoUrl) ? shiftLog.checkInPhotoUrl : [],
-      checkOutPhotoUrl: Array.isArray(shiftLog.checkOutPhotoUrl) ? shiftLog.checkOutPhotoUrl : [],
-      bloodPressure: shiftLog.healthMetrics?.bloodPressure || "",
-      heartRate: shiftLog.healthMetrics?.heartRate || "",
-      mood: shiftLog.healthMetrics?.mood || "",
-      companionNote: shiftLog.companionNote || "",
+        checkInPhotoUrl: Array.isArray(shiftLog.checkInPhotoUrl) ? shiftLog.checkInPhotoUrl : [],
+        checkOutPhotoUrl: Array.isArray(shiftLog.checkOutPhotoUrl) ? shiftLog.checkOutPhotoUrl : [],
+        bloodPressure: shiftLog.healthMetrics?.bloodPressure || "",
+        heartRate: shiftLog.healthMetrics?.heartRate || "",
+        mood: shiftLog.healthMetrics?.mood || "",
+        companionNote: shiftLog.companionNote || "",
       });
     });
     return () => {
@@ -211,9 +217,28 @@ const CompanionBookingDetailPage = () => {
     };
   }, [shiftLog]);
 
-  const ensureGps = () => {
+  const setActionError = (message, area = "global") => {
+    if (area === "checkIn") {
+      setCheckInError(message);
+      return;
+    }
+
+    if (area === "realtimeNote") {
+      setRealtimeNoteFeedback(message ? { tone: "error", message } : null);
+      return;
+    }
+
+    if (area === "completion") {
+      setCompletionFeedback(message ? { tone: "error", message } : null);
+      return;
+    }
+
+    setSubmitError(message);
+  };
+
+  const ensureGps = (area = "global") => {
     if (gpsReady) return true;
-    setSubmitError("Bạn cần bật GPS và cấp quyền vị trí để thao tác ca làm.");
+    setActionError("Bạn cần bật GPS và cấp quyền vị trí để thao tác ca làm.", area);
     return false;
   };
 
@@ -240,10 +265,7 @@ const CompanionBookingDetailPage = () => {
       );
     });
 
-  const saveCurrentLocation = async (note = "Check-in GPS") => {
-    if (!ensureGps()) return false;
-
-    const location = await getCurrentLocation();
+  const saveShiftLocation = async (location, note) => {
     const response = await api.post(`/bookings/${id}/location`, { ...location, note });
     const nextLocation = {
       bookingId: id,
@@ -269,6 +291,28 @@ const CompanionBookingDetailPage = () => {
     return true;
   };
 
+  const saveCurrentLocation = async (note = "Check-in GPS", { errorArea = "global" } = {}) => {
+    if (!ensureGps(errorArea)) return false;
+
+    const location = await getCurrentLocation();
+    return saveShiftLocation(location, note);
+  };
+
+  const saveDemoLocation = async (note = "Demo GPS - chỉ dùng để kiểm thử", { errorArea = "global" } = {}) => {
+    if (!serviceLocation) {
+      setActionError("Đơn này chưa có tọa độ điểm hẹn để dùng GPS demo.", errorArea);
+      return false;
+    }
+
+    return saveShiftLocation(
+      {
+        lat: Number(serviceLocation.lat),
+        lng: Number(serviceLocation.lng),
+      },
+      note,
+    );
+  };
+
   const keepScrollPosition = () => {
     const scrollY = window.scrollY;
     const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -287,11 +331,11 @@ const CompanionBookingDetailPage = () => {
     };
   };
 
-  const updateStatus = async (nextStatus, { requireGps = true } = {}) => {
-    if (requireGps && !ensureGps()) return false;
+  const updateStatus = async (nextStatus, { requireGps = true, errorArea = "global" } = {}) => {
+    if (requireGps && !ensureGps(errorArea)) return false;
 
     const restoreScroll = keepScrollPosition();
-    setSubmitError("");
+    setActionError("", errorArea);
     try {
       const response = await api.patch(`/bookings/${id}/status`, { status: nextStatus });
       setData((current) =>
@@ -309,17 +353,21 @@ const CompanionBookingDetailPage = () => {
       restoreScroll();
       return true;
     } catch (err) {
-      setSubmitError(formatShiftError(err));
+      setActionError(formatShiftError(err), errorArea);
       restoreScroll();
       return false;
     }
   };
 
-  const updateShift = async (nextChecklist = checklist, nextShift = shift) => {
-    if (!ensureGps()) return false;
+  const updateShift = async (
+    nextChecklist = checklist,
+    nextShift = shift,
+    { errorArea = "global", requireGps = true } = {},
+  ) => {
+    if (requireGps && !ensureGps(errorArea)) return false;
 
     const restoreScroll = keepScrollPosition();
-    setSubmitError("");
+    setActionError("", errorArea);
     try {
       const response = await api.patch(`/bookings/${id}/shift-log`, {
         checkInPhotoUrl: nextShift.checkInPhotoUrl,
@@ -355,32 +403,49 @@ const CompanionBookingDetailPage = () => {
       restoreScroll();
       return true;
     } catch (err) {
-      setSubmitError(formatShiftError(err));
+      setActionError(formatShiftError(err), errorArea);
       restoreScroll();
       return false;
     }
   };
 
+  const saveRealtimeNote = async () => {
+    if (!shift.companionNote.trim()) {
+      setRealtimeNoteFeedback({ tone: "error", message: "Vui lòng nhập ghi chú trước khi lưu." });
+      return;
+    }
+
+    const saved = await updateShift(checklist, shift, { errorArea: "realtimeNote" });
+    if (saved) {
+      setRealtimeNoteFeedback({
+        tone: "success",
+        message: "Đã lưu ghi chú trong ca. Gia đình có thể theo dõi cập nhật này.",
+      });
+    }
+  };
+
   const acceptBooking = () => updateStatus("accepted", { requireGps: false });
 
-  const checkInShift = async () => {
+  const checkInShift = async ({ useDemoLocation = false } = {}) => {
     if (!hasSavedCheckInPhoto) {
-      setSubmitError("Bạn cần chụp hoặc tải ảnh check-in trước khi bấm Đã đến nơi.");
+      setCheckInError("Bạn cần chụp hoặc tải ảnh check-in trước khi bấm Đã đến nơi.");
       return;
     }
 
     const restoreScroll = keepScrollPosition();
-    setSubmitError("");
+    setCheckInError("");
     try {
-      const locationSaved = await saveCurrentLocation();
+      const locationSaved = useDemoLocation
+        ? await saveDemoLocation("Demo GPS check-in - chỉ dùng để kiểm thử", { errorArea: "checkIn" })
+        : await saveCurrentLocation("Check-in GPS", { errorArea: "checkIn" });
       if (!locationSaved) return;
 
-      const saved = await updateShift(checklist);
+      const saved = await updateShift(checklist, shift, { errorArea: "checkIn", requireGps: !useDemoLocation });
       if (saved) {
-        await updateStatus("in_progress");
+        await updateStatus("in_progress", { errorArea: "checkIn", requireGps: !useDemoLocation });
       }
     } catch (err) {
-      setSubmitError(formatShiftError(err));
+      setCheckInError(formatShiftError(err));
     } finally {
       restoreScroll();
     }
@@ -388,18 +453,25 @@ const CompanionBookingDetailPage = () => {
 
   const completeShift = async () => {
     if (!hasSavedCheckOutPhoto) {
-      setSubmitError("Bạn cần lưu ảnh sau ca trước khi hoàn thành.");
+      setCompletionFeedback({ tone: "error", message: "Bạn cần lưu ảnh sau ca trước khi hoàn thành." });
       return;
     }
 
     if (!hasSavedRealtimeNote) {
-      setSubmitError("Bạn cần lưu ghi chú trước khi hoàn thành ca.");
+      setCompletionFeedback({ tone: "error", message: "Bạn cần lưu ghi chú trước khi hoàn thành ca." });
       return;
     }
 
-    const saved = await updateShift(checklist);
-    if (saved) {
-      await updateStatus("completed");
+    setCompletionFeedback(null);
+    const saved = await updateShift(checklist, shift, { errorArea: "completion" });
+    if (!saved) return;
+
+    const completed = await updateStatus("completed", { errorArea: "completion" });
+    if (completed) {
+      setCompletionFeedback({
+        tone: "success",
+        message: "Đã gửi báo cáo hoàn thành ca. Hệ thống sẽ chờ khách hàng xác nhận và thanh toán.",
+      });
     }
   };
 
@@ -634,6 +706,12 @@ const CompanionBookingDetailPage = () => {
               <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">Ảnh trước ca</span>
             </div>
 
+            {checkInError ? (
+              <div className="mb-5 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-700">
+                {checkInError}
+              </div>
+            ) : null}
+
             <div className={`rounded-3xl bg-[#fbfffe] p-5 ${hasSavedCheckInPhoto ? "border border-teal-100" : "border-2 border-dashed border-teal-200"}`}>
               {booking.status === "pending" ? (
                 <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
@@ -644,7 +722,10 @@ const CompanionBookingDetailPage = () => {
                 label="Ảnh check-in"
                 folder="carego/check-in"
                 value={shift.checkInPhotoUrl}
-                onUploaded={(url) => setShift({ ...shift, checkInPhotoUrl: url })}
+                onUploaded={(url) => {
+                  setCheckInError("");
+                  setShift({ ...shift, checkInPhotoUrl: url });
+                }}
                 locked={booking.status === "pending" || hasSavedCheckInPhoto}
                 compact={hasSavedCheckInPhoto}
               />
@@ -660,9 +741,29 @@ const CompanionBookingDetailPage = () => {
               </div>
             ) : null}
 
+            {isDevDemoMode ? (
+              <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                <strong className="block font-black">Chế độ demo cho kiểm thử</strong>
+                <p className="mt-1 font-semibold">
+                  Đây là GPS chế độ demo, chỉ dùng để kiểm thử. Khi bật chế độ này, GPS sẽ trả về tọa độ điểm hẹn của khách hàng thay vì vị trí thực tế của bạn. Chế độ này chỉ nên dùng khi bạn đang ở xa điểm hẹn và muốn kiểm thử quy trình check-in.
+                </p>
+                {hasSavedCheckInPhoto && booking.status === "accepted" ? (
+                  <Button
+                    type="button"
+                    className="mt-3 min-h-11 rounded-full px-5 font-black"
+                    variant="secondary"
+                    onClick={() => checkInShift({ useDemoLocation: true })}
+                    disabled={!canUseDemoCheckInGps}
+                  >
+                    Dùng GPS demo để test
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className={`mt-5 grid gap-3 ${hasSavedCheckInPhoto ? "sm:grid-cols-2" : ""}`}>
               {!hasSavedCheckInPhoto ? (
-                <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist)} disabled={!gpsReady || shift.checkInPhotoUrl.length === 0}>
+                <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist, shift, { errorArea: "checkIn", requireGps: !canUseDemoCheckInGps })} disabled={(!gpsReady && !canUseDemoCheckInGps) || shift.checkInPhotoUrl.length === 0}>
                   Lưu ảnh check-in
                 </Button>
               ) : null}
@@ -744,14 +845,28 @@ const CompanionBookingDetailPage = () => {
                 Bạn cần hoàn thành toàn bộ checklist trước khi nhập ghi chú thời gian thực.
               </div>
             ) : null}
+            {realtimeNoteFeedback ? (
+              <div
+                className={`mb-5 rounded-3xl border p-4 text-sm font-semibold leading-6 ${
+                  realtimeNoteFeedback.tone === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}
+              >
+                {realtimeNoteFeedback.message}
+              </div>
+            ) : null}
             <fieldset disabled={!canEditRealtimeNote} className="contents">
               <Textarea
                 label="Ghi chú trong ca / lời dặn bác sĩ"
                 value={shift.companionNote}
                 disabled={booking.status === "pending"}
-                onChange={(event) => setShift({ ...shift, companionNote: event.target.value })}
+                onChange={(event) => {
+                  setRealtimeNoteFeedback(null);
+                  setShift({ ...shift, companionNote: event.target.value });
+                }}
               />
-              <Button className="mt-4 min-h-12 rounded-full px-6 font-black" onClick={() => updateShift(checklist)} disabled={!gpsReady || booking.status === "pending"}>
+              <Button className="mt-4 min-h-12 rounded-full px-6 font-black" onClick={saveRealtimeNote} disabled={!gpsReady || booking.status === "pending"}>
                 Lưu ghi chú
               </Button>
             </fieldset>
@@ -765,6 +880,18 @@ const CompanionBookingDetailPage = () => {
               </div>
               <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Cần cập nhật</span>
             </div>
+
+            {completionFeedback ? (
+              <div
+                className={`mb-5 rounded-3xl border p-4 text-sm font-semibold leading-6 ${
+                  completionFeedback.tone === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}
+              >
+                {completionFeedback.message}
+              </div>
+            ) : null}
 
             <div className="rounded-3xl border-2 border-dashed border-teal-200 bg-[#fbfffe] p-5">
               {booking.status === "pending" ? (
@@ -791,14 +918,17 @@ const CompanionBookingDetailPage = () => {
                 label="Ảnh sau ca"
                 folder="carego/check-out"
                 value={shift.checkOutPhotoUrl}
-                onUploaded={(url) => setShift({ ...shift, checkOutPhotoUrl: url })}
+                onUploaded={(url) => {
+                  setCompletionFeedback(null);
+                  setShift({ ...shift, checkOutPhotoUrl: url });
+                }}
                 locked={booking.status === "pending" || !hasSavedRealtimeNote || hasSavedCheckOutPhoto}
                 compact={hasSavedCheckOutPhoto}
               />
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {!hasSavedCheckOutPhoto ? (
-                <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist)} disabled={!gpsReady || !hasSavedRealtimeNote || !hasCheckOutPhoto}>
+                <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist, shift, { errorArea: "completion" })} disabled={!gpsReady || !hasSavedRealtimeNote || !hasCheckOutPhoto}>
                   Lưu ảnh
                 </Button>
               ) : null}
