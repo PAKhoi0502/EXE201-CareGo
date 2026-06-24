@@ -11,7 +11,11 @@ const WithdrawalRequestSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
-      min: 0,
+      min: 1000,
+      validate: {
+        validator: Number.isInteger,
+        message: "Withdrawal amount must be an integer.",
+      },
     },
     bankName: {
       type: String,
@@ -46,6 +50,11 @@ const WithdrawalRequestSchema = new mongoose.Schema(
     },
     processedAt: {
       type: Date,
+      default: null,
+    },
+    processedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
       default: null,
     },
   },

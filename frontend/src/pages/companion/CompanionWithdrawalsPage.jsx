@@ -209,6 +209,7 @@ export default function CompanionWithdrawalsPage() {
                 <input
                   type="number"
                   min="1000"
+                  step="1000"
                   value={form.amount}
                   onChange={(event) => updateForm("amount", event.target.value)}
                   placeholder="VD: 100000"

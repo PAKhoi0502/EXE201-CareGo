@@ -87,6 +87,7 @@ const PaymentSchema = new mongoose.Schema(
 
 PaymentSchema.index({ orderCode: 1 }, { unique: true, sparse: true });
 PaymentSchema.index({ paymentLinkId: 1 }, { sparse: true });
+PaymentSchema.index({ companionId: 1, status: 1 });
 PaymentSchema.index({ status: 1, expiresAt: 1 });
 
 const Payment = mongoose.model("payment", PaymentSchema);

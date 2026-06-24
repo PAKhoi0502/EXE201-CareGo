@@ -1,70 +1,121 @@
+import crypto from "crypto";
+import mongoose from "mongoose";
+import WithdrawalCompanionLock from "../models/withdrawal-companion-lock.models.js";
 import WithdrawalRequest from "../models/withdrawal-request.models.js";
-import Booking from "../models/booking.models.js";
-import CompanionProfile from "../models/companion-profile.models.js";
+import Payment from "../models/payment.models.js";
+
+const WITHDRAWAL_CREATE_LOCK_TTL_MS = 10 * 1000;
+const WITHDRAWAL_CREATE_LOCK_WAIT_MS = 1200;
+const WITHDRAWAL_CREATE_LOCK_RETRY_MS = 75;
+const MIN_WITHDRAWAL_AMOUNT = 1000;
+const WITHDRAWAL_STATUS_TRANSITIONS = {
+  pending: ["approved", "rejected"],
+  approved: ["paid", "rejected"],
+  paid: [],
+  rejected: [],
+};
 
 const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createWithdrawalLockBusyError = () => {
+  const error = new Error("Withdrawal request is being created. Please try again.");
+  error.statusCode = 409;
+  return error;
+};
+
+const acquireCompanionWithdrawalLock = async (companionId) => {
+  const lockId = String(companionId);
+  const ownerToken = crypto.randomUUID?.() || crypto.randomBytes(16).toString("hex");
+  const getExpiresAt = () => new Date(Date.now() + WITHDRAWAL_CREATE_LOCK_TTL_MS);
+  const deadline = Date.now() + WITHDRAWAL_CREATE_LOCK_WAIT_MS;
+
+  while (Date.now() <= deadline) {
+    try {
+      await WithdrawalCompanionLock.create({
+        _id: lockId,
+        ownerToken,
+        expiresAt: getExpiresAt(),
+      });
+      return { lockId, ownerToken };
+    } catch (error) {
+      if (error?.code !== 11000) {
+        throw error;
+      }
+    }
+
+    const acquiredLock = await WithdrawalCompanionLock.findOneAndUpdate(
+      {
+        _id: lockId,
+        expiresAt: { $lte: new Date() },
+      },
+      { $set: { ownerToken, expiresAt: getExpiresAt() } },
+      { new: true },
+    ).select("ownerToken");
+
+    if (acquiredLock?.ownerToken === ownerToken) {
+      return { lockId, ownerToken };
+    }
+
+    await sleep(WITHDRAWAL_CREATE_LOCK_RETRY_MS);
+  }
+
+  throw createWithdrawalLockBusyError();
+};
+
+const releaseCompanionWithdrawalLock = async (lock) => {
+  if (!lock) return;
+
+  try {
+    await WithdrawalCompanionLock.deleteOne({
+      _id: lock.lockId,
+      ownerToken: lock.ownerToken,
+    });
+  } catch {
+    // The lock has a TTL fallback, so release failure should not mask the withdrawal response.
+  }
+};
 
 const normalizeAmount = (amount) => {
   const value = Number(amount);
   return Number.isFinite(value) ? value : 0;
 };
 
+const isValidWithdrawalAmount = (amount) =>
+  Number.isInteger(amount) && amount >= MIN_WITHDRAWAL_AMOUNT;
+
 const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
 
-const getPlatformFeeRate = () => {
-  const rate = Number(
-    process.env.CAREGO_PLATFORM_FEE_RATE ??
-      process.env.COMPANION_PLATFORM_FEE_RATE ??
-      process.env.PLATFORM_FEE_RATE ??
-      0.1
-  );
+const canTransitionWithdrawalStatus = (currentStatus, nextStatus) =>
+  currentStatus === nextStatus ||
+  Boolean(WITHDRAWAL_STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus));
 
-  if (!Number.isFinite(rate) || rate < 0) return 0.1;
-  return rate > 1 ? rate / 100 : rate;
+const toPaymentCompanionId = (companionId) => {
+  const id = String(companionId || "");
+  return mongoose.Types.ObjectId.isValid(id)
+    ? new mongoose.Types.ObjectId(id)
+    : companionId;
 };
 
-const getBookingEarning = (booking) => {
-  const directEarning = normalizeAmount(
-    booking.companionEarning ??
-      booking.companionAmount ??
-      booking.earningAmount ??
-      booking.totalEarning ??
-      booking.companionFee
-  );
+const getTotalPaidCompanionEarnings = async (companionId) => {
+  const paymentCompanionId = toPaymentCompanionId(companionId);
+  const [earnings] = await Payment.aggregate([
+    {
+      $match: {
+        companionId: paymentCompanionId,
+        status: "paid",
+      },
+    },
+    {
+      $group: {
+        _id: "$companionId",
+        totalEarned: { $sum: { $ifNull: ["$companionEarning", 0] } },
+      },
+    },
+  ]);
 
-  if (directEarning > 0) return directEarning;
-
-  const serviceAmount = normalizeAmount(
-    booking.servicePrice ??
-      booking.basePrice ??
-      booking.subtotal ??
-      booking.serviceAmount
-  );
-
-  if (serviceAmount > 0) return serviceAmount;
-
-  const totalAmount = normalizeAmount(
-    booking.totalAmount ??
-      booking.finalAmount ??
-      booking.totalPrice ??
-      booking.price ??
-      booking.amount
-  );
-
-  if (totalAmount <= 0) return 0;
-
-  const explicitFee =
-    normalizeAmount(booking.platformFee) +
-    normalizeAmount(booking.serviceFee) +
-    normalizeAmount(booking.appFee) +
-    normalizeAmount(booking.systemFee) +
-    normalizeAmount(booking.commissionFee);
-
-  if (explicitFee > 0) {
-    return Math.max(totalAmount - explicitFee, 0);
-  }
-
-  return Math.max(totalAmount * (1 - getPlatformFeeRate()), 0);
+  return normalizeAmount(earnings?.totalEarned);
 };
 
 const getWithdrawalSummary = async (companionId) => {
@@ -72,72 +123,7 @@ const getWithdrawalSummary = async (companionId) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  const profile = await CompanionProfile.findOne({
-    $or: [
-      { userId: companionId },
-      { user: companionId },
-      { accountId: companionId },
-      { companionId },
-    ],
-  }).lean();
-
-  const companionIds = [
-    companionId,
-    profile?._id,
-    profile?.userId,
-    profile?.user,
-    profile?.accountId,
-  ]
-    .filter(Boolean)
-    .map((id) => String(id))
-    .filter((id, index, ids) => id !== "[object Object]" && ids.indexOf(id) === index);
-
-  const earningBookings = await Booking.find({
-    $and: [
-      {
-        $or: companionIds.flatMap((id) => [
-          { companionId: id },
-          { companion: id },
-          { companionUserId: id },
-          { companionProfileId: id },
-          { companionProfile: id },
-          { companion_id: id },
-          { "companion._id": id },
-          { "companion.id": id },
-          { "companion.userId": id },
-          { "companionProfile._id": id },
-        ]),
-      },
-      {
-        $or: [
-          {
-            status: {
-              $in: [
-                "paid",
-                "PAID",
-              ],
-            },
-          },
-          {
-            paymentStatus: {
-              $in: [
-                "paid",
-                "success",
-                "PAID",
-                "SUCCESS",
-                "Đã thanh toán",
-              ],
-            },
-          },
-        ],
-      },
-    ],
-  }).lean();
-
-  const totalEarned = earningBookings.reduce(
-    (sum, booking) => sum + getBookingEarning(booking),
-    0
-  );
+  const totalEarned = await getTotalPaidCompanionEarnings(companionId);
 
   const pendingAmount = requests
     .filter((item) => normalizeStatus(item.status) === "pending")
@@ -182,6 +168,8 @@ export const getMyWithdrawalSummary = async (req, res) => {
 };
 
 export const createWithdrawalRequest = async (req, res) => {
+  let withdrawalLock;
+
   try {
     const companionId = getUserId(req);
 
@@ -192,13 +180,15 @@ export const createWithdrawalRequest = async (req, res) => {
     const { amount, bankName, bankAccountNumber, bankAccountName, note } = req.body;
     const requestAmount = normalizeAmount(amount);
 
-    if (requestAmount <= 0) {
+    if (!isValidWithdrawalAmount(requestAmount)) {
       return res.status(400).json({ message: "Số tiền rút không hợp lệ." });
     }
 
     if (!bankName || !bankAccountNumber || !bankAccountName) {
       return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin ngân hàng." });
     }
+
+    withdrawalLock = await acquireCompanionWithdrawalLock(companionId);
 
     const currentSummary = await getWithdrawalSummary(companionId);
 
@@ -221,7 +211,9 @@ export const createWithdrawalRequest = async (req, res) => {
     const summary = await getWithdrawalSummary(companionId);
     return res.status(201).json({ withdrawal, ...summary });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  } finally {
+    await releaseCompanionWithdrawalLock(withdrawalLock);
   }
 };
 
@@ -229,6 +221,7 @@ export const getAdminWithdrawalRequests = async (req, res) => {
   try {
     const requests = await WithdrawalRequest.find()
       .populate("companionId", "name fullName email phone avatar")
+      .populate("processedBy", "name fullName email")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -250,25 +243,43 @@ export const getAdminWithdrawalRequests = async (req, res) => {
 export const updateWithdrawalStatus = async (req, res) => {
   try {
     const { status, adminNote } = req.body;
-    const allowedStatuses = ["pending", "approved", "paid", "rejected"];
+    const nextStatus = normalizeStatus(status);
 
-    if (!allowedStatuses.includes(status)) {
+    if (!Object.hasOwn(WITHDRAWAL_STATUS_TRANSITIONS, nextStatus)) {
       return res.status(400).json({ message: "Trạng thái rút tiền không hợp lệ." });
     }
 
-    const withdrawal = await WithdrawalRequest.findByIdAndUpdate(
-      req.params.id,
-      {
-        status,
-        adminNote: adminNote || "",
-        processedAt: status === "pending" ? null : new Date(),
-        processedBy: getUserId(req),
-      },
+    const currentWithdrawal = await WithdrawalRequest.findById(req.params.id).select("status");
+
+    if (!currentWithdrawal) {
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu rút tiền." });
+    }
+
+    const currentStatus = normalizeStatus(currentWithdrawal.status);
+    if (!canTransitionWithdrawalStatus(currentStatus, nextStatus)) {
+      return res.status(409).json({ message: "Không thể đổi trạng thái rút tiền theo luồng này." });
+    }
+
+    const statusUpdates = {
+      adminNote: adminNote || "",
+    };
+
+    if (currentStatus !== nextStatus) {
+      statusUpdates.status = nextStatus;
+      statusUpdates.processedAt = new Date();
+      statusUpdates.processedBy = getUserId(req);
+    }
+
+    const withdrawal = await WithdrawalRequest.findOneAndUpdate(
+      { _id: req.params.id, status: currentWithdrawal.status },
+      statusUpdates,
       { new: true }
-    ).populate("companionId", "name fullName email phone avatar");
+    )
+      .populate("companionId", "name fullName email phone avatar")
+      .populate("processedBy", "name fullName email");
 
     if (!withdrawal) {
-      return res.status(404).json({ message: "Không tìm thấy yêu cầu rút tiền." });
+      return res.status(409).json({ message: "Trạng thái rút tiền đã thay đổi, vui lòng thử lại." });
     }
 
     const normalizedWithdrawal = withdrawal.toObject

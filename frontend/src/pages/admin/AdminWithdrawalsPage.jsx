@@ -11,6 +11,23 @@ const statusOptions = [
 
 const statusLabels = Object.fromEntries(statusOptions);
 
+const statusTransitions = {
+  pending: ["approved", "rejected"],
+  approved: ["paid", "rejected"],
+  paid: [],
+  rejected: [],
+};
+
+const getStatusOptions = (status) => {
+  const currentStatus = Object.hasOwn(statusTransitions, status) ? status : "pending";
+  const allowedStatuses = new Set([
+    currentStatus,
+    ...statusTransitions[currentStatus],
+  ]);
+
+  return statusOptions.filter(([value]) => allowedStatuses.has(value));
+};
+
 const statusClasses = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
   approved: "bg-blue-50 text-blue-700 border-blue-200",
@@ -54,6 +71,11 @@ const getCompanionName = (request) => {
   );
 };
 
+const getProcessorName = (request) => {
+  const processor = request.processedBy || {};
+  return processor.fullName || processor.name || processor.email || "-";
+};
+
 export default function AdminWithdrawalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [processingId, setProcessingId] = useState("");
@@ -84,17 +106,26 @@ export default function AdminWithdrawalsPage() {
   const updateStatus = async (id, status) => {
     try {
       setProcessingId(`${id}-${status}`);
-      await api.patch(`/withdrawals/admin/${id}/status`, { status });
+      const result = await api.patch(`/withdrawals/admin/${id}/status`, { status });
       await reload();
       setSelectedRequest((current) =>
         current?._id === id
-          ? { ...current, status, processedAt: new Date().toISOString() }
+          ? {
+              ...current,
+              ...(result?.withdrawal || {
+                status,
+                processedAt: new Date().toISOString(),
+              }),
+            }
           : current
       );
     } finally {
       setProcessingId("");
     }
   };
+  const selectedStatusOptions = selectedRequest
+    ? getStatusOptions(selectedRequest.status)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -196,6 +227,7 @@ export default function AdminWithdrawalsPage() {
               <tbody>
                 {filteredRequests.map((request) => {
                   const companion = getCompanion(request);
+                  const requestStatusOptions = getStatusOptions(request.status);
 
                   return (
                     <tr
@@ -246,13 +278,16 @@ export default function AdminWithdrawalsPage() {
                           </button>
                           <select
                             value={request.status || "pending"}
-                            disabled={Boolean(processingId)}
+                            disabled={
+                              Boolean(processingId) ||
+                              requestStatusOptions.length <= 1
+                            }
                             onChange={(event) =>
                               updateStatus(request._id, event.target.value)
                             }
                             className="min-h-9 rounded-full border border-teal-100 bg-white px-3 text-xs font-black text-slate-700 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {statusOptions.map(([value, label]) => (
+                            {requestStatusOptions.map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
                               </option>
@@ -322,13 +357,16 @@ export default function AdminWithdrawalsPage() {
                 </p>
                 <select
                   value={selectedRequest.status || "pending"}
-                  disabled={Boolean(processingId)}
+                  disabled={
+                    Boolean(processingId) ||
+                    selectedStatusOptions.length <= 1
+                  }
                   onChange={(event) =>
                     updateStatus(selectedRequest._id, event.target.value)
                   }
                   className="mt-2 min-h-11 w-full rounded-2xl border border-teal-100 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {statusOptions.map(([value, label]) => (
+                  {selectedStatusOptions.map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
@@ -339,6 +377,9 @@ export default function AdminWithdrawalsPage() {
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
                   Xử lý lúc: {dateTime(selectedRequest.processedAt)}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Xử lý bởi: {getProcessorName(selectedRequest)}
                 </p>
               </div>
             </div>
