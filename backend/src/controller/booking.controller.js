@@ -16,6 +16,16 @@ import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
 import User from "../models/user.models.js";
 import { emitBookingChatState } from "../socket/booking-chat.socket.js";
+import {
+  createBookingAcceptedNotification,
+  createBookingCompletedNotification,
+  createBookingCreatedNotification,
+  createCompanionCheckedInNotification,
+  createPaymentReminderNotification,
+  createPaymentSuccessNotification,
+  createReviewReminderNotification,
+  createShiftNoteUpdatedNotification,
+} from "../utils/notifications.js";
 
 const populateBooking = [
   { path: "customerId", select: "name email phone" },
@@ -417,6 +427,9 @@ const refreshReusablePendingPayOSPayment = async ({ payment, booking, paidAmount
       await booking.save();
     }
 
+    await createPaymentSuccessNotification({ booking, payment });
+    await createReviewReminderNotification(booking);
+
     return null;
   }
 
@@ -747,6 +760,8 @@ export const createBooking = async (req, res) => {
       checklist: service.defaultChecklist?.map((label) => ({ label, done: false })) || [],
     });
 
+    await createBookingCreatedNotification(booking);
+
     return res.status(201).json({ message: "booking created", booking });
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -872,6 +887,15 @@ export const updateBookingStatus = async (req, res) => {
         { userId: updatedBooking.companionId },
         { $inc: { completedBookings: 1 } },
       );
+    }
+
+    if (status === "accepted") {
+      await createBookingAcceptedNotification(updatedBooking);
+    } else if (status === "in_progress") {
+      await createCompanionCheckedInNotification(updatedBooking);
+    } else if (status === "completed") {
+      await createBookingCompletedNotification(updatedBooking);
+      await createPaymentReminderNotification(updatedBooking);
     }
 
     return res.status(200).json({ message: "booking status updated", booking: updatedBooking });
@@ -1021,11 +1045,24 @@ export const updateShiftLog = async (req, res) => {
       }
     });
 
+    const shouldNotifyNoteUpdate = Object.prototype.hasOwnProperty.call(allowedFields, "companionNote");
+    const previousShiftLog = shouldNotifyNoteUpdate
+      ? await ShiftLog.findOne({ bookingId: booking._id }).select("companionNote")
+      : null;
+
     const shiftLog = await ShiftLog.findOneAndUpdate(
       { bookingId: booking._id },
       allowedFields,
       { new: true, upsert: true },
     );
+
+    if (shouldNotifyNoteUpdate) {
+      const previousNote = String(previousShiftLog?.companionNote || "").trim();
+      const nextNote = String(shiftLog?.companionNote || "").trim();
+      if (nextNote && nextNote !== previousNote) {
+        await createShiftNoteUpdatedNotification(booking, shiftLog);
+      }
+    }
 
     return res.status(200).json({ message: "shift log updated", shiftLog });
   } catch (error) {

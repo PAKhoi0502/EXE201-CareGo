@@ -50,9 +50,10 @@ const AdminBlogsPage = () => {
     [dateRange.from, dateRange.to],
   );
 
-  const blogStats = data?.blogStats || [];
-  const dailyViews = data?.dailyViews || [];
-  const categoryViews = data?.categoryViews || [];
+  const statsData = error ? null : data;
+  const blogStats = statsData?.blogStats || [];
+  const dailyViews = statsData?.dailyViews || [];
+  const categoryViews = statsData?.categoryViews || [];
   const totalViews = blogStats.reduce((sum, item) => sum + Number(item.viewCount || 0), 0);
   const totalRatings = blogStats.reduce((sum, item) => sum + Number(item.ratingCount || 0), 0);
   const totalComments = blogStats.reduce(

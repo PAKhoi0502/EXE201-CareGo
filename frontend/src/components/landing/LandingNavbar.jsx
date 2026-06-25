@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import CareGoLogo from "../CareGoLogo.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
+import NotificationBell from "../notifications/NotificationBell.jsx";
 import LandingButton from "./LandingButton.jsx";
 
 const navItems = [
@@ -116,6 +117,7 @@ const LandingNavbar = () => {
         </nav>
 
         <div className="flex items-center gap-3">
+          {isCustomer ? <NotificationBell /> : null}
           {user ? (
             <div ref={menuRef} className="relative">
               <button

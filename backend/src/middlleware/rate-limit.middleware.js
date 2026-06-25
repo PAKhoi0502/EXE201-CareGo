@@ -3,7 +3,7 @@ const buckets = new Set();
 
 const normalizeIdentifier = (value) => String(value || "").trim().toLowerCase() || "anonymous";
 
-const getClientIp = (req) => {
+export const getClientIp = (req) => {
   if (Array.isArray(req.ips) && req.ips.length > 0) {
     return req.ips[0];
   }
@@ -97,6 +97,10 @@ export const chatRateLimitKeys = {
     `${normalizeIdentifier(req.user?.userId || req.user?._id || req.user?.id)}:booking:${normalizeIdentifier(req.params?.bookingId)}`,
   userAndConversation: (req) =>
     `${normalizeIdentifier(req.user?.userId || req.user?._id || req.user?.id)}:conversation:${normalizeIdentifier(req.params?.id)}`,
+};
+
+export const blogRateLimitKeys = {
+  ipAndSlug: (req) => `${getClientIp(req)}:blog:${normalizeIdentifier(req.params?.slug)}`,
 };
 
 const cleanupInterval = setInterval(() => {

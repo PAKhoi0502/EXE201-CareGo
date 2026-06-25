@@ -45,146 +45,66 @@ const reportRangePresets = [
   { label: "30 ngày gần nhất", days: 30 },
   { label: "90 ngày gần nhất", days: 90 },
 ];
+const REPORT_PAGE_SIZE = 25;
 
-const isDateInRange = (value, range) => {
-  if (!value) return false;
-
-  const date = new Date(value);
-  const from = range.from ? new Date(`${range.from}T00:00:00`) : null;
-  const to = range.to ? new Date(`${range.to}T23:59:59.999`) : null;
-
-  if (from && date < from) return false;
-  if (to && date > to) return false;
-  return true;
+const getPaidPayment = (booking) => (booking.payment?.status === "paid" ? booking.payment : null);
+const getBaseAmount = (booking) => Number(booking.payment?.baseAmount || booking.payment?.amount || booking.totalAmount || 0);
+const getPenaltyAmount = (booking) => Number(getPaidPayment(booking)?.penaltyAmount || 0);
+const getPaidAmount = (booking) => {
+  const payment = getPaidPayment(booking);
+  return Number(payment?.paidAmount || payment?.amount || 0);
 };
-
-const getBaseAmount = (booking) => Number(booking.payment?.baseAmount ?? booking.totalAmount ?? 0);
-const getPenaltyAmount = (booking) => Number(booking.payment?.penaltyAmount ?? 0);
-const getPaidAmount = (booking) => Number(booking.payment?.paidAmount ?? booking.payment?.amount ?? getBaseAmount(booking));
-const getPlatformFee = (booking) => Number(booking.payment?.platformFee ?? booking.platformFee ?? 0);
-const getCompanionEarning = (booking) =>
-  Number(booking.payment?.companionEarning ?? Math.max(getBaseAmount(booking) - getPlatformFee(booking), 0));
+const getPlatformFee = (booking) => Number(getPaidPayment(booking)?.platformFee || 0);
+const getCompanionEarning = (booking) => {
+  const payment = getPaidPayment(booking);
+  if (!payment) return 0;
+  return Number(payment.companionEarning ?? Math.max(getBaseAmount(booking) - getPlatformFee(booking), 0));
+};
 const getCareGoRevenue = (booking) => getPlatformFee(booking) + getPenaltyAmount(booking);
-
-const makeMonthly = (bookings) => {
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - (5 - index));
-    return {
-      key: `${date.getFullYear()}-${date.getMonth()}`,
-      label: new Intl.DateTimeFormat("vi-VN", { month: "short" }).format(date),
-      count: 0,
-      revenue: 0,
-      penalty: 0,
-    };
-  });
-
-  bookings.forEach((booking) => {
-    const date = new Date(booking.createdAt);
-    const bucket = months.find((item) => item.key === `${date.getFullYear()}-${date.getMonth()}`);
-    if (!bucket) return;
-    bucket.count += 1;
-    if (booking.status === "paid") {
-      bucket.revenue += getPaidAmount(booking);
-      bucket.penalty += getPenaltyAmount(booking);
-    }
-  });
-
-  return months;
-};
-
-const makeDaily = (bookings, range) => {
-  const start = range.from ? new Date(`${range.from}T00:00:00`) : new Date();
-  const end = range.to ? new Date(`${range.to}T00:00:00`) : new Date();
-  const days = [];
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
-    return days;
-  }
-
-  const cursor = new Date(start);
-  while (cursor <= end && days.length < 45) {
-    const key = toDateInputValue(cursor);
-    days.push({
-      key,
-      label: new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit" }).format(cursor),
-      count: 0,
-      caregoRevenue: 0,
-      companionEarning: 0,
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  bookings.forEach((booking) => {
-    const key = toDateInputValue(booking.createdAt);
-    const bucket = days.find((item) => item.key === key);
-    if (!bucket) return;
-
-    bucket.count += 1;
-    if (booking.status === "paid") {
-      bucket.caregoRevenue += getCareGoRevenue(booking);
-      bucket.companionEarning += getCompanionEarning(booking);
-    }
-  });
-
-  return days;
-};
-
-const topServices = (bookings) => {
-  const stats = {};
-  bookings.forEach((booking) => {
-    const name = booking.serviceId?.name || "Khác";
-    stats[name] ||= { name, count: 0, revenue: 0 };
-    stats[name].count += 1;
-    stats[name].revenue += getBaseAmount(booking);
-  });
-  return Object.values(stats).sort((a, b) => b.count - a.count).slice(0, 5);
-};
-
-const topCompanions = (bookings) => {
-  const stats = {};
-  bookings.forEach((booking) => {
-    const id = booking.companionId?._id || booking.companionId?.email || "unknown";
-    stats[id] ||= {
-      id,
-      name: booking.companionId?.name || "Chưa có companion",
-      count: 0,
-      paid: 0,
-      earning: 0,
-    };
-    stats[id].count += 1;
-    if (booking.status === "paid") {
-      stats[id].paid += 1;
-      stats[id].earning += getCompanionEarning(booking);
-    }
-  });
-  return Object.values(stats).sort((a, b) => b.count - a.count).slice(0, 6);
-};
+const getSummaryNumber = (summary, key) => Number(summary?.[key] || 0);
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString("vi-VN") : "");
 
 const AdminReportsPage = () => {
   const [dateRange, setDateRange] = useState(() => getRecentRange(30));
-  const { data: bookingsData, loading, error } = useAsync(() => api.get("/admin/bookings"), []);
-  const { data: companionsData } = useAsync(() => api.get("/companions/admin/all"), []);
-  const bookings = bookingsData?.bookings || [];
-  const filteredBookings = bookings.filter((booking) => isDateInRange(booking.createdAt, dateRange));
-  const companions = companionsData?.companions || [];
-  const monthly = makeMonthly(filteredBookings);
-  const daily = makeDaily(filteredBookings, dateRange);
-  const services = topServices(filteredBookings);
-  const companionRows = topCompanions(filteredBookings);
-  const paidBookings = filteredBookings.filter((item) => item.status === "paid");
+  const [reportPage, setReportPage] = useState(1);
+  const reportPath = `/admin/reports?from=${encodeURIComponent(dateRange.from)}&to=${encodeURIComponent(dateRange.to)}&page=${reportPage}&limit=${REPORT_PAGE_SIZE}`;
+  const { data: reportData, loading, error } = useAsync(() => api.get(reportPath), [reportPath]);
+  const filteredBookings = reportData?.bookings || [];
+  const monthly = reportData?.monthly || [];
+  const daily = reportData?.daily || [];
+  const services = reportData?.services || [];
+  const companionRows = reportData?.companionRows || [];
+  const statusCounts = reportData?.statusCounts || [];
+  const pagination = reportData?.pagination || {};
+  const summary = reportData?.summary || {};
 
-  const paidRevenue = paidBookings.reduce((sum, item) => sum + getPaidAmount(item), 0);
-  const baseRevenue = paidBookings.reduce((sum, item) => sum + getBaseAmount(item), 0);
-  const penaltyRevenue = paidBookings.reduce((sum, item) => sum + getPenaltyAmount(item), 0);
-  const platformFee = paidBookings.reduce((sum, item) => sum + getPlatformFee(item), 0);
-  const careGoRevenue = paidBookings.reduce((sum, item) => sum + getCareGoRevenue(item), 0);
-  const completed = filteredBookings.filter((item) => ["completed", "paid"].includes(item.status)).length;
-  const completionRate = filteredBookings.length ? Math.round((completed / filteredBookings.length) * 100) : 0;
-  const missingGps = filteredBookings.filter((item) => !item.addressLocation?.lat).length;
-  const pendingCompanions = companions.filter((item) => item.vettingStatus === "pending").length;
+  const totalBookings = getSummaryNumber(summary, "totalBookings");
+  const paidRevenue = getSummaryNumber(summary, "paidRevenue");
+  const baseRevenue = getSummaryNumber(summary, "baseRevenue");
+  const penaltyRevenue = getSummaryNumber(summary, "penaltyRevenue");
+  const platformFee = getSummaryNumber(summary, "platformFee");
+  const careGoRevenue = getSummaryNumber(summary, "careGoRevenue");
+  const companionEarning = getSummaryNumber(summary, "companionEarning");
+  const completionRate = getSummaryNumber(summary, "completionRate");
+  const missingGps = getSummaryNumber(summary, "missingGps");
+  const pendingCompanions = getSummaryNumber(summary, "pendingCompanions");
+  const cancelledBookings = getSummaryNumber(summary, "cancelled");
+  const currentPage = Number(pagination.page || reportPage);
+  const pageSize = Number(pagination.limit || REPORT_PAGE_SIZE);
+  const totalPages = Math.max(1, Number(pagination.totalPages || 1));
+  const detailStart = filteredBookings.length ? (currentPage - 1) * pageSize + 1 : 0;
+  const detailEnd = filteredBookings.length ? detailStart + filteredBookings.length - 1 : 0;
+  const getStatusCount = (status) =>
+    Number(statusCounts.find((item) => item.status === status)?.count || 0);
+  const setDateRangeAndResetPage = (nextRange) => {
+    setReportPage(1);
+    setDateRange(nextRange);
+  };
+  const updateDateRangeField = (field, value) => {
+    setReportPage(1);
+    setDateRange((current) => ({ ...current, [field]: value }));
+  };
 
   const exportExcel = () => {
     const workbook = XLSX.utils.book_new();
@@ -192,7 +112,9 @@ const AdminReportsPage = () => {
     const summaryRows = [
       { label: "Tu ngay", value: dateRange.from },
       { label: "Den ngay", value: dateRange.to },
-      { label: "Tong booking trong khoang", value: filteredBookings.length },
+      { label: "Tong booking trong khoang", value: totalBookings },
+      { label: "Trang chi tiet", value: `${currentPage}/${totalPages}` },
+      { label: "Dong chi tiet trong file", value: filteredBookings.length },
       { label: "Doanh thu paid", value: paidRevenue },
       { label: "Gia tri ca da thanh toan", value: baseRevenue },
       { label: "Phi nen tang", value: platformFee },
@@ -237,12 +159,13 @@ const AdminReportsPage = () => {
       tien_ca: getBaseAmount(booking),
       phi_nen_tang: getPlatformFee(booking),
       phi_phat: getPenaltyAmount(booking),
-      tong_khach_tra: booking.status === "paid" ? getPaidAmount(booking) : 0,
-      carego_thu: booking.status === "paid" ? getCareGoRevenue(booking) : 0,
-      thu_nhap_companion: booking.status === "paid" ? getCompanionEarning(booking) : 0,
+      payment_status: booking.payment?.status || "",
+      tong_khach_tra: getPaidPayment(booking) ? getPaidAmount(booking) : 0,
+      carego_thu: getPaidPayment(booking) ? getCareGoRevenue(booking) : 0,
+      thu_nhap_companion: getPaidPayment(booking) ? getCompanionEarning(booking) : 0,
       ngay_tao: formatDateTime(booking.createdAt),
     }));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings page");
 
     const fileName = `admin-report-${dateRange.from}-to-${dateRange.to}.xlsx`;
     XLSX.writeFile(workbook, fileName);
@@ -277,7 +200,7 @@ const AdminReportsPage = () => {
     datasets: [
       {
         label: "Số booking",
-        data: statuses.map((status) => filteredBookings.filter((booking) => booking.status === status).length),
+        data: statuses.map((status) => getStatusCount(status)),
         backgroundColor: ["#f59e0b", "#0284c7", "#4f46e5", "#64748b", "#0f766e", "#e11d48"],
         borderRadius: 6,
       },
@@ -304,7 +227,7 @@ const AdminReportsPage = () => {
     labels: statuses,
     datasets: [
       {
-        data: statuses.map((status) => filteredBookings.filter((booking) => booking.status === status).length),
+        data: statuses.map((status) => getStatusCount(status)),
         backgroundColor: ["#f59e0b", "#0284c7", "#4f46e5", "#64748b", "#0f766e", "#e11d48"],
         borderColor: "#ffffff",
         borderWidth: 3,
@@ -376,7 +299,7 @@ const AdminReportsPage = () => {
             </div>
             <button
               type="button"
-              onClick={() => setDateRange(getRecentRange(30))}
+              onClick={() => setDateRangeAndResetPage(getRecentRange(30))}
               className="inline-flex min-h-10 items-center justify-center rounded-full bg-white px-5 text-sm font-black text-teal-700 shadow-sm transition hover:bg-teal-50"
             >
               Đặt lại 30 ngày
@@ -389,7 +312,7 @@ const AdminReportsPage = () => {
                 <button
                   key={preset.label}
                   type="button"
-                  onClick={() => setDateRange(getRecentRange(preset.days))}
+                  onClick={() => setDateRangeAndResetPage(getRecentRange(preset.days))}
                   className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white hover:text-teal-700"
                 >
                   {preset.label}
@@ -403,7 +326,7 @@ const AdminReportsPage = () => {
                 <input
                   type="date"
                   value={dateRange.from}
-                  onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
+                  onChange={(event) => updateDateRangeField("from", event.target.value)}
                   className="min-h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
                 />
               </label>
@@ -412,7 +335,7 @@ const AdminReportsPage = () => {
                 <input
                   type="date"
                   value={dateRange.to}
-                  onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
+                  onChange={(event) => updateDateRangeField("to", event.target.value)}
                   className="min-h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
                 />
               </label>
@@ -423,7 +346,7 @@ const AdminReportsPage = () => {
         <div className="grid gap-4 p-5 md:grid-cols-3">
           <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4">
             <p className="text-sm font-semibold text-teal-700">Booking trong khoảng</p>
-            <strong className="mt-2 block text-3xl font-black text-teal-800">{filteredBookings.length}</strong>
+            <strong className="mt-2 block text-3xl font-black text-teal-800">{totalBookings}</strong>
           </div>
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
             <p className="text-sm font-semibold text-emerald-700">CareGo thu trong khoảng</p>
@@ -476,7 +399,7 @@ const AdminReportsPage = () => {
               </p>
             </div>
             <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">
-              {filteredBookings.length} booking
+              {totalBookings} booking
             </span>
           </div>
           <div className="mt-4 h-72">
@@ -508,7 +431,7 @@ const AdminReportsPage = () => {
               CareGo: {money(careGoRevenue)}
             </span>
             <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
-              Companion: {money(paidBookings.reduce((sum, item) => sum + getCompanionEarning(item), 0))}
+              Companion: {money(companionEarning)}
             </span>
           </div>
         </div>
@@ -598,6 +521,87 @@ const AdminReportsPage = () => {
         </section>
       </div>
 
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 p-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-bold text-slate-900">Chi tiết booking</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Dữ liệu chi tiết được phân trang, số liệu tổng quan phía trên vẫn tính toàn bộ khoảng lọc.
+            </p>
+          </div>
+          <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">
+            {detailStart}-{detailEnd} / {totalBookings}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400">
+                <th className="p-4">Booking</th>
+                <th className="p-4">Khách hàng</th>
+                <th className="p-4">Companion</th>
+                <th className="p-4">Dịch vụ</th>
+                <th className="p-4">Trạng thái</th>
+                <th className="p-4 text-right">Khách trả</th>
+                <th className="p-4 text-right">CareGo thu</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredBookings.map((booking) => (
+                <tr key={booking._id}>
+                  <td className="p-4">
+                    <p className="font-bold text-slate-800">{booking._id}</p>
+                    <p className="mt-1 text-slate-400">{formatDateTime(booking.createdAt)}</p>
+                  </td>
+                  <td className="p-4">
+                    <p className="font-semibold text-slate-800">{booking.customerId?.name || ""}</p>
+                    <p className="mt-1 text-slate-400">{booking.customerId?.email || ""}</p>
+                  </td>
+                  <td className="p-4 font-semibold text-slate-800">{booking.companionId?.name || ""}</td>
+                  <td className="p-4 font-semibold text-teal-700">{booking.serviceId?.name || ""}</td>
+                  <td className="p-4">
+                    <StatusBadge status={booking.status} />
+                    <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                      Payment: {booking.payment?.status || "none"}
+                    </p>
+                  </td>
+                  <td className="p-4 text-right font-bold text-slate-900">{money(getPaidAmount(booking))}</td>
+                  <td className="p-4 text-right font-bold text-teal-700">{money(getCareGoRevenue(booking))}</td>
+                </tr>
+              ))}
+              {!filteredBookings.length && !loading ? (
+                <tr>
+                  <td colSpan="7" className="p-6 text-center text-slate-400">Chưa có booking trong trang này.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-semibold text-slate-400">
+            Trang {currentPage} / {totalPages}, {pageSize} dòng mỗi trang
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={currentPage <= 1 || loading}
+              onClick={() => setReportPage((page) => Math.max(1, page - 1))}
+              className="rounded-full border border-teal-100 px-4 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              disabled={currentPage >= totalPages || loading}
+              onClick={() => setReportPage((page) => Math.min(totalPages, page + 1))}
+              className="rounded-full border border-teal-100 px-4 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
         <h2 className="font-bold text-rose-800">Cảnh báo cần theo dõi</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -614,9 +618,9 @@ const AdminReportsPage = () => {
           <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
             <p className="text-sm font-semibold text-slate-800">Booking bị hủy</p>
             <p className="mt-1 text-xs text-slate-500">
-              {filteredBookings.filter((booking) => booking.status === "cancelled").length} booking đang cancelled.
+              {cancelledBookings} booking đang cancelled.
             </p>
-            <StatusBadge status={filteredBookings.some((booking) => booking.status === "cancelled") ? "cancelled" : "approved"} />
+            <StatusBadge status={cancelledBookings ? "cancelled" : "approved"} />
           </div>
         </div>
       </section>

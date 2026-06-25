@@ -94,7 +94,17 @@ const BlogDetailPage = () => {
     const trackView = async () => {
       try {
         const result = await api.post(`/blogs/${slug}/view`, {});
-        if (active) setData(result);
+        if (active) {
+          setData((current) => ({
+            ...result,
+            post: result?.post
+              ? {
+                  ...result.post,
+                  comments: result.post.comments || current?.post?.comments || [],
+                }
+              : result?.post,
+          }));
+        }
       } catch {
         // View tracking should not block reading.
       }
@@ -159,7 +169,7 @@ const BlogDetailPage = () => {
                 <div className="mt-7 grid gap-3 sm:grid-cols-3">
                   <ArticleMetric label="Lượt xem" value={post.viewCount || 0} />
                   <ArticleMetric label="Đánh giá" value={`${post.ratingAverage || 0}/5`} tone="amber" />
-                  <ArticleMetric label="Bình luận" value={post.comments?.length || 0} tone="sky" />
+                  <ArticleMetric label="Bình luận" value={post.comments?.length ?? post.commentCount ?? 0} tone="sky" />
                 </div>
               </div>
               <BlogHeroVisual category={post.category} />

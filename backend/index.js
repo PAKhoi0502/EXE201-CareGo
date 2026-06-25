@@ -22,9 +22,11 @@ import uploadRouter from "./src/routes/upload.routes.js";
 import withdrawalRouter from "./src/routes/withdrawal.routes.js";
 import supportRouter from "./src/routes/support.routes.js";
 import blogRouter from "./src/routes/blog.routes.js";
+import notificationRouter from "./src/routes/notification.routes.js";
 import { setupLocationSocket } from "./src/socket/location.socket.js";
 import { setupSupportSocket } from "./src/socket/support.socket.js";
 import { setupBookingChatSocket } from "./src/socket/booking-chat.socket.js";
+import { setupNotificationSocket } from "./src/socket/notification.socket.js";
 import { setupSocketAuthentication } from "./src/socket/auth.socket.js";
 
 // import swagger
@@ -90,6 +92,7 @@ app.use("/api/upload", uploadRouter);
 app.use("/api/withdrawals", withdrawalRouter);
 app.use("/api/support", supportRouter);
 app.use("/api/blogs", blogRouter);
+app.use("/api/notifications", notificationRouter);
 
 const io = new Server(server, {
   cors: {
@@ -104,6 +107,7 @@ setupSocketAuthentication(io);
 setupLocationSocket(io);
 setupSupportSocket(io);
 setupBookingChatSocket(io);
+setupNotificationSocket(io);
 
 server.listen(port, () => {
   console.log(`Example app listening on port ${port}`, "http://localhost:3000");

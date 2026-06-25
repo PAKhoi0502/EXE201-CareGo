@@ -8,6 +8,7 @@ import PendingRegistration from "../models/pending-registration.models.js";
 import User from "../models/user.models.js";
 import { sendOtpEmail, sendPasswordResetEmail } from "../utils/email.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
+import { createCustomerWelcomeNotification } from "../utils/notifications.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -209,6 +210,10 @@ export const verifyEmailOtpController = async (req, res) => {
       }
 
       await PendingRegistration.deleteOne({ _id: pending._id });
+
+      if (createdUser.role === "customer") {
+        await createCustomerWelcomeNotification(createdUser);
+      }
 
       return res.status(200).json({
         message: "email verified successfully",

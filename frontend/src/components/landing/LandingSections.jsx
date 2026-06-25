@@ -1,5 +1,6 @@
 import { Link } from "react-router";
-import { featuredBlogPosts } from "../blog/blogData.js";
+import { api } from "../../api/client.js";
+import { useAsync } from "../../hooks/useAsync.js";
 import CareGoLogo from "../CareGoLogo.jsx";
 import LandingButton from "./LandingButton.jsx";
 import { safetyItems, services, steps } from "./landingData.js";
@@ -223,8 +224,12 @@ export const SafetySection = () => (
   </section>
 );
 
-export const BlogPreviewSection = () => (
-  <section id="blog" className="scroll-mt-24 border-y border-teal-100 bg-white py-20">
+export const BlogPreviewSection = () => {
+  const { data } = useAsync(() => api.get("/blogs"), []);
+  const previewPosts = (data?.posts || []).slice(0, 3);
+
+  return (
+    <section id="blog" className="scroll-mt-24 border-y border-teal-100 bg-white py-20">
     <div className="mx-auto w-[min(1180px,92%)]">
       <div className="mb-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -244,7 +249,7 @@ export const BlogPreviewSection = () => (
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {featuredBlogPosts.map((post) => (
+        {previewPosts.map((post) => (
           <Link
             key={post.slug}
             to={`/blog/${post.slug}`}
@@ -272,8 +277,9 @@ export const BlogPreviewSection = () => (
         ))}
       </div>
     </div>
-  </section>
-);
+    </section>
+  );
+};
 
 export const CtaSection = () => (
   <section className="pb-12 pt-6">

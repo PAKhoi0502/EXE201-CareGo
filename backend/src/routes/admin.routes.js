@@ -4,6 +4,7 @@ import {
   getAdminDashboard,
   getAdminGpsStatuses,
   getAdminOnlineStatuses,
+  getAdminReports,
   getAdminUsers,
   updateUserStatus,
 } from "../controller/admin.controller.js";
@@ -18,6 +19,7 @@ router.get("/dashboard", getAdminDashboard);
 router.get("/users", getAdminUsers);
 router.patch("/users/:id/status", updateUserStatus);
 router.get("/bookings", getAdminBookings);
+router.get("/reports", getAdminReports);
 router.get("/gps-statuses", getAdminGpsStatuses);
 router.get("/online-statuses", getAdminOnlineStatuses);
 

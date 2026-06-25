@@ -1,4 +1,62 @@
+import BlogComment from "../models/blog-comment.models.js";
 import BlogPost from "../models/blog-post.models.js";
+import BlogView from "../models/blog-view.models.js";
+import { getClientIp, getPositiveEnvNumber } from "../middlleware/rate-limit.middleware.js";
+
+const BLOG_ACTION_COOLDOWN_CLEANUP_MS = 5 * 60 * 1000;
+const BLOG_VIEW_COOLDOWN_MS = getPositiveEnvNumber(
+  ["CAREGO_BLOG_VIEW_DEDUPE_WINDOW_MS", "BLOG_VIEW_DEDUPE_WINDOW_MS"],
+  30 * 60 * 1000,
+);
+const BLOG_RATING_COOLDOWN_MS = getPositiveEnvNumber(
+  ["CAREGO_BLOG_RATING_DEDUPE_WINDOW_MS", "BLOG_RATING_DEDUPE_WINDOW_MS"],
+  6 * 60 * 60 * 1000,
+);
+const BLOG_COMMENT_COOLDOWN_MS = getPositiveEnvNumber(
+  ["CAREGO_BLOG_COMMENT_DEDUPE_WINDOW_MS", "BLOG_COMMENT_DEDUPE_WINDOW_MS"],
+  10 * 60 * 1000,
+);
+const BLOG_STATS_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const blogActionCooldowns = new Map();
+
+const normalizeVisitorPart = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .slice(0, 160) || "unknown";
+
+const getBlogVisitorKey = (req, action) =>
+  `${action}:${normalizeVisitorPart(req.params?.slug)}:${getClientIp(req)}:${normalizeVisitorPart(req.get?.("user-agent"))}`;
+
+const getActiveBlogActionCooldown = (key) => {
+  const now = Date.now();
+  const expiresAt = blogActionCooldowns.get(key);
+  if (!expiresAt) return null;
+  if (expiresAt <= now) {
+    blogActionCooldowns.delete(key);
+    return null;
+  }
+
+  return {
+    expiresAt,
+    retryAfterSeconds: Math.max(1, Math.ceil((expiresAt - now) / 1000)),
+  };
+};
+
+const startBlogActionCooldown = (key, windowMs) => {
+  blogActionCooldowns.set(key, Date.now() + windowMs);
+};
+
+const blogActionCooldownCleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [key, expiresAt] of blogActionCooldowns.entries()) {
+    if (expiresAt <= now) {
+      blogActionCooldowns.delete(key);
+    }
+  }
+}, BLOG_ACTION_COOLDOWN_CLEANUP_MS);
+
+blogActionCooldownCleanup.unref?.();
 
 const defaultBlogPosts = [
   {
@@ -123,43 +181,146 @@ export const ensureDefaultBlogPosts = async () => {
   );
 };
 
-const serializePost = (post) => {
-  const data = post.toObject ? post.toObject({ virtuals: true }) : post;
-  const { viewLogs: _viewLogs, ...publicData } = data;
+const getIdKey = (value) => value?._id?.toString?.() || value?.toString?.() || String(value);
+
+const serializeComment = (comment) => {
+  const data = comment.toObject ? comment.toObject() : comment;
   return {
-    ...publicData,
-    ratingAverage: data.ratingCount ? Number((data.ratingSum / data.ratingCount).toFixed(1)) : 0,
-    commentCount: data.comments?.length || 0,
-    comments: (data.comments || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    _id: data._id,
+    name: data.name,
+    content: data.content,
+    rating: data.rating,
+    createdAt: data.createdAt,
   };
 };
 
-const getDateRange = ({ from, to }) => {
-  if (!from && !to) return null;
-
-  const start = from ? new Date(`${from}T00:00:00.000Z`) : new Date("1970-01-01T00:00:00.000Z");
-  const end = to ? new Date(`${to}T23:59:59.999Z`) : new Date();
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return null;
-  }
-
-  return { start, end };
+const getLegacyComments = (post) => {
+  const data = post.toObject ? post.toObject() : post;
+  return (data.comments || []).map(serializeComment);
 };
 
-const countViewsInRange = (post, range) => {
-  if (!range) return post.viewCount || 0;
+const getBlogComments = async (post) => {
+  const comments = await BlogComment.find({ postId: post._id, isVisible: true })
+    .sort({ createdAt: -1 })
+    .lean();
+  return [...comments.map(serializeComment), ...getLegacyComments(post)].sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+  );
+};
 
-  const viewLogs = post.viewLogs || [];
-  if (!viewLogs.length && post.viewCount) {
-    const createdAt = new Date(post.createdAt);
-    return createdAt >= range.start && createdAt <= range.end ? post.viewCount : 0;
+const getCollectionCommentCountMap = async (postIds) => {
+  if (!postIds.length) return new Map();
+  const rows = await BlogComment.aggregate([
+    { $match: { postId: { $in: postIds }, isVisible: true } },
+    { $group: { _id: "$postId", count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((row) => [getIdKey(row._id), row.count]));
+};
+
+const getLegacyCommentCountMap = async (postIds) => {
+  if (!postIds.length) return new Map();
+  const rows = await BlogPost.aggregate([
+    { $match: { _id: { $in: postIds } } },
+    {
+      $project: {
+        count: { $size: { $ifNull: ["$comments", []] } },
+      },
+    },
+  ]);
+  return new Map(rows.map((row) => [getIdKey(row._id), row.count]));
+};
+
+const getCommentCountMap = async (postIds) => {
+  const [collectionCounts, legacyCounts] = await Promise.all([
+    getCollectionCommentCountMap(postIds),
+    getLegacyCommentCountMap(postIds),
+  ]);
+
+  const counts = new Map();
+  postIds.forEach((postId) => {
+    const key = getIdKey(postId);
+    counts.set(key, (collectionCounts.get(key) || 0) + (legacyCounts.get(key) || 0));
+  });
+  return counts;
+};
+
+const getBlogViewCountMap = async (postIds, range) => {
+  if (!postIds.length || !range) return new Map();
+  const rows = await BlogView.aggregate([
+    {
+      $match: {
+        postId: { $in: postIds },
+        createdAt: { $gte: range.start, $lte: range.end },
+      },
+    },
+    { $group: { _id: "$postId", count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((row) => [getIdKey(row._id), row.count]));
+};
+
+const serializePost = (post, { comments, commentCount, includeComments = false } = {}) => {
+  const data = post.toObject ? post.toObject({ virtuals: true }) : post;
+  const { comments: _comments, viewLogs: _viewLogs, ...publicData } = data;
+  const nextPost = {
+    ...publicData,
+    ratingAverage: data.ratingCount ? Number((data.ratingSum / data.ratingCount).toFixed(1)) : 0,
+    commentCount: Number(commentCount || 0),
+  };
+
+  if (includeComments) {
+    nextPost.comments = comments || [];
   }
 
-  return viewLogs.filter((log) => {
-    const viewedAt = new Date(log.createdAt);
-    return viewedAt >= range.start && viewedAt <= range.end;
-  }).length;
+  return nextPost;
+};
+
+const parseDateBoundary = (value, endOfDay = false) => {
+  if (!BLOG_STATS_DATE_PATTERN.test(value)) {
+    return { error: "from and to must use YYYY-MM-DD format" };
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day,
+      endOfDay ? 23 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 999 : 0,
+    ),
+  );
+
+  const isSameDate =
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  if (!isSameDate) {
+    return { error: "from and to must be valid calendar dates" };
+  }
+
+  return { date };
+};
+
+const getDateRange = ({ from, to }) => {
+  if (!from && !to) return { range: null };
+
+  const startValue = from
+    ? parseDateBoundary(from)
+    : { date: new Date("1970-01-01T00:00:00.000Z") };
+  if (startValue.error) {
+    return { error: startValue.error };
+  }
+
+  const endValue = to ? parseDateBoundary(to, true) : { date: new Date() };
+  if (endValue.error) {
+    return { error: endValue.error };
+  }
+
+  if (startValue.date > endValue.date) {
+    return { error: "from must be before or equal to to" };
+  }
+
+  return { range: { start: startValue.date, end: endValue.date } };
 };
 
 const toDateKey = (date) => {
@@ -168,8 +329,8 @@ const toDateKey = (date) => {
   return value.toISOString().slice(0, 10);
 };
 
-const buildDailyViews = (posts, range) => {
-  if (!range) return [];
+const buildDailyViews = async (postIds, range) => {
+  if (!range || !postIds.length) return [];
 
   const days = [];
   const cursor = new Date(range.start);
@@ -182,22 +343,24 @@ const buildDailyViews = (posts, range) => {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
-  posts.forEach((post) => {
-    const viewLogs = post.viewLogs || [];
-    if (!viewLogs.length && post.viewCount) {
-      const createdAt = new Date(post.createdAt);
-      if (Number.isNaN(createdAt.getTime())) return;
-      const bucket = days.find((item) => item.key === toDateKey(createdAt));
-      if (bucket) bucket.views += post.viewCount;
-      return;
-    }
+  const rows = await BlogView.aggregate([
+    {
+      $match: {
+        postId: { $in: postIds },
+        createdAt: { $gte: range.start, $lte: range.end },
+      },
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        views: { $sum: 1 },
+      },
+    },
+  ]);
+  const viewsByDay = new Map(rows.map((row) => [row._id, row.views]));
 
-    viewLogs.forEach((log) => {
-      const viewedAt = new Date(log.createdAt);
-      if (viewedAt < range.start || viewedAt > range.end) return;
-      const bucket = days.find((item) => item.key === toDateKey(viewedAt));
-      if (bucket) bucket.views += 1;
-    });
+  days.forEach((day) => {
+    day.views = viewsByDay.get(day.key) || 0;
   });
 
   return days;
@@ -206,8 +369,15 @@ const buildDailyViews = (posts, range) => {
 export const getBlogPosts = async (_req, res) => {
   try {
     await ensureDefaultBlogPosts();
-    const posts = await BlogPost.find({ isPublished: true }).sort({ createdAt: 1 });
-    return res.status(200).json({ posts: posts.map(serializePost) });
+    const posts = await BlogPost.find({ isPublished: true })
+      .select("-comments -viewLogs")
+      .sort({ createdAt: 1 });
+    const commentCounts = await getCommentCountMap(posts.map((post) => post._id));
+    return res.status(200).json({
+      posts: posts.map((post) =>
+        serializePost(post, { commentCount: commentCounts.get(getIdKey(post._id)) || 0 }),
+      ),
+    });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -216,11 +386,14 @@ export const getBlogPosts = async (_req, res) => {
 export const getBlogPostBySlug = async (req, res) => {
   try {
     await ensureDefaultBlogPosts();
-    const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true });
+    const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true }).select("-viewLogs");
     if (!post) {
       return res.status(404).json({ message: "blog post not found" });
     }
-    return res.status(200).json({ post: serializePost(post) });
+    const comments = await getBlogComments(post);
+    return res.status(200).json({
+      post: serializePost(post, { comments, commentCount: comments.length, includeComments: true }),
+    });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -229,18 +402,39 @@ export const getBlogPostBySlug = async (req, res) => {
 export const increaseBlogView = async (req, res) => {
   try {
     await ensureDefaultBlogPosts();
+    const cooldownKey = getBlogVisitorKey(req, "view");
+    const activeCooldown = getActiveBlogActionCooldown(cooldownKey);
+    if (activeCooldown) {
+      const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true }).select("-comments -viewLogs");
+      if (!post) {
+        return res.status(404).json({ message: "blog post not found" });
+      }
+      const commentCounts = await getCommentCountMap([post._id]);
+      return res.status(200).json({
+        post: serializePost(post, { commentCount: commentCounts.get(getIdKey(post._id)) || 0 }),
+        viewCounted: false,
+        retryAfterSeconds: activeCooldown.retryAfterSeconds,
+      });
+    }
+
+    startBlogActionCooldown(cooldownKey, BLOG_VIEW_COOLDOWN_MS);
     const post = await BlogPost.findOneAndUpdate(
       { slug: req.params.slug, isPublished: true },
       {
         $inc: { viewCount: 1 },
-        $push: { viewLogs: { createdAt: new Date() } },
       },
       { new: true },
-    );
+    ).select("-comments -viewLogs");
     if (!post) {
+      blogActionCooldowns.delete(cooldownKey);
       return res.status(404).json({ message: "blog post not found" });
     }
-    return res.status(200).json({ post: serializePost(post) });
+    await BlogView.create({ postId: post._id, slug: post.slug });
+    const commentCounts = await getCommentCountMap([post._id]);
+    return res.status(200).json({
+      post: serializePost(post, { commentCount: commentCounts.get(getIdKey(post._id)) || 0 }),
+      viewCounted: true,
+    });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -253,15 +447,29 @@ export const rateBlogPost = async (req, res) => {
       return res.status(400).json({ message: "rating must be between 1 and 5" });
     }
 
+    const cooldownKey = getBlogVisitorKey(req, "rating");
+    const activeCooldown = getActiveBlogActionCooldown(cooldownKey);
+    if (activeCooldown) {
+      return res.status(429).json({
+        message: "You have already rated this blog post recently.",
+        retryAfterSeconds: activeCooldown.retryAfterSeconds,
+      });
+    }
+
+    startBlogActionCooldown(cooldownKey, BLOG_RATING_COOLDOWN_MS);
     const post = await BlogPost.findOneAndUpdate(
       { slug: req.params.slug, isPublished: true },
       { $inc: { ratingSum: rating, ratingCount: 1 } },
       { new: true },
-    );
+    ).select("-comments -viewLogs");
     if (!post) {
+      blogActionCooldowns.delete(cooldownKey);
       return res.status(404).json({ message: "blog post not found" });
     }
-    return res.status(200).json({ post: serializePost(post) });
+    const commentCounts = await getCommentCountMap([post._id]);
+    return res.status(200).json({
+      post: serializePost(post, { commentCount: commentCounts.get(getIdKey(post._id)) || 0 }),
+    });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -278,24 +486,38 @@ export const commentBlogPost = async (req, res) => {
       return res.status(400).json({ message: "rating must be between 1 and 5" });
     }
 
-    const post = await BlogPost.findOneAndUpdate(
-      { slug: req.params.slug, isPublished: true },
-      {
-        $inc: { ratingSum: rating, ratingCount: 1 },
-        $push: {
-          comments: {
-            name: name?.trim() || "Bạn đọc CareGo",
-            content: content.trim(),
-            rating,
-          },
-        },
-      },
-      { new: true },
-    );
+    const cooldownKey = getBlogVisitorKey(req, "comment");
+    const activeCooldown = getActiveBlogActionCooldown(cooldownKey);
+    if (activeCooldown) {
+      return res.status(429).json({
+        message: "You are commenting too quickly. Please try again later.",
+        retryAfterSeconds: activeCooldown.retryAfterSeconds,
+      });
+    }
+
+    startBlogActionCooldown(cooldownKey, BLOG_COMMENT_COOLDOWN_MS);
+    const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true }).select("-viewLogs");
     if (!post) {
+      blogActionCooldowns.delete(cooldownKey);
       return res.status(404).json({ message: "blog post not found" });
     }
-    return res.status(201).json({ post: serializePost(post) });
+
+    await BlogComment.create({
+      postId: post._id,
+      slug: post.slug,
+      name: name?.trim() || "Bạn đọc CareGo",
+      content: content.trim(),
+      rating,
+    });
+    const updatedPost = await BlogPost.findByIdAndUpdate(
+      post._id,
+      { $inc: { ratingSum: rating, ratingCount: 1 } },
+      { new: true },
+    ).select("-viewLogs");
+    const comments = await getBlogComments(updatedPost);
+    return res.status(201).json({
+      post: serializePost(updatedPost, { comments, commentCount: comments.length, includeComments: true }),
+    });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -304,18 +526,29 @@ export const commentBlogPost = async (req, res) => {
 export const getBlogStats = async (req, res) => {
   try {
     await ensureDefaultBlogPosts();
-    const range = getDateRange(req.query);
+    const dateRange = getDateRange(req.query);
+    if (dateRange.error) {
+      return res.status(400).json({ message: dateRange.error });
+    }
+    const range = dateRange.range;
     const posts = await BlogPost.find({ isPublished: true })
-      .select("title slug category viewCount viewLogs ratingSum ratingCount comments createdAt")
+      .select("title slug category viewCount ratingSum ratingCount createdAt")
       .sort({ viewCount: -1 });
+    const postIds = posts.map((post) => post._id);
+    const [commentCounts, rangeViewCounts, dailyViews] = await Promise.all([
+      getCommentCountMap(postIds),
+      getBlogViewCountMap(postIds, range),
+      buildDailyViews(postIds, range),
+    ]);
 
     const blogStats = posts
       .map((post) => {
-        const data = serializePost(post);
+        const key = getIdKey(post._id);
+        const data = serializePost(post, { commentCount: commentCounts.get(key) || 0 });
         return {
           ...data,
           allTimeViewCount: data.viewCount || 0,
-          viewCount: countViewsInRange(post, range),
+          viewCount: range ? rangeViewCounts.get(key) || 0 : data.viewCount || 0,
         };
       })
       .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
@@ -332,7 +565,7 @@ export const getBlogStats = async (req, res) => {
 
     return res.status(200).json({
       blogStats,
-      dailyViews: buildDailyViews(posts, range),
+      dailyViews,
       categoryViews,
     });
   } catch (error) {
