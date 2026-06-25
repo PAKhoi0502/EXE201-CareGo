@@ -277,7 +277,7 @@ const AdminUsersPage = () => {
           </div>
         </div>
 
-        {loading ? <p className="p-6 text-sm text-slate-500">Dang tai nguoi dung...</p> : null}
+        {loading ? <p className="p-6 text-sm text-slate-500">Đang tải người dùng...</p> : null}
 
         {activeTab === "companions" ? (
           <div className="overflow-x-auto">

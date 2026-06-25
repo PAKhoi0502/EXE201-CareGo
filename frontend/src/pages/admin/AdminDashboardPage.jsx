@@ -73,14 +73,14 @@ const getMonthlyStats = (bookings) => {
 
 const getServiceShare = (bookings) => {
   const counts = bookings.reduce((acc, booking) => {
-    const name = booking.serviceId?.name || "Khac";
+    const name = booking.serviceId?.name || "Khác";
     acc[name] = (acc[name] || 0) + 1;
     return acc;
   }, {});
 
   const entries = Object.entries(counts);
   if (!entries.length) {
-    return [["Chua co booking", 1]];
+    return [["Chưa có booking", 1]];
   }
 
   return entries;
@@ -237,7 +237,7 @@ const AdminDashboardPage = () => {
   };
 
   if (loading) {
-    return <p className="text-sm text-slate-500">Dang tai dashboard...</p>;
+    return <p className="text-sm text-slate-500">Đang tải dashboard...</p>;
   }
 
   return (

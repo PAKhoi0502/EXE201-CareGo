@@ -39,7 +39,7 @@ const NewBookingPage = lazy(() => import("./pages/customer/NewBookingPage.jsx"))
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const SupportPage = lazy(() => import("./pages/support/SupportPage.jsx"));
 
-const LoadingFallback = () => <div className="p-6 text-sm text-slate-500">Dang tai...</div>;
+const LoadingFallback = () => <div className="p-6 text-sm text-slate-500">Đang tải...</div>;
 
 const RoleRoute = ({ role, children }) => {
   const { user, loading } = useAuth();
