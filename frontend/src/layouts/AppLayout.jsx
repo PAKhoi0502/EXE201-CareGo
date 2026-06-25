@@ -77,14 +77,6 @@ const CompanionNavLink = ({ item, compact = false }) => (
   </NavLink>
 );
 
-const CompanionNavGroup = ({ items }) => (
-  <div className="flex h-12 items-center gap-1 rounded-full border border-teal-100 bg-white/75 p-1 shadow-sm shadow-teal-900/5">
-    {items.map((item) => (
-      <CompanionNavLink key={item.to} item={item} />
-    ))}
-  </div>
-);
-
 const AppLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -183,12 +175,6 @@ const AppLayout = () => {
             <CareGoLogo subtitle="Người đồng hành" />
           </Link>
 
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-2 2xl:flex" aria-label="Điều hướng người đồng hành">
-            <CompanionNavGroup items={companionWorkNavItems} />
-            <span className="h-9 w-px bg-teal-100" aria-hidden="true" />
-            <CompanionNavGroup items={companionCustomerNavItems} />
-          </nav>
-
           <div className="flex items-center gap-3">
             <NotificationBell />
             <div ref={menuRef} className="relative">
@@ -263,9 +249,9 @@ const AppLayout = () => {
         </div>
       </header>
 
-      <div className="border-b border-teal-900/10 bg-white/70 py-3 backdrop-blur 2xl:hidden">
+      <div className="sticky top-20 z-30 border-b border-teal-900/10 bg-white/80 py-3 backdrop-blur">
         <nav
-          className="mx-auto flex w-[min(1180px,92%)] gap-2 overflow-x-auto"
+          className="mx-auto flex w-[min(1180px,92%)] gap-2 overflow-x-auto 2xl:justify-center"
           aria-label="Điều hướng người đồng hành"
         >
           {companionAllNavItems.map((item) => (
