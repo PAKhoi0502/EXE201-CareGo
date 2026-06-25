@@ -98,7 +98,7 @@ const DetailItem = ({ number, title, children }) => (
 
 const CompanionBookingDetailPage = () => {
   const { id } = useParams();
-  const { data, setData, loading, error } = useAsync(() => api.get(`/bookings/${id}`), [id]);
+  const { data, setData, loading, error } = useAsync(() => api.get(`/bookings/${id}?as=companion`), [id]);
   const [shift, setShift] = useState({
     checkInPhotoUrl: [],
     checkOutPhotoUrl: [],

@@ -14,7 +14,8 @@ export default function SupportFloatingButton() {
   const [error, setError] = useState("");
   const [form, setForm] = useState({ subject: "", message: "" });
   const containerRef = useRef(null);
-  const supportPath = user?.role === "companion" ? "/companion/support" : "/customer/support";
+  const isCustomerSection = location.pathname.startsWith("/customer");
+  const supportPath = user?.role === "companion" && !isCustomerSection ? "/companion/support" : "/customer/support";
 
   useEffect(() => {
     if (!open || conversation) return undefined;

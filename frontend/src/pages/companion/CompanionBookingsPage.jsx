@@ -7,7 +7,7 @@ import { dateTime, money } from "../../utils/format.js";
 const workStatuses = ["pending", "accepted", "in_progress"];
 
 const CompanionBookingsPage = () => {
-  const { data, loading, error } = useAsync(() => api.get("/bookings/my"), []);
+  const { data, loading, error } = useAsync(() => api.get("/bookings/my?as=companion"), []);
   const bookings = data?.bookings || [];
   const workBookings = bookings.filter((booking) => workStatuses.includes(booking.status));
   const activeCount = bookings.filter((booking) => ["accepted", "in_progress"].includes(booking.status)).length;

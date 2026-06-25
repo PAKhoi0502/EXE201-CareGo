@@ -16,10 +16,12 @@ import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
 import User from "../models/user.models.js";
 import { emitBookingChatState } from "../socket/booking-chat.socket.js";
+import { sendCompanionBookingCreatedEmail } from "../utils/email.js";
 import {
   createBookingAcceptedNotification,
   createBookingCompletedNotification,
   createBookingCreatedNotification,
+  createCompanionBookingCreatedNotification,
   createCompanionCheckedInNotification,
   createPaymentReminderNotification,
   createPaymentSuccessNotification,
@@ -146,6 +148,48 @@ const canAccessBooking = (booking, user) => {
     toIdString(booking.customerId) === user.userId ||
     toIdString(booking.companionId) === user.userId
   );
+};
+
+const getRequestedBookingPerspective = (req) => {
+  const value = String(req.query?.as || "").trim().toLowerCase();
+  return ["customer", "companion"].includes(value) ? value : "";
+};
+
+const getBookingListPerspective = (req) =>
+  getRequestedBookingPerspective(req) || (req.user.role === "companion" ? "companion" : "customer");
+
+const getBookingDetailPerspective = (req, booking) => {
+  const requestedPerspective = getRequestedBookingPerspective(req);
+  if (requestedPerspective) {
+    return requestedPerspective;
+  }
+
+  return req.user.role === "companion" && toIdString(booking.companionId) === req.user.userId
+    ? "companion"
+    : "customer";
+};
+
+const ensureApprovedCompanionRequest = async (req, res) => {
+  if (req.user.role !== "companion") {
+    return true;
+  }
+
+  const profile = await CompanionProfile.findOne({ userId: req.user.userId }).select("vettingStatus");
+  if (!profile) {
+    res.status(403).json({ message: "companion profile not found" });
+    return false;
+  }
+
+  if (profile.vettingStatus !== "approved") {
+    res.status(403).json({
+      message: "companion account is waiting for admin approval",
+      vettingStatus: profile.vettingStatus,
+    });
+    return false;
+  }
+
+  req.companionProfile = profile;
+  return true;
 };
 
 const canUpdateShiftEvidence = (booking) =>
@@ -676,6 +720,10 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ message: "valid addressLocation with lat and lng is required" });
     }
 
+    if (toIdString(companionId) === req.user.userId) {
+      return res.status(409).json({ message: "Bạn không thể đặt lịch cho chính tài khoản companion của mình." });
+    }
+
     const overdueBooking = await Booking.findOne({
       customerId: req.user.userId,
       status: "completed",
@@ -712,7 +760,7 @@ export const createBooking = async (req, res) => {
       role: "companion",
       isActive: true,
       isEmailVerified: true,
-    }).select("_id");
+    }).select("_id name email");
     if (!companionUser) {
       return res.status(404).json({ message: "active companion not found" });
     }
@@ -760,7 +808,19 @@ export const createBooking = async (req, res) => {
       checklist: service.defaultChecklist?.map((label) => ({ label, done: false })) || [],
     });
 
-    await createBookingCreatedNotification(booking);
+    await Promise.all([
+      createBookingCreatedNotification(booking),
+      createCompanionBookingCreatedNotification(booking, { elder, service }),
+      sendCompanionBookingCreatedEmail({
+        to: companionUser.email,
+        name: companionUser.name,
+        booking,
+        elder,
+        service,
+      }).catch((emailError) => {
+        console.warn("Failed to send companion booking email:", emailError.message);
+      }),
+    ]);
 
     return res.status(201).json({ message: "booking created", booking });
   } catch (error) {
@@ -776,13 +836,21 @@ export const createBooking = async (req, res) => {
 
 export const getMyBookings = async (req, res) => {
   try {
-    const filter =
-      req.user.role === "companion"
-        ? { companionId: req.user.userId }
-        : { customerId: req.user.userId };
+    const perspective = getBookingListPerspective(req);
+    if (perspective === "companion" && req.user.role !== "companion") {
+      return res.status(403).json({ message: "permission denied" });
+    }
+
+    if (perspective === "companion" && !(await ensureApprovedCompanionRequest(req, res))) {
+      return;
+    }
+
+    const filter = perspective === "companion"
+      ? { companionId: req.user.userId }
+      : { customerId: req.user.userId };
 
     const bookings = await Booking.find(filter).populate(populateBooking).sort({ createdAt: -1 });
-    return res.status(200).json({ bookings });
+    return res.status(200).json({ bookings, perspective });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -795,11 +863,30 @@ export const getBookingById = async (req, res) => {
       return res.status(404).json({ message: "booking not found" });
     }
 
+    const perspective = getBookingDetailPerspective(req, booking);
+    const isCustomerSide = toIdString(booking.customerId) === req.user.userId;
+    const isCompanionSide = toIdString(booking.companionId) === req.user.userId;
+    if (req.user.role !== "admin" && perspective === "customer" && !isCustomerSide) {
+      return res.status(404).json({ message: "booking not found" });
+    }
+
+    if (req.user.role !== "admin" && perspective === "companion" && !isCompanionSide) {
+      return res.status(404).json({ message: "booking not found" });
+    }
+
+    if (
+      perspective === "companion" &&
+      isCompanionSide &&
+      !(await ensureApprovedCompanionRequest(req, res))
+    ) {
+      return;
+    }
+
     const shiftLog = await ShiftLog.findOne({ bookingId: booking._id });
     const payment = await Payment.findOne({ bookingId: booking._id });
     const review = await Review.findOne({ bookingId: booking._id });
 
-    return res.status(200).json({ booking, shiftLog, payment, review });
+    return res.status(200).json({ booking, shiftLog, payment, review, perspective });
   } catch (error) {
     return res.status(500).json({ message: "internal server error", error: error.message });
   }
@@ -908,6 +995,10 @@ export const cancelBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking || !canAccessBooking(booking, req.user)) {
+      return res.status(404).json({ message: "booking not found" });
+    }
+
+    if (req.user.role !== "admin" && toIdString(booking.customerId) !== req.user.userId) {
       return res.status(404).json({ message: "booking not found" });
     }
 

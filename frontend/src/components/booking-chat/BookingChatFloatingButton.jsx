@@ -90,7 +90,9 @@ export default function BookingChatFloatingButton() {
     [chats, selectedId],
   );
   const booking = selectedChat?.booking;
-  const counterpart = user?.role === "companion" ? booking?.customerId : booking?.companionId;
+  const userId = String(user?.id || user?._id || "");
+  const bookingCustomerId = String(booking?.customerId?._id || booking?.customerId || "");
+  const counterpart = bookingCustomerId === userId ? booking?.companionId : booking?.customerId;
 
   const updateChat = useCallback((nextChat) => {
     if (!nextChat?.booking?._id) return;

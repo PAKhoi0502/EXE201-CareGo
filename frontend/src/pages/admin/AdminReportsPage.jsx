@@ -12,7 +12,6 @@ import {
 } from "chart.js";
 import { useState } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
-import * as XLSX from "xlsx";
 import { api } from "../../api/client.js";
 import { StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
@@ -106,7 +105,8 @@ const AdminReportsPage = () => {
     setDateRange((current) => ({ ...current, [field]: value }));
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
     const workbook = XLSX.utils.book_new();
 
     const summaryRows = [

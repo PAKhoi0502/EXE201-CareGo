@@ -10,9 +10,13 @@ const toIdString = (value) => {
 
 const bookingLink = (booking) => `/customer/bookings/${toIdString(booking?._id)}`;
 
+const companionBookingLink = (booking) => `/companion/bookings/${toIdString(booking?._id)}`;
+
 const getBookingId = (booking) => toIdString(booking?._id);
 
 const getCustomerId = (booking) => toIdString(booking?.customerId);
+
+const getCompanionId = (booking) => toIdString(booking?.companionId);
 
 const truncateText = (value, maxLength = 160) => {
   const text = String(value || "").trim();
@@ -103,6 +107,31 @@ export const createBookingCreatedNotification = (booking) =>
     metadata: { status: booking?.status || "pending" },
     dedupeKey: `booking:${getBookingId(booking)}:created:customer`,
   });
+
+export const createCompanionBookingCreatedNotification = (booking, details = {}) => {
+  const serviceName = String(details.service?.name || "").trim();
+  const elderName = String(details.elder?.fullName || details.elder?.name || "").trim();
+  const detailText = [serviceName, elderName ? `cho ${elderName}` : ""].filter(Boolean).join(" ");
+
+  return createNotification({
+    recipientId: getCompanionId(booking),
+    recipientRole: "companion",
+    type: "COMPANION_BOOKING_CREATED",
+    title: "Có booking mới",
+    message: detailText
+      ? `Khách hàng vừa đặt ${detailText}. Vui lòng kiểm tra và phản hồi lịch chăm sóc.`
+      : "Khách hàng vừa đặt lịch chăm sóc với bạn. Vui lòng kiểm tra và phản hồi booking.",
+    link: companionBookingLink(booking),
+    bookingId: getBookingId(booking),
+    metadata: {
+      status: booking?.status || "pending",
+      serviceId: toIdString(booking?.serviceId),
+      elderProfileId: toIdString(booking?.elderProfileId),
+      startTime: booking?.startTime || null,
+    },
+    dedupeKey: `booking:${getBookingId(booking)}:created:companion`,
+  });
+};
 
 export const createBookingAcceptedNotification = (booking) =>
   createNotification({

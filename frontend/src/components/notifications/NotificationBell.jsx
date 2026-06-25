@@ -5,6 +5,7 @@ import { useNotifications } from "../../context/NotificationContext.jsx";
 const typeStyles = {
   CUSTOMER_WELCOME: "bg-emerald-50 text-emerald-700",
   BOOKING_CREATED: "bg-teal-50 text-teal-700",
+  COMPANION_BOOKING_CREATED: "bg-cyan-50 text-cyan-700",
   BOOKING_ACCEPTED: "bg-sky-50 text-sky-700",
   COMPANION_CHECKED_IN: "bg-indigo-50 text-indigo-700",
   SHIFT_NOTE_UPDATED: "bg-amber-50 text-amber-700",

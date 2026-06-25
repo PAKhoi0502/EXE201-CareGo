@@ -1,10 +1,10 @@
 import Booking from "../models/booking.models.js";
 import BookingMessage, { BOOKING_MESSAGE_MAX_LENGTH } from "../models/booking-message.models.js";
+import CompanionProfile from "../models/companion-profile.models.js";
 import { emitBookingChatMessage } from "../socket/booking-chat.socket.js";
 import {
   BOOKING_CHAT_AFTER_COMPLETION_MS,
   getBookingChatState,
-  isBookingChatParticipant,
 } from "../utils/booking-chat.js";
 
 const populateBookingChat = [
@@ -14,15 +14,38 @@ const populateBookingChat = [
   { path: "serviceId", select: "name" },
 ];
 
-const getParticipantFilter = (req) =>
-  req.user.role === "companion"
-    ? { companionId: req.user.userId }
-    : { customerId: req.user.userId };
+const toIdString = (value) => (value?._id || value || "").toString();
+
+const isCustomerSideParticipant = (booking, user) =>
+  toIdString(booking?.customerId) === user?.userId;
+
+const isCompanionSideParticipant = (booking, user) =>
+  user?.role === "companion" && toIdString(booking?.companionId) === user?.userId;
+
+const canUseCompanionChatSide = async (req) => {
+  if (req.user.role !== "companion") {
+    return false;
+  }
+
+  const profile = await CompanionProfile.findOne({ userId: req.user.userId }).select("vettingStatus");
+  return profile?.vettingStatus === "approved";
+};
+
+const getParticipantFilter = async (req) => {
+  const filters = [{ customerId: req.user.userId }];
+  if (await canUseCompanionChatSide(req)) {
+    filters.push({ companionId: req.user.userId });
+  }
+
+  return { $or: filters };
+};
 
 const findAllowedBooking = async (req) => {
   const booking = await Booking.findById(req.params.bookingId).populate(populateBookingChat);
-  if (!booking || !isBookingChatParticipant(booking, req.user)) return null;
-  return booking;
+  if (!booking) return null;
+  if (isCustomerSideParticipant(booking, req.user)) return booking;
+  if (isCompanionSideParticipant(booking, req.user) && await canUseCompanionChatSide(req)) return booking;
+  return null;
 };
 
 const serializeChat = (booking, now = new Date()) => ({
@@ -68,12 +91,16 @@ export const getActiveBookingChats = async (req, res) => {
     const now = new Date();
     const completedAfter = new Date(now.getTime() - BOOKING_CHAT_AFTER_COMPLETION_MS);
     const bookings = await Booking.find({
-      ...getParticipantFilter(req),
-      $or: [
-        { status: { $in: ["accepted", "in_progress"] } },
+      $and: [
+        await getParticipantFilter(req),
         {
-          status: { $in: ["completed", "paid"] },
-          completedAt: { $gt: completedAfter },
+          $or: [
+            { status: { $in: ["accepted", "in_progress"] } },
+            {
+              status: { $in: ["completed", "paid"] },
+              completedAt: { $gt: completedAfter },
+            },
+          ],
         },
       ],
     })

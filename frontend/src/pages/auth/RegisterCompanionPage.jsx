@@ -116,15 +116,15 @@ const CccdCameraCapture = ({ label, value, onChange }) => {
 };
 
 const RegisterCompanionPage = () => {
-  const { registerCompanion } = useAuth();
+  const { user, registerCompanion } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    name: "",
-    fullName: "",
-    email: "",
+    name: user?.name || "",
+    fullName: user?.name || "",
+    email: user?.email || "",
     password: "",
-    phone: "",
+    phone: user?.phone || "",
     gender: "other",
     university: "",
     major: "",
@@ -135,13 +135,21 @@ const RegisterCompanionPage = () => {
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const isApplyingWithCurrentAccount = Boolean(user);
+  const companionForm = {
+    ...form,
+    name: form.name || user?.name || "",
+    fullName: form.fullName || user?.name || "",
+    email: user?.email || form.email,
+    phone: form.phone || user?.phone || "",
+  };
 
   const validateProfileStep = () => {
-    if (!form.name || !form.fullName || !form.email || !form.password || !form.phone) {
+    if (!companionForm.name || !companionForm.fullName || !companionForm.email || !companionForm.phone || (!isApplyingWithCurrentAccount && !companionForm.password)) {
       return "Vui lòng nhập đủ thông tin tài khoản và số điện thoại.";
     }
 
-    if (!form.university || !form.major || !form.skillsText || !form.serviceAreasText) {
+    if (!companionForm.university || !companionForm.major || !companionForm.skillsText || !companionForm.serviceAreasText) {
       return "Vui lòng nhập đủ trường, ngành, kỹ năng và khu vực hoạt động.";
     }
 
@@ -180,17 +188,21 @@ const RegisterCompanionPage = () => {
     setSubmitting(true);
     try {
       await registerCompanion({
-        ...form,
-        skills: form.skillsText.split(",").map((item) => item.trim()).filter(Boolean),
-        serviceAreas: form.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
+        ...companionForm,
+        skills: companionForm.skillsText.split(",").map((item) => item.trim()).filter(Boolean),
+        serviceAreas: companionForm.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
         documents: {
-          citizenIdFrontUrl: form.citizenIdFrontUrl,
-          citizenIdBackUrl: form.citizenIdBackUrl,
+          citizenIdFrontUrl: companionForm.citizenIdFrontUrl,
+          citizenIdBackUrl: companionForm.citizenIdBackUrl,
         },
       });
-      navigate("/verify-email", {
-        state: { email: form.email, password: form.password, role: "companion" },
-      });
+      if (isApplyingWithCurrentAccount) {
+        navigate("/companion-status", { replace: true });
+      } else {
+        navigate("/verify-email", {
+          state: { email: companionForm.email, password: companionForm.password, role: "companion" },
+        });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -203,7 +215,11 @@ const RegisterCompanionPage = () => {
       title="Đăng ký người đồng hành"
       subtitle={step === 1 ? "Điền thông tin hồ sơ trước, sau đó chụp CCCD để admin kiểm duyệt." : "Chụp CCCD mặt trước và mặt sau để hoàn tất hồ sơ."}
       badge={`Bước ${step}/2`}
-      footer={<Link className="font-black text-teal-700" to="/login">Đã có tài khoản</Link>}
+      footer={
+        isApplyingWithCurrentAccount
+          ? <Link className="font-black text-teal-700" to="/">Về trang chủ</Link>
+          : <Link className="font-black text-teal-700" to="/login">Đã có tài khoản</Link>
+      }
     >
       <form className="grid gap-4" onSubmit={submit}>
         <div className="grid grid-cols-2 gap-2 rounded-2xl bg-teal-50 p-1 text-sm font-black">
@@ -225,11 +241,21 @@ const RegisterCompanionPage = () => {
 
         {step === 1 ? (
           <>
-            <Input label="Tên hiển thị" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên hiển thị" />
-            <Input label="Họ tên đầy đủ" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập họ tên đầy đủ" />
-            <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập email" />
-            <Input label="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập mật khẩu" />
-            <Input label="Số điện thoại" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập số điện thoại" />
+            <Input label="Tên hiển thị" value={companionForm.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên hiển thị" />
+            <Input label="Họ tên đầy đủ" value={companionForm.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập họ tên đầy đủ" />
+            <Input
+              label="Email"
+              type="email"
+              value={companionForm.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              readOnly={isApplyingWithCurrentAccount}
+              className={`min-h-12 rounded-2xl border-teal-100 ${isApplyingWithCurrentAccount ? "bg-slate-50 text-slate-500" : ""}`}
+              placeholder="Nhập email"
+            />
+            {!isApplyingWithCurrentAccount ? (
+              <Input label="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập mật khẩu" />
+            ) : null}
+            <Input label="Số điện thoại" value={companionForm.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập số điện thoại" />
             <Select label="Giới tính" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="min-h-12 rounded-2xl border-teal-100">
               <option value="other">Khác</option>
               <option value="male">Nam</option>
@@ -273,7 +299,7 @@ const RegisterCompanionPage = () => {
               Quay lại
             </Button>
             <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
-              {submitting ? "Đang gửi OTP..." : "Gửi hồ sơ"}
+              {submitting ? (isApplyingWithCurrentAccount ? "Đang gửi hồ sơ..." : "Đang gửi OTP...") : "Gửi hồ sơ"}
             </Button>
           </div>
         )}

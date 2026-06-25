@@ -15,9 +15,6 @@ const getActiveSocketUser = async (userId) => {
   let companionProfile = null;
   if (user.role === "companion") {
     companionProfile = await CompanionProfile.findOne({ userId: user._id }).select("vettingStatus");
-    if (!companionProfile || companionProfile.vettingStatus !== "approved") {
-      throw new Error("companion account is waiting for admin approval");
-    }
   }
 
   return {

@@ -15,13 +15,14 @@ import {
 } from "../components/landing/LandingSections.jsx";
 import { trustItems } from "../components/landing/landingData.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { hasCustomerAccess } from "../utils/authNavigation.js";
 
 const LandingPage = () => {
   const location = useLocation();
   const { user } = useAuth();
-  const isCustomer = user?.role === "customer";
-  const bookingPath = isCustomer ? "/customer/bookings/new" : "/register";
-  const servicePath = isCustomer ? "/customer/services" : null;
+  const canUseCustomerWorkspace = hasCustomerAccess(user);
+  const bookingPath = canUseCustomerWorkspace ? "/customer/bookings/new" : "/register";
+  const servicePath = canUseCustomerWorkspace ? "/customer/services" : null;
 
   useEffect(() => {
     if (!location.hash) return;

@@ -4,6 +4,7 @@ import {
   adminGetCompanions,
   adminUpdateCompanion,
   adminUpdateCompanionStatus,
+  applyForCompanion,
   getCompanionReviews,
   getCompanionOnlineStatuses,
   getCompanionById,
@@ -19,6 +20,7 @@ const router = express.Router();
 router.get("/", getCompanions);
 router.post("/register", registerCompanion);
 router.get("/online-statuses", verifyToken, getCompanionOnlineStatuses);
+router.post("/me/apply", verifyToken, allowRoles("customer"), applyForCompanion);
 router.patch("/me", verifyToken, allowRoles("companion"), updateMyCompanionProfile);
 router.get("/admin/all", verifyToken, allowRoles("admin"), adminGetCompanions);
 router.get(

@@ -39,7 +39,8 @@ export default function BookingChatPanel({ chat, onChatChange, onUnavailable }) 
   const booking = chat?.booking;
   const bookingId = String(booking?._id || "");
   const userId = String(user?.id || user?._id || "");
-  const counterpart = user?.role === "companion" ? booking?.customerId : booking?.companionId;
+  const bookingCustomerId = String(booking?.customerId?._id || booking?.customerId || "");
+  const counterpart = bookingCustomerId === userId ? booking?.companionId : booking?.customerId;
   const canSend = Boolean(chat?.canSend) && (!chat?.expiresAt || new Date(chat.expiresAt).getTime() > clock);
   const remainingText = useMemo(
     () => formatRemaining(chat?.expiresAt, clock),

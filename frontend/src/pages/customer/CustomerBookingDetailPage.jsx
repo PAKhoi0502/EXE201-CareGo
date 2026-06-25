@@ -103,7 +103,7 @@ const waitingPaymentStatuses = ["pending", "accepted", "in_progress"];
 const CustomerBookingDetailPage = () => {
   const { id } = useParams();
   const location = useLocation();
-  const { data, setData, loading, error, reload } = useAsync(() => api.get(`/bookings/${id}`), [id]);
+  const { data, setData, loading, error, reload } = useAsync(() => api.get(`/bookings/${id}?as=customer`), [id]);
   const [review, setReview] = useState({ rating: 5, comment: "" });
   const [submitError, setSubmitError] = useState("");
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -196,7 +196,7 @@ const CustomerBookingDetailPage = () => {
         if ((isPayOSReturn || isPayOSCancel) && payosOrderCode) {
           await api.post("/payments/payos/sync", { bookingId: id, orderCode: payosOrderCode });
         }
-        const nextData = await api.get(`/bookings/${id}`);
+        const nextData = await api.get(`/bookings/${id}?as=customer`);
         if (active) {
           setData(nextData);
         }

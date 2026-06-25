@@ -4,6 +4,7 @@ import CareGoLogo from "../CareGoLogo.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import NotificationBell from "../notifications/NotificationBell.jsx";
 import LandingButton from "./LandingButton.jsx";
+import { hasCustomerAccess, isApprovedCompanion } from "../../utils/authNavigation.js";
 
 const navItems = [
   ["Dịch vụ", "#services"],
@@ -28,6 +29,7 @@ const MenuIcon = ({ type, tone = "teal" }) => {
     calendar: <path d="M8 3v3m8-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
     family: <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM3 20a6 6 0 0 1 12 0m-1.5-4.5A5 5 0 0 1 21 20" />,
     support: <path d="M4 12a8 8 0 0 1 16 0v5a2 2 0 0 1-2 2h-3m-6 0H6a2 2 0 0 1-2-2v-5Zm0 0h3v5H4m16-5h-3v5h3M9 21h6" />,
+    wallet: <path d="M4 7a2 2 0 0 1 2-2h12v14H6a2 2 0 0 1-2-2V7Zm12 6h4v4h-4a2 2 0 0 1 0-4Z" />,
     logout: <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4m5 10 5-5-5-5m5 5H9" />,
   };
 
@@ -60,11 +62,14 @@ const LandingNavbar = () => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
-  const isCustomer = user?.role === "customer";
-  const bookingPath = isCustomer ? "/customer/bookings/new" : "/register";
-  const sectionNavItems = isCustomer
+  const canUseCustomerWorkspace = hasCustomerAccess(user);
+  const isCompanion = user?.role === "companion";
+  const isApprovedCompanionUser = isApprovedCompanion(user);
+  const bookingPath = canUseCustomerWorkspace ? "/customer/bookings/new" : "/register";
+  const sectionNavItems = canUseCustomerWorkspace
     ? navItems.map(([label, href]) => [label, href.startsWith("#") ? `/${href}` : href])
     : navItems;
+  const roleLabel = isCompanion ? "Khách hàng & đồng hành" : "Khách hàng";
 
   const handleLogout = () => {
     logout();
@@ -117,7 +122,7 @@ const LandingNavbar = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          {isCustomer ? <NotificationBell /> : null}
+          {canUseCustomerWorkspace ? <NotificationBell /> : null}
           {user ? (
             <div ref={menuRef} className="relative">
               <button
@@ -130,7 +135,7 @@ const LandingNavbar = () => {
                 <span className="hidden text-left sm:block">
                   <span className="block text-sm font-black text-[#12312f]">{user.name}</span>
                   <span className="block text-xs font-semibold text-slate-500">
-                    {isCustomer ? "Khách hàng" : user.role}
+                    {roleLabel}
                   </span>
                 </span>
                 <span className={`grid h-6 w-6 place-items-center rounded-full bg-teal-50 text-teal-700 transition ${open ? "rotate-180" : "rotate-0"}`}>
@@ -153,7 +158,7 @@ const LandingNavbar = () => {
                   </div>
 
                   <div className="grid gap-1 p-2 text-sm font-bold text-slate-600">
-                    {isCustomer ? (
+                    {canUseCustomerWorkspace ? (
                       <>
                         <Link
                           onClick={() => setOpen(false)}
@@ -187,6 +192,29 @@ const LandingNavbar = () => {
                           <MenuIcon type="family" />
                           Hồ sơ người thân
                         </Link>
+                      </>
+                    ) : null}
+                    {isCompanion ? (
+                      <>
+                        <div className="my-1 h-px bg-teal-50" />
+                        <Link
+                          onClick={() => setOpen(false)}
+                          to={isApprovedCompanionUser ? "/companion/bookings" : "/companion-status"}
+                          className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                        >
+                          <MenuIcon type="calendar" />
+                          Khu người đồng hành
+                        </Link>
+                        {isApprovedCompanionUser ? (
+                          <Link
+                            onClick={() => setOpen(false)}
+                            to="/companion/earnings"
+                            className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
+                          >
+                            <MenuIcon type="wallet" />
+                            Thu nhập companion
+                          </Link>
+                        ) : null}
                       </>
                     ) : null}
                     <div className="my-1 h-px bg-teal-50" />

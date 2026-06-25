@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { api } from "../../api/client.js";
 import AddressSearchMap from "../../components/AddressSearchMap.jsx";
 import { Button, Input, Select, Textarea } from "../../components/Ui.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
 
@@ -73,6 +74,7 @@ const StatusPill = ({ children, tone = "green" }) => {
 };
 
 const NewBookingPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { data: elderData, loading: elderLoading } = useAsync(() => api.get("/elders/my"), []);
   const { data: serviceData, loading: serviceLoading } = useAsync(() => api.get("/services"), []);
@@ -98,13 +100,14 @@ const NewBookingPage = () => {
   const elders = useMemo(() => elderData?.elders || [], [elderData?.elders]);
   const services = useMemo(() => serviceData?.services || [], [serviceData?.services]);
   const companions = useMemo(() => companionData?.companions || [], [companionData?.companions]);
+  const currentUserId = user?.id || user?._id;
   const onlineCompanions = useMemo(
     () =>
       companions.filter((item) => {
-        const userId = item.userId?._id || item.userId;
-        return onlineStatuses[userId]?.isOnline;
+        const companionUserId = item.userId?._id || item.userId;
+        return companionUserId !== currentUserId && onlineStatuses[companionUserId]?.isOnline;
       }),
-    [companions, onlineStatuses],
+    [companions, currentUserId, onlineStatuses],
   );
   const selectedService = useMemo(() => services.find((item) => item._id === form.serviceId), [services, form.serviceId]);
   const selectedElder = useMemo(() => elders.find((item) => item._id === form.elderProfileId), [elders, form.elderProfileId]);

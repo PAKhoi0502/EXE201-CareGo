@@ -157,7 +157,7 @@ export const syncPayOSPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: "booking not found" });
     }
 
-    if (req.user.role === "customer" && booking.customerId.toString() !== req.user.userId) {
+    if (req.user.role !== "admin" && booking.customerId.toString() !== req.user.userId) {
       return res.status(403).json({ success: false, message: "permission denied" });
     }
 

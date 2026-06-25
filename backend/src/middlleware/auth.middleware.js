@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.models.js";
+import { getEffectiveRoles } from "./role.middleware.js";
 
 const getTokenFromHeader = (req) => {
   const authHeader = req.headers.authorization || "";
@@ -39,11 +40,13 @@ export const verifyToken = async (req, res, next) => {
       });
     }
 
-    req.user = {
+    const requestUser = {
       ...decoded,
       userId: user._id.toString(),
       role: user.role,
     };
+    requestUser.roles = getEffectiveRoles(requestUser);
+    req.user = requestUser;
 
     return next();
   } catch {

@@ -39,7 +39,7 @@ const StatCard = ({ label, value, tone = "emerald" }) => {
 };
 
 const CompanionEarningsPage = () => {
-  const { data, loading, error } = useAsync(() => api.get("/bookings/my"), []);
+  const { data, loading, error } = useAsync(() => api.get("/bookings/my?as=companion"), []);
   const bookings = data?.bookings || [];
   const paidBookings = bookings
     .filter((booking) => booking.status === "paid")

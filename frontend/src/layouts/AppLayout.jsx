@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Outlet, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { api } from "../api/client.js";
 import CareGoLogo from "../components/CareGoLogo.jsx";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
+import NotificationBell from "../components/notifications/NotificationBell.jsx";
 import SupportFloatingButton from "../components/support/SupportFloatingButton.jsx";
 import BookingChatFloatingButton from "../components/booking-chat/BookingChatFloatingButton.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -14,12 +15,15 @@ const MenuIcon = ({ type, tone = "teal" }) => {
     teal: "bg-teal-50 text-teal-700",
     emerald: "bg-emerald-50 text-emerald-700",
     rose: "bg-rose-50 text-rose-600",
+    white: "bg-white/15 text-white",
   };
 
   const paths = {
     user: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />,
+    plus: <path d="M12 5v14M5 12h14" />,
     calendar: <path d="M8 3v3m8-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
     check: <path d="m5 12 4 4L19 6" />,
+    family: <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM3 20a6 6 0 0 1 12 0m-1.5-4.5A5 5 0 0 1 21 20" />,
     wallet: <path d="M4 7a2 2 0 0 1 2-2h12v14H6a2 2 0 0 1-2-2V7Zm12 6h4v4h-4a2 2 0 0 1 0-4Z" />,
     support: <path d="M4 12a8 8 0 0 1 16 0v5a2 2 0 0 1-2 2h-3m-6 0H6a2 2 0 0 1-2-2v-5Zm0 0h3v5H4m16-5h-3v5h3M9 21h6" />,
     logout: <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4m5 10 5-5-5-5m5 5H9" />,
@@ -36,16 +40,63 @@ const MenuIcon = ({ type, tone = "teal" }) => {
   );
 };
 
+const companionWorkNavItems = [
+  { to: "/companion/bookings", label: "Ca làm", icon: "calendar", end: true },
+  { to: "/companion/bookings/history", label: "Lịch sử", icon: "check" },
+  { to: "/companion/earnings", label: "Thu nhập", icon: "wallet", tone: "emerald" },
+];
+
+const companionCustomerNavItems = [
+  { to: "/customer/bookings/new", label: "Đặt lịch", icon: "plus" },
+  { to: "/customer/bookings", label: "Lịch đã đặt", icon: "calendar", end: true },
+  { to: "/customer/elders", label: "Người thân", icon: "family" },
+];
+
+const companionAllNavItems = [...companionWorkNavItems, ...companionCustomerNavItems];
+
+const CompanionNavLink = ({ item, compact = false }) => (
+  <NavLink
+    to={item.to}
+    end={item.end}
+    className={({ isActive }) =>
+      [
+        "inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full text-sm font-black transition",
+        compact ? "px-3" : "px-3.5",
+        isActive
+          ? "bg-teal-700 text-white shadow-lg shadow-teal-700/15"
+          : "text-slate-600 hover:bg-white hover:text-teal-800",
+      ].join(" ")
+    }
+  >
+    {({ isActive }) => (
+      <>
+        <MenuIcon type={item.icon} tone={isActive ? "white" : item.tone || "teal"} />
+        <span>{item.label}</span>
+      </>
+    )}
+  </NavLink>
+);
+
+const CompanionNavGroup = ({ items }) => (
+  <div className="flex h-12 items-center gap-1 rounded-full border border-teal-100 bg-white/75 p-1 shadow-sm shadow-teal-900/5">
+    {items.map((item) => (
+      <CompanionNavLink key={item.to} item={item} />
+    ))}
+  </div>
+);
+
 const AppLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const vettingStatus = user?.companionProfile?.vettingStatus;
-  const isCustomer = user?.role === "customer";
+  const isCustomerSection = location.pathname.startsWith("/customer");
+  const isCustomerWorkspace = user?.role === "customer" || isCustomerSection;
   const isApprovedCompanionUser = user?.role === "companion" && vettingStatus === "approved";
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const { data: bookingsData } = useAsync(
-    () => (isApprovedCompanionUser ? api.get("/bookings/my") : { bookings: [] }),
+    () => (isApprovedCompanionUser ? api.get("/bookings/my?as=companion") : { bookings: [] }),
     [isApprovedCompanionUser],
   );
   const { data: withdrawalSummary, reload: reloadWithdrawalSummary } = useAsync(
@@ -111,7 +162,7 @@ const AppLayout = () => {
     return () => window.clearInterval(timer);
   }, [isApprovedCompanionUser, reloadWithdrawalSummary]);
 
-  if (isCustomer) {
+  if (isCustomerWorkspace) {
     return (
       <div className="min-h-screen bg-[#f5fbfa] text-slate-900">
         <LandingNavbar />
@@ -132,7 +183,14 @@ const AppLayout = () => {
             <CareGoLogo subtitle="Người đồng hành" />
           </Link>
 
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-2 2xl:flex" aria-label="Điều hướng người đồng hành">
+            <CompanionNavGroup items={companionWorkNavItems} />
+            <span className="h-9 w-px bg-teal-100" aria-hidden="true" />
+            <CompanionNavGroup items={companionCustomerNavItems} />
+          </nav>
+
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <div ref={menuRef} className="relative">
               <button
                 type="button"
@@ -188,30 +246,6 @@ const AppLayout = () => {
                       <MenuIcon type="user" />
                       Trang cá nhân
                     </Link>
-                    <Link
-                      onClick={() => setMenuOpen(false)}
-                      to="/companion/bookings"
-                      className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
-                    >
-                      <MenuIcon type="calendar" />
-                      Lịch của tôi
-                    </Link>
-                    <Link
-                      onClick={() => setMenuOpen(false)}
-                      to="/companion/bookings/history"
-                      className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
-                    >
-                      <MenuIcon type="check" />
-                      Lịch sử hoàn thành
-                    </Link>
-                    <Link
-                      onClick={() => setMenuOpen(false)}
-                      to="/companion/earnings"
-                      className="flex items-center gap-2 rounded-2xl px-4 py-3 transition hover:bg-teal-50 hover:text-teal-800"
-                    >
-                      <MenuIcon type="wallet" tone="emerald" />
-                      Thu nhập
-                    </Link>
                     <div className="my-1 h-px bg-teal-50" />
                     <button
                       type="button"
@@ -228,6 +262,17 @@ const AppLayout = () => {
           </div>
         </div>
       </header>
+
+      <div className="border-b border-teal-900/10 bg-white/70 py-3 backdrop-blur 2xl:hidden">
+        <nav
+          className="mx-auto flex w-[min(1180px,92%)] gap-2 overflow-x-auto"
+          aria-label="Điều hướng người đồng hành"
+        >
+          {companionAllNavItems.map((item) => (
+            <CompanionNavLink key={item.to} item={item} compact />
+          ))}
+        </nav>
+      </div>
 
       {user?.role === "companion" && vettingStatus !== "approved" ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

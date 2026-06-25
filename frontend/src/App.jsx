@@ -1,54 +1,58 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
-import AdminBlogsPage from "./pages/admin/AdminBlogsPage.jsx";
-import AdminBookingsPage from "./pages/admin/AdminBookingsPage.jsx";
-import AdminCompanionsPage from "./pages/admin/AdminCompanionsPage.jsx";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
-import AdminReportsPage from "./pages/admin/AdminReportsPage.jsx";
-import AdminServicesPage from "./pages/admin/AdminServicesPage.jsx";
-import AdminUsersPage from "./pages/admin/AdminUsersPage.jsx";
-import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage.jsx";
-import AdminSupportPage from "./pages/admin/AdminSupportPage.jsx";
-import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage.jsx";
-import LoginPage from "./pages/auth/LoginPage.jsx";
-import RegisterCompanionPage from "./pages/auth/RegisterCompanionPage.jsx";
-import RegisterPage from "./pages/auth/RegisterPage.jsx";
-import ResetPasswordPage from "./pages/auth/ResetPasswordPage.jsx";
-import VerifyEmailPage from "./pages/auth/VerifyEmailPage.jsx";
-import BlogDetailPage from "./pages/BlogDetailPage.jsx";
-import BlogPage from "./pages/BlogPage.jsx";
-import CompanionBookingDetailPage from "./pages/companion/CompanionBookingDetailPage.jsx";
-import CompanionBookingHistoryPage from "./pages/companion/CompanionBookingHistoryPage.jsx";
-import CompanionBookingsPage from "./pages/companion/CompanionBookingsPage.jsx";
-import CompanionEarningsPage from "./pages/companion/CompanionEarningsPage.jsx";
-import CompanionProfilePage from "./pages/companion/CompanionProfilePage.jsx";
-import CompanionStatusPage from "./pages/companion/CompanionStatusPage.jsx";
-import CompanionWithdrawalsPage from "./pages/companion/CompanionWithdrawalsPage.jsx";
-import CustomerBookingDetailPage from "./pages/customer/CustomerBookingDetailPage.jsx";
-import CustomerBookingsPage from "./pages/customer/CustomerBookingsPage.jsx";
-import CustomerCompanionsPage from "./pages/customer/CustomerCompanionsPage.jsx";
-import CustomerEldersPage from "./pages/customer/CustomerEldersPage.jsx";
-import CustomerProfilePage from "./pages/customer/CustomerProfilePage.jsx";
-import CustomerServicesPage from "./pages/customer/CustomerServicesPage.jsx";
-import NewBookingPage from "./pages/customer/NewBookingPage.jsx";
-import LandingPage from "./pages/LandingPage.jsx";
-import SupportPage from "./pages/support/SupportPage.jsx";
 import AdminLayout from "./layouts/AdminLayout.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
-import { getUserHomePath, needsCompanionApproval } from "./utils/authNavigation.js";
+import { getUserHomePath, hasRoleAccess, needsCompanionApproval } from "./utils/authNavigation.js";
+
+const AdminBlogsPage = lazy(() => import("./pages/admin/AdminBlogsPage.jsx"));
+const AdminBookingsPage = lazy(() => import("./pages/admin/AdminBookingsPage.jsx"));
+const AdminCompanionsPage = lazy(() => import("./pages/admin/AdminCompanionsPage.jsx"));
+const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage.jsx"));
+const AdminReportsPage = lazy(() => import("./pages/admin/AdminReportsPage.jsx"));
+const AdminServicesPage = lazy(() => import("./pages/admin/AdminServicesPage.jsx"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage.jsx"));
+const AdminWithdrawalsPage = lazy(() => import("./pages/admin/AdminWithdrawalsPage.jsx"));
+const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage.jsx"));
+const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage.jsx"));
+const LoginPage = lazy(() => import("./pages/auth/LoginPage.jsx"));
+const RegisterCompanionPage = lazy(() => import("./pages/auth/RegisterCompanionPage.jsx"));
+const RegisterPage = lazy(() => import("./pages/auth/RegisterPage.jsx"));
+const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage.jsx"));
+const VerifyEmailPage = lazy(() => import("./pages/auth/VerifyEmailPage.jsx"));
+const BlogDetailPage = lazy(() => import("./pages/BlogDetailPage.jsx"));
+const BlogPage = lazy(() => import("./pages/BlogPage.jsx"));
+const CompanionBookingDetailPage = lazy(() => import("./pages/companion/CompanionBookingDetailPage.jsx"));
+const CompanionBookingHistoryPage = lazy(() => import("./pages/companion/CompanionBookingHistoryPage.jsx"));
+const CompanionBookingsPage = lazy(() => import("./pages/companion/CompanionBookingsPage.jsx"));
+const CompanionEarningsPage = lazy(() => import("./pages/companion/CompanionEarningsPage.jsx"));
+const CompanionProfilePage = lazy(() => import("./pages/companion/CompanionProfilePage.jsx"));
+const CompanionStatusPage = lazy(() => import("./pages/companion/CompanionStatusPage.jsx"));
+const CompanionWithdrawalsPage = lazy(() => import("./pages/companion/CompanionWithdrawalsPage.jsx"));
+const CustomerBookingDetailPage = lazy(() => import("./pages/customer/CustomerBookingDetailPage.jsx"));
+const CustomerBookingsPage = lazy(() => import("./pages/customer/CustomerBookingsPage.jsx"));
+const CustomerCompanionsPage = lazy(() => import("./pages/customer/CustomerCompanionsPage.jsx"));
+const CustomerEldersPage = lazy(() => import("./pages/customer/CustomerEldersPage.jsx"));
+const CustomerProfilePage = lazy(() => import("./pages/customer/CustomerProfilePage.jsx"));
+const CustomerServicesPage = lazy(() => import("./pages/customer/CustomerServicesPage.jsx"));
+const NewBookingPage = lazy(() => import("./pages/customer/NewBookingPage.jsx"));
+const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
+const SupportPage = lazy(() => import("./pages/support/SupportPage.jsx"));
+
+const LoadingFallback = () => <div className="p-6 text-sm text-slate-500">Dang tai...</div>;
 
 const RoleRoute = ({ role, children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-500">Đang tải...</div>;
+    return <LoadingFallback />;
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== role) {
+  if (!hasRoleAccess(user, role)) {
     return <Navigate to={getUserHomePath(user)} replace />;
   }
 
@@ -59,10 +63,25 @@ const RoleRoute = ({ role, children }) => {
   return children;
 };
 
-const App = () => {
-  return (
+const HomeRoute = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingFallback />;
+  }
+
+  const homePath = getUserHomePath(user);
+  if (homePath !== "/") {
+    return <Navigate to={homePath} replace />;
+  }
+
+  return <LandingPage />;
+};
+
+const App = () => (
+  <Suspense fallback={<LoadingFallback />}>
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
@@ -81,7 +100,7 @@ const App = () => {
           </RoleRoute>
         }
       >
-        <Route index element={<Navigate to="/" replace />} />
+        <Route index element={<Navigate to="bookings" replace />} />
         <Route path="profile" element={<CustomerProfilePage />} />
         <Route path="services" element={<CustomerServicesPage />} />
         <Route path="elders" element={<CustomerEldersPage />} />
@@ -131,7 +150,7 @@ const App = () => {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  );
-};
+  </Suspense>
+);
 
 export default App;

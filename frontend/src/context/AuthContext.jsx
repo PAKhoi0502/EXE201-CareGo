@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, setToken } from "../api/client.js";
 import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
-import { isApprovedCompanion, needsCompanionApproval } from "../utils/authNavigation.js";
+import { isApprovedCompanion } from "../utils/authNavigation.js";
 
 const AuthContext = createContext(null);
 
@@ -51,9 +51,16 @@ export const AuthProvider = ({ children }) => {
     return api.post("/auth/signup", payload);
   };
 
-  const registerCompanion = async (payload) => {
+  const registerCompanion = useCallback(async (payload) => {
+    if (user) {
+      const data = await api.post("/companions/me/apply", payload);
+      const nextUser = normalizeUser(data);
+      setUser(nextUser);
+      return nextUser;
+    }
+
     return api.post("/companions/register", payload);
-  };
+  }, [user]);
 
   const updateProfile = async (payload) => {
     const data = await api.patch("/auth/current-user", payload);
@@ -100,7 +107,7 @@ export const AuthProvider = ({ children }) => {
   }, [clearClientSession]);
 
   useEffect(() => {
-    if (!userId || needsCompanionApproval(user)) return undefined;
+    if (!userId) return undefined;
 
     connectLocationSocket();
     locationSocket.emit("user:online", { userId });
@@ -135,7 +142,7 @@ export const AuthProvider = ({ children }) => {
       resendOtp,
       logout,
     }),
-    [user, loading, logout],
+    [user, loading, logout, registerCompanion],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

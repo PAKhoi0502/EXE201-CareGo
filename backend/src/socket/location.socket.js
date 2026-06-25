@@ -55,9 +55,12 @@ const canAccessBooking = (booking, user) => {
   return (
     user?.role === "admin" ||
     String(booking?.customerId || "") === userId ||
-    String(booking?.companionId || "") === userId
+    (isApprovedCompanionSocket(user) && String(booking?.companionId || "") === userId)
   );
 };
+
+const isApprovedCompanionSocket = (user) =>
+  user?.role === "companion" && user?.vettingStatus === "approved";
 
 const normalizeGpsLocation = (location) => {
   if (!location || typeof location !== "object") {
@@ -278,7 +281,7 @@ export const setupLocationSocket = (io) => {
         const canSend =
           booking &&
           (socket.user.role === "admin" ||
-            (socket.user.role === "companion" &&
+            (isApprovedCompanionSocket(socket.user) &&
               String(booking.companionId) === String(socket.user.userId)));
         if (!canSend) {
           socket.emit("location:error", { message: "permission denied" });
@@ -314,7 +317,7 @@ export const setupLocationSocket = (io) => {
 
     socket.on("companion:gps:update", async () => {
       const activeUser = await revalidateSocketUser(socket);
-      if (!activeUser || socket.user.role !== "companion") {
+      if (!activeUser || !isApprovedCompanionSocket(socket.user)) {
         return;
       }
 
@@ -326,7 +329,7 @@ export const setupLocationSocket = (io) => {
 
     socket.on("companion:gps:stop", async () => {
       const activeUser = await revalidateSocketUser(socket);
-      if (!activeUser || socket.user.role !== "companion") return;
+      if (!activeUser || !isApprovedCompanionSocket(socket.user)) return;
       setCompanionGpsStatus(socket, socket.user.userId, {
         isGpsOn: false,
         lastSeenAt: new Date(),
@@ -342,7 +345,7 @@ export const setupLocationSocket = (io) => {
         const canStop =
           booking &&
           (socket.user.role === "admin" ||
-            (socket.user.role === "companion" &&
+            (isApprovedCompanionSocket(socket.user) &&
               String(booking.companionId) === String(socket.user.userId)));
         if (!canStop) return;
 

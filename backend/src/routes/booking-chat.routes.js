@@ -5,7 +5,6 @@ import {
   sendBookingChatMessage,
 } from "../controller/booking-chat.controller.js";
 import { verifyToken } from "../middlleware/auth.middleware.js";
-import { requireApprovedCompanion } from "../middlleware/companion-approval.middleware.js";
 import { chatRateLimitKeys, createRateLimit, getPositiveEnvNumber } from "../middlleware/rate-limit.middleware.js";
 import { allowRoles } from "../middlleware/role.middleware.js";
 
@@ -19,7 +18,6 @@ const bookingChatMessageRateLimit = createRateLimit({
 
 router.use(verifyToken);
 router.use(allowRoles("customer", "companion"));
-router.use(requireApprovedCompanion);
 router.get("/active", getActiveBookingChats);
 router.get("/:bookingId/messages", getBookingChatMessages);
 router.post("/:bookingId/messages", bookingChatMessageRateLimit, sendBookingChatMessage);

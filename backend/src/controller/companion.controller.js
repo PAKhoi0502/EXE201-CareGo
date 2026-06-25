@@ -301,6 +301,78 @@ export const registerCompanion = async (req, res) => {
   }
 };
 
+export const applyForCompanion = async (req, res) => {
+  try {
+    const userId = getRequestUserId(req);
+    const {
+      name,
+      phone,
+      fullName,
+      gender,
+      dateOfBirth,
+      university,
+      major,
+      skills,
+      documents,
+      serviceAreas,
+    } = req.body;
+
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({ message: "user not found" });
+    }
+
+    const existingProfile = await CompanionProfile.findOne({ userId });
+    if (existingProfile) {
+      return res.status(409).json({ message: "companion profile already exists" });
+    }
+
+    const cleanFullName = String(fullName || name || currentUser.name || "").trim();
+    if (!cleanFullName) {
+      return res.status(400).json({ message: "fullName is required" });
+    }
+
+    const normalizedDocuments = normalizeCompanionDocuments(documents);
+    const missingDocuments = getMissingApprovalDocuments(normalizedDocuments);
+    if (missingDocuments.length > 0) {
+      return res.status(400).json(buildApprovalDocumentError(missingDocuments));
+    }
+
+    const companionProfile = await CompanionProfile.create({
+      userId,
+      fullName: cleanFullName,
+      phone: String(phone || currentUser.phone || "").trim(),
+      gender,
+      dateOfBirth,
+      university,
+      major,
+      skills: normalizeTextList(skills),
+      documents: normalizedDocuments,
+      serviceAreas: normalizeTextList(serviceAreas),
+      vettingStatus: "pending",
+    });
+
+    const userUpdates = {
+      role: "companion",
+      ...(name !== undefined ? { name: String(name).trim() || currentUser.name } : {}),
+      ...(phone !== undefined ? { phone: String(phone).trim() } : {}),
+    };
+
+    const user = await User.findByIdAndUpdate(userId, userUpdates, {
+      new: true,
+      runValidators: true,
+    }).select("-password -refreshToken -__V");
+
+    return res.status(201).json({
+      message: "companion application submitted and waiting for admin approval",
+      user,
+      companionProfile,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "internal server error", error: error.message });
+  }
+};
+
 export const adminCreateCompanion = async (req, res) => {
   try {
     const {

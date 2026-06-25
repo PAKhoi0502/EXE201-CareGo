@@ -5,7 +5,7 @@ import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime, money } from "../../utils/format.js";
 
 const CompanionBookingHistoryPage = () => {
-    const { data, loading, error } = useAsync(() => api.get("/bookings/my"), []);
+    const { data, loading, error } = useAsync(() => api.get("/bookings/my?as=companion"), []);
     const bookings = data?.bookings || [];
     const completedBookings = bookings.filter((booking) => ["completed", "paid"].includes(booking.status));
     const paidEarnings = completedBookings

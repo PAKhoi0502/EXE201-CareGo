@@ -5,7 +5,7 @@ import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime, money } from "../../utils/format.js";
 
 const CustomerBookingsPage = () => {
-  const { data, loading, error } = useAsync(() => api.get("/bookings/my"), []);
+  const { data, loading, error } = useAsync(() => api.get("/bookings/my?as=customer"), []);
   const bookings = data?.bookings || [];
 
   return (
