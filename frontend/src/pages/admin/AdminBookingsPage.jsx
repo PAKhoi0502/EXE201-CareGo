@@ -32,13 +32,28 @@ const getCompanionEarning = (booking) =>
 const getCareGoRevenue = (booking) => getPlatformFee(booking) + getPenaltyAmount(booking);
 const getDisplayAmount = (booking) => (booking.status === "paid" ? getPaidAmount(booking) : getBaseAmount(booking));
 
+const adminStatusActions = {
+  pending: [{ status: "accepted", label: "Nhận ca" }],
+  accepted: [{ status: "in_progress", label: "Bắt đầu ca" }],
+  in_progress: [{ status: "completed", label: "Hoàn thành ca" }],
+};
+
+const adminCancellableStatuses = ["pending", "accepted", "in_progress"];
+
 const AdminBookingsPage = () => {
-  const { data, loading, error } = useAsync(() => api.get("/admin/bookings"), []);
+  const { data, setData, loading, error } = useAsync(() => api.get("/admin/bookings"), []);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [serviceFilter, setServiceFilter] = useState("all");
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [actionLoading, setActionLoading] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
   const bookings = useMemo(() => data?.bookings || [], [data?.bookings]);
+  const selectedStatusActions = selectedBooking ? adminStatusActions[selectedBooking.status] || [] : [];
+  const canCancelSelectedBooking = selectedBooking
+    ? adminCancellableStatuses.includes(selectedBooking.status) && selectedBooking.payment?.status !== "paid"
+    : false;
 
   const services = useMemo(() => {
     const values = bookings.map((booking) => booking.serviceId?.name).filter(Boolean);
@@ -61,6 +76,70 @@ const AdminBookingsPage = () => {
   const platformFee = paidBookings.reduce((sum, booking) => sum + getPlatformFee(booking), 0);
   const careGoRevenue = paidBookings.reduce((sum, booking) => sum + getCareGoRevenue(booking), 0);
   const gpsReadyCount = bookings.filter((booking) => booking.addressLocation?.lat).length;
+
+  const updateBookingInView = (bookingId, updates) => {
+    setData((current) => ({
+      ...current,
+      bookings: (current?.bookings || []).map((booking) =>
+        booking._id === bookingId ? { ...booking, ...updates } : booking,
+      ),
+    }));
+    setSelectedBooking((current) => (current?._id === bookingId ? { ...current, ...updates } : current));
+  };
+
+  const handleUpdateStatus = async (nextStatus) => {
+    if (!selectedBooking) return;
+
+    setActionLoading(`status:${nextStatus}`);
+    setActionError("");
+    setActionMessage("");
+    try {
+      const data = await api.patch(`/bookings/${selectedBooking._id}/status`, { status: nextStatus });
+      const updatedBooking = data.booking || {};
+      updateBookingInView(selectedBooking._id, {
+        status: updatedBooking.status || nextStatus,
+        completedAt: updatedBooking.completedAt,
+        paymentDueAt: updatedBooking.paymentDueAt,
+        updatedAt: updatedBooking.updatedAt || new Date().toISOString(),
+      });
+      setActionMessage("Đã cập nhật trạng thái booking.");
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  const handleCancelBooking = async () => {
+    if (!selectedBooking) return;
+
+    if (!window.confirm("Hủy booking này? Thao tác này sẽ dừng ca chăm sóc nếu booking chưa thanh toán.")) {
+      return;
+    }
+
+    setActionLoading("cancel");
+    setActionError("");
+    setActionMessage("");
+    try {
+      const data = await api.patch(`/bookings/${selectedBooking._id}/cancel`, {});
+      const updatedBooking = data.booking || {};
+      updateBookingInView(selectedBooking._id, {
+        status: updatedBooking.status || "cancelled",
+        updatedAt: updatedBooking.updatedAt || new Date().toISOString(),
+      });
+      setActionMessage("Đã hủy booking.");
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  const openBookingDetail = (booking) => {
+    setSelectedBooking(booking);
+    setActionError("");
+    setActionMessage("");
+  };
 
   return (
     <div className="space-y-6">
@@ -221,7 +300,7 @@ const AdminBookingsPage = () => {
                       ) : null}
                     </td>
                     <td className="p-4 text-right">
-                      <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedBooking(booking)}>
+                      <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => openBookingDetail(booking)}>
                         Chi tiết
                       </Button>
                     </td>
@@ -253,6 +332,55 @@ const AdminBookingsPage = () => {
           onClose={() => setSelectedBooking(null)}
         >
           <div className="space-y-5">
+            <section className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-900">Điều phối booking</h3>
+                  <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <span>Trạng thái hiện tại</span>
+                    <StatusBadge status={selectedBooking.status} />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedStatusActions.map((action) => (
+                    <Button
+                      key={action.status}
+                      type="button"
+                      onClick={() => handleUpdateStatus(action.status)}
+                      disabled={Boolean(actionLoading)}
+                      className="min-h-9 px-3 text-xs"
+                    >
+                      {actionLoading === `status:${action.status}` ? "Đang cập nhật..." : action.label}
+                    </Button>
+                  ))}
+                  {canCancelSelectedBooking ? (
+                    <Button
+                      type="button"
+                      variant="danger"
+                      onClick={handleCancelBooking}
+                      disabled={Boolean(actionLoading)}
+                      className="min-h-9 px-3 text-xs"
+                    >
+                      {actionLoading === "cancel" ? "Đang hủy..." : "Hủy booking"}
+                    </Button>
+                  ) : null}
+                  {!selectedStatusActions.length && !canCancelSelectedBooking ? (
+                    <span className="inline-flex min-h-9 items-center rounded-md bg-white px-3 text-xs font-bold text-slate-500 ring-1 ring-slate-200">
+                      Không còn thao tác trực tiếp
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              {actionError ? (
+                <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{actionError}</p>
+              ) : null}
+              {actionMessage ? (
+                <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+                  {actionMessage}
+                </p>
+              ) : null}
+            </section>
+
             <DetailGrid>
               <DetailItem label="Khách hàng" value={`${selectedBooking.customerId?.name || "Khách hàng"} - ${selectedBooking.customerId?.email || ""}`} />
               <DetailItem label="Người thân" value={selectedBooking.elderProfileId?.fullName} />
