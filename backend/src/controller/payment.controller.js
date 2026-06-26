@@ -2,6 +2,7 @@ import { getPayOSPaymentLink, verifyPayOSWebhook } from "../config/payos.js";
 import Booking from "../models/booking.models.js";
 import Payment from "../models/payment.models.js";
 import {
+  createCompanionPaymentSuccessNotification,
   createPaymentSuccessNotification,
   createReviewReminderNotification,
 } from "../utils/notifications.js";
@@ -39,8 +40,11 @@ const updatePaidPayment = async ({ payment, booking, rawWebhook, paidAt }) => {
     await booking.save();
   }
 
-  await createPaymentSuccessNotification({ booking, payment });
-  await createReviewReminderNotification(booking);
+  await Promise.all([
+    createPaymentSuccessNotification({ booking, payment }),
+    createCompanionPaymentSuccessNotification({ booking, payment }),
+    createReviewReminderNotification(booking),
+  ]);
 };
 
 const syncPaymentStatusFromPayOSLink = async ({ payment, booking, paymentLink }) => {

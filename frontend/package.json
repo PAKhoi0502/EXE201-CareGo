@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
+    "@vietmap/vietmap-gl-js": "^7.0.0-pre.1",
     "chart.js": "^4.5.1",
     "leaflet": "^1.9.4",
     "react": "^19.2.6",

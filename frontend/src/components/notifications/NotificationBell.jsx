@@ -12,7 +12,9 @@ const typeStyles = {
   BOOKING_COMPLETED: "bg-violet-50 text-violet-700",
   PAYMENT_REMINDER: "bg-rose-50 text-rose-700",
   PAYMENT_SUCCESS: "bg-emerald-50 text-emerald-700",
+  COMPANION_PAYMENT_SUCCESS: "bg-emerald-50 text-emerald-700",
   REVIEW_REMINDER: "bg-orange-50 text-orange-700",
+  COMPANION_REVIEW_CREATED: "bg-orange-50 text-orange-700",
 };
 
 const timeFormatter = new Intl.DateTimeFormat("vi-VN", {

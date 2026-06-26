@@ -22,6 +22,8 @@ import {
   createBookingCompletedNotification,
   createBookingCreatedNotification,
   createCompanionBookingCreatedNotification,
+  createCompanionPaymentSuccessNotification,
+  createCompanionReviewCreatedNotification,
   createCompanionCheckedInNotification,
   createPaymentReminderNotification,
   createPaymentSuccessNotification,
@@ -471,8 +473,11 @@ const refreshReusablePendingPayOSPayment = async ({ payment, booking, paidAmount
       await booking.save();
     }
 
-    await createPaymentSuccessNotification({ booking, payment });
-    await createReviewReminderNotification(booking);
+    await Promise.all([
+      createPaymentSuccessNotification({ booking, payment }),
+      createCompanionPaymentSuccessNotification({ booking, payment }),
+      createReviewReminderNotification(booking),
+    ]);
 
     return null;
   }
@@ -1372,6 +1377,8 @@ export const createReview = async (req, res) => {
       companionId: booking.companionId,
       ratingValue,
     });
+
+    await createCompanionReviewCreatedNotification({ booking, review });
 
     return res.status(201).json({ message: "review created", review });
   } catch (error) {

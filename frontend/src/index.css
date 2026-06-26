@@ -37,3 +37,45 @@ select {
 .carego-leaflet-map .leaflet-popup-pane {
   z-index: 2;
 }
+
+.carego-vietmap-map {
+  min-height: 100%;
+  z-index: 0;
+}
+
+.carego-vietmap-map .maplibregl-ctrl-bottom-left,
+.carego-vietmap-map .maplibregl-ctrl-bottom-right,
+.carego-vietmap-map .mapboxgl-ctrl-bottom-left,
+.carego-vietmap-map .mapboxgl-ctrl-bottom-right {
+  font-size: 10px;
+}
+
+.carego-map-pin {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border: 3px solid #ffffff;
+  border-radius: 9999px 9999px 9999px 0;
+  background: #0f766e;
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.35);
+  transform: rotate(-45deg);
+}
+
+.carego-map-pin::after {
+  position: absolute;
+  inset: 6px;
+  border-radius: 9999px;
+  background: #ffffff;
+  content: "";
+}
+
+.carego-map-person {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.35);
+}

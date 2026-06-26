@@ -2,6 +2,11 @@ import Notification from "../models/notification.models.js";
 import { emitUserNotification } from "../socket/notification.socket.js";
 
 const SHIFT_NOTE_NOTIFICATION_WINDOW_MS = 2 * 60 * 1000;
+const moneyFormatter = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+  maximumFractionDigits: 0,
+});
 
 const toIdString = (value) => {
   if (!value) return "";
@@ -22,6 +27,11 @@ const truncateText = (value, maxLength = 160) => {
   const text = String(value || "").trim();
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength - 3)}...`;
+};
+
+const formatMoney = (value) => {
+  const amount = Number(value || 0);
+  return moneyFormatter.format(Number.isFinite(amount) ? amount : 0);
 };
 
 export const serializeNotification = (notification) => {
@@ -228,6 +238,30 @@ export const createPaymentSuccessNotification = ({ booking, payment }) =>
     dedupeKey: `booking:${getBookingId(booking)}:payment-success:customer`,
   });
 
+export const createCompanionPaymentSuccessNotification = ({ booking, payment }) => {
+  const companionEarning = Number(payment?.companionEarning ?? 0);
+  const paidAmount = Number(payment?.paidAmount || payment?.amount || 0);
+
+  return createNotification({
+    recipientId: getCompanionId(booking),
+    recipientRole: "companion",
+    type: "COMPANION_PAYMENT_SUCCESS",
+    title: "Khách hàng đã thanh toán",
+    message: `Booking đã được thanh toán thành công. Thu nhập ca của bạn: ${formatMoney(companionEarning)}.`,
+    link: companionBookingLink(booking),
+    bookingId: getBookingId(booking),
+    metadata: {
+      paymentId: toIdString(payment?._id),
+      paidAmount,
+      companionEarning,
+      platformFee: payment?.platformFee || 0,
+      paidAt: payment?.paidAt || null,
+      status: booking?.status || "paid",
+    },
+    dedupeKey: `booking:${getBookingId(booking)}:payment-success:companion`,
+  });
+};
+
 export const createReviewReminderNotification = (booking) =>
   createNotification({
     recipientId: getCustomerId(booking),
@@ -240,3 +274,28 @@ export const createReviewReminderNotification = (booking) =>
     metadata: { status: booking?.status || "paid" },
     dedupeKey: `booking:${getBookingId(booking)}:review-reminder:customer`,
   });
+
+export const createCompanionReviewCreatedNotification = ({ booking, review }) => {
+  const rating = Number(review?.rating || 0);
+  const comment = truncateText(review?.comment, 220);
+  const ratingText = Number.isFinite(rating) && rating > 0 ? `${rating}/5 sao` : "đánh giá mới";
+
+  return createNotification({
+    recipientId: getCompanionId(booking),
+    recipientRole: "companion",
+    type: "COMPANION_REVIEW_CREATED",
+    title: "Bạn có đánh giá mới",
+    message: comment
+      ? `Khách hàng đã đánh giá ${ratingText}: ${comment}`
+      : `Khách hàng đã đánh giá ${ratingText} cho ca chăm sóc.`,
+    link: companionBookingLink(booking),
+    bookingId: getBookingId(booking),
+    metadata: {
+      reviewId: toIdString(review?._id),
+      rating,
+      comment,
+      tags: review?.tags || [],
+    },
+    dedupeKey: `booking:${getBookingId(booking)}:review:companion`,
+  });
+};

@@ -172,7 +172,7 @@ export default function BookingChatPanel({ chat, onChatChange, onUnavailable }) 
   };
 
   return (
-    <section className="flex h-[min(520px,70vh)] flex-col overflow-hidden border-x-0 border-b-0 border-t border-teal-100 bg-white">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-x-0 border-b-0 border-t border-teal-100 bg-white">
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#f8fdfc] p-3">
         {loading ? (
           <p className="text-center text-sm font-bold text-slate-400">Đang tải tin nhắn...</p>

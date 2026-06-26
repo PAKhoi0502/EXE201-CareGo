@@ -23,6 +23,7 @@ import withdrawalRouter from "./src/routes/withdrawal.routes.js";
 import supportRouter from "./src/routes/support.routes.js";
 import blogRouter from "./src/routes/blog.routes.js";
 import notificationRouter from "./src/routes/notification.routes.js";
+import mapRouter from "./src/routes/map.routes.js";
 import { setupLocationSocket } from "./src/socket/location.socket.js";
 import { setupSupportSocket } from "./src/socket/support.socket.js";
 import { setupBookingChatSocket } from "./src/socket/booking-chat.socket.js";
@@ -93,6 +94,7 @@ app.use("/api/withdrawals", withdrawalRouter);
 app.use("/api/support", supportRouter);
 app.use("/api/blogs", blogRouter);
 app.use("/api/notifications", notificationRouter);
+app.use("/api/maps", mapRouter);
 
 const io = new Server(server, {
   cors: {

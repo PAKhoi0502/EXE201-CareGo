@@ -10,7 +10,9 @@ export const NOTIFICATION_TYPES = [
   "BOOKING_COMPLETED",
   "PAYMENT_REMINDER",
   "PAYMENT_SUCCESS",
+  "COMPANION_PAYMENT_SUCCESS",
   "REVIEW_REMINDER",
+  "COMPANION_REVIEW_CREATED",
 ];
 
 const NotificationSchema = new mongoose.Schema(

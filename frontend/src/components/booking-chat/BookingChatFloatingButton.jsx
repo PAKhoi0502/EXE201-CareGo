@@ -117,11 +117,11 @@ export default function BookingChatFloatingButton() {
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-[86px] right-5 z-50 flex flex-col items-end gap-3 sm:bottom-[104px] sm:right-7"
+      className="fixed bottom-[86px] right-4 z-[60] flex max-w-[calc(100vw-32px)] flex-col items-end gap-3 sm:bottom-[104px] sm:right-7"
     >
       {open ? (
-        <section className="w-[min(390px,calc(100vw-32px))] overflow-hidden rounded-[26px] border border-teal-100 bg-white shadow-2xl shadow-teal-950/20">
-          <header className="bg-gradient-to-br from-[#12312f] to-teal-600 px-4 py-3 text-white">
+        <section className="flex h-[calc(100vh-300px)] min-h-[360px] w-[min(420px,calc(100vw-32px))] max-h-[520px] flex-col overflow-hidden rounded-[26px] border border-teal-100 bg-white shadow-2xl shadow-teal-950/20">
+          <header className="shrink-0 bg-gradient-to-br from-[#12312f] to-teal-600 px-4 py-3 text-white">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-wide text-teal-100">Trao đổi ca chăm sóc</p>

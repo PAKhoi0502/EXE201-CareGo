@@ -1,40 +1,109 @@
-import { useState } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+import { useEffect, useRef, useState } from "react";
+import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl";
+import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
+import { api } from "../api/client.js";
+import { DEFAULT_MAP_CENTER, getVietmapStyleUrl, hasVietmapMapKey } from "../utils/mapProvider.js";
 import { Button, Input } from "./Ui.jsx";
-
-const markerIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
 
 const MAP_PICKED_LABEL = "Vị trí đã chọn trên bản đồ";
 
-const ClickPicker = ({ onPick }) => {
-  useMapEvents({
-    click(event) {
-      onPick({
-        lat: event.latlng.lat,
-        lng: event.latlng.lng,
+const buildMarkerElement = () => {
+  const element = document.createElement("div");
+  element.className = "carego-map-pin";
+  element.setAttribute("aria-hidden", "true");
+  return element;
+};
+
+const AddressPickerMap = ({ center, location, address, onPick }) => {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const onPickRef = useRef(onPick);
+  const initialViewRef = useRef({ center, hasLocation: Boolean(location) });
+  const hasMapKey = hasVietmapMapKey();
+
+  useEffect(() => {
+    onPickRef.current = onPick;
+  }, [onPick]);
+
+  useEffect(() => {
+    if (!containerRef.current || !hasMapKey) return undefined;
+
+    const map = new vietmapgl.Map({
+      container: containerRef.current,
+      style: getVietmapStyleUrl(),
+      center: [initialViewRef.current.center.lng, initialViewRef.current.center.lat],
+      zoom: initialViewRef.current.hasLocation ? 16 : 12,
+      attributionControl: true,
+    });
+
+    map.addControl(new vietmapgl.NavigationControl({ showCompass: false }), "top-right");
+    map.on("click", (event) => {
+      onPickRef.current?.({
+        lat: event.lngLat.lat,
+        lng: event.lngLat.lng,
         displayName: MAP_PICKED_LABEL,
       });
-    },
-  });
+    });
 
-  return null;
+    mapRef.current = map;
+
+    return () => {
+      markerRef.current?.remove();
+      markerRef.current = null;
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [hasMapKey]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.easeTo({
+      center: [center.lng, center.lat],
+      zoom: location ? 16 : 12,
+      duration: 450,
+    });
+  }, [center.lat, center.lng, location]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!location) {
+      markerRef.current?.remove();
+      markerRef.current = null;
+      return;
+    }
+
+    const popupText =
+      location.displayName || address || `${Number(location.lat).toFixed(6)}, ${Number(location.lng).toFixed(6)}`;
+
+    if (!markerRef.current) {
+      markerRef.current = new vietmapgl.Marker({ element: buildMarkerElement(), anchor: "bottom" }).addTo(map);
+    }
+
+    markerRef.current
+      .setLngLat([Number(location.lng), Number(location.lat)])
+      .setPopup(new vietmapgl.Popup({ offset: 28 }).setText(popupText));
+  }, [address, location]);
+
+  if (!hasMapKey) {
+    return (
+      <div className="grid h-full place-items-center bg-slate-50 p-5 text-center text-sm font-semibold text-slate-500">
+        Cần cấu hình VITE_VIETMAP_TILE_API_KEY để hiển thị bản đồ Vietmap.
+      </div>
+    );
+  }
+
+  return <div ref={containerRef} className="carego-vietmap-map h-full w-full" />;
 };
 
 const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange }) => {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
-  const defaultCenter = [10.762622, 106.660172];
-  const center = location ? [Number(location.lat), Number(location.lng)] : defaultCenter;
+  const center = location ? { lat: Number(location.lat), lng: Number(location.lng) } : DEFAULT_MAP_CENTER;
   const trimmedAddress = address?.trim() || "";
   const hasMapPickedLabel = trimmedAddress === MAP_PICKED_LABEL;
   const isMapPickReady = Boolean(location) && hasMapPickedLabel;
@@ -55,26 +124,26 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
     setError("");
     try {
       const params = new URLSearchParams({
-        q: trimmedAddress,
-        format: "json",
-        limit: "1",
-        countrycodes: "vn",
+        text: trimmedAddress,
+        lat: String(center.lat),
+        lng: String(center.lng),
       });
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
-      const results = await response.json();
+      const result = await api.get(`/maps/search?${params}`);
+      const nextLocation = result.location;
 
-      if (!results.length) {
-        setError("Không tìm thấy địa chỉ. Vui lòng thử lại.");
+      if (!nextLocation?.lat || !nextLocation?.lng) {
+        setError("Không tìm thấy địa chỉ có tọa độ hợp lệ. Vui lòng thử lại.");
         return;
       }
 
-      const result = results[0];
       onLocationChange({
-        lat: Number(result.lat),
-        lng: Number(result.lon),
-        displayName: result.display_name,
+        lat: Number(nextLocation.lat),
+        lng: Number(nextLocation.lng),
+        displayName: nextLocation.displayName,
+        provider: nextLocation.provider,
+        refId: nextLocation.refId,
       });
-      onAddressChange(result.display_name);
+      onAddressChange(nextLocation.displayName || trimmedAddress);
     } catch (err) {
       setError(err.message || "Không thể tìm địa chỉ. Vui lòng thử lại sau.");
     } finally {
@@ -101,12 +170,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
   return (
     <div className="grid gap-3">
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-        <Input
-          label="Địa chỉ thực hiện"
-          value={address}
-          onChange={handleAddressInputChange}
-          required
-        />
+        <Input label="Địa chỉ thực hiện" value={address} onChange={handleAddressInputChange} required />
         <div className="flex items-end">
           <Button type="button" className="w-full md:w-auto" onClick={searchAddress} disabled={searching || isMapPickReady}>
             {searchButtonLabel}
@@ -115,23 +179,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
       </div>
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
       <div className="relative z-0 h-80 overflow-hidden rounded-lg border border-slate-200">
-        <MapContainer
-          key={`${center[0]}-${center[1]}`}
-          center={center}
-          zoom={location ? 16 : 12}
-          className="carego-leaflet-map h-full w-full"
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <ClickPicker onPick={handleMapPick} />
-          {location ? (
-            <Marker position={[Number(location.lat), Number(location.lng)]} icon={markerIcon}>
-              <Popup>{location.displayName || address}</Popup>
-            </Marker>
-          ) : null}
-        </MapContainer>
+        <AddressPickerMap center={center} location={location} address={address} onPick={handleMapPick} />
       </div>
       {location ? (
         <p className="text-sm text-slate-500">
