@@ -81,6 +81,22 @@ setupSwagger(app);
 // req: request (yêu cầu từ client gửi lên server)
 // res: response (phản hồi từ server gửi về client)
 
+app.get("/", (req, res) => {
+  res.json({
+    name: "CareGo API",
+    status: "ok",
+    docs: "/api-docs",
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "carego-backend",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use("/api/auth", authRouter); // mục dích phục vụ cho riêng authentication
 app.use("/api/services", serviceRouter);
 app.use("/api/companions", companionRouter);

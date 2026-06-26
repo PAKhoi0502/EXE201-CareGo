@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl";
+import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl.js";
 import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
 import { DEFAULT_MAP_CENTER, getVietmapStyleUrl, hasVietmapMapKey } from "../utils/mapProvider.js";
 
 const ROUTE_SOURCE_ID = "carego-live-route";
 const ROUTE_LAYER_ID = "carego-live-route-line";
+
+const getValidLngLat = (point) => {
+  const lat = Number(point?.lat);
+  const lng = Number(point?.lng);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return [lng, lat];
+};
 
 const buildPinElement = () => {
   const element = document.createElement("div");
@@ -107,17 +116,22 @@ const LiveLocationMap = ({ location, locations = [], height = "360px", markerVar
       return;
     }
 
-    const popupText = `${Number(location.lat).toFixed(6)}, ${Number(location.lng).toFixed(6)}`;
+    const lngLat = getValidLngLat(location);
+    if (!lngLat) return;
+
+    const popupText = `${lngLat[1].toFixed(6)}, ${lngLat[0].toFixed(6)}`;
 
     if (!markerRef.current) {
       markerRef.current = new vietmapgl.Marker({
         element: markerVariant === "person" ? buildPersonElement() : buildPinElement(),
         anchor: markerVariant === "person" ? "center" : "bottom",
-      }).addTo(map);
+      })
+        .setLngLat(lngLat)
+        .addTo(map);
     }
 
     markerRef.current
-      .setLngLat([Number(location.lng), Number(location.lat)])
+      .setLngLat(lngLat)
       .setPopup(new vietmapgl.Popup({ offset: markerVariant === "person" ? 24 : 28 }).setText(popupText));
   }, [location, markerVariant]);
 

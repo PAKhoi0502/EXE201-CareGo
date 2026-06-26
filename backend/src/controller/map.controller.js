@@ -1,7 +1,16 @@
 const VIETMAP_BASE_URL = "https://maps.vietmap.vn/api";
-const DEFAULT_FOCUS = { lat: 10.762622, lng: 106.660172 };
 const DEFAULT_DISPLAY_TYPE = "5";
+const DEFAULT_SEARCH_LIMIT = 5;
+const MAX_SEARCH_LIMIT = 8;
 const VIETMAP_REQUEST_TIMEOUT_MS = 8000;
+const VIETMAP_SEARCH_FILTER_PARAMS = [
+  "cityId",
+  "districtId",
+  "wardId",
+  "layers",
+  "circle_center",
+  "circle_radius",
+];
 
 const getVietmapApiKey = () =>
   process.env.VIETMAP_API_KEY ||
@@ -28,7 +37,13 @@ const normalizeCoordinate = ({ lat, lng }) => {
   return { lat: parsedLat, lng: parsedLng };
 };
 
-const getSearchFocus = (query) => normalizeCoordinate(query) || DEFAULT_FOCUS;
+const getSearchFocus = (query) => normalizeCoordinate(query);
+
+const getSearchLimit = (queryLimit) => {
+  const parsedLimit = Number(queryLimit);
+  if (!Number.isInteger(parsedLimit) || parsedLimit < 1) return DEFAULT_SEARCH_LIMIT;
+  return Math.min(parsedLimit, MAX_SEARCH_LIMIT);
+};
 
 const fetchVietmapJson = async (path, params) => {
   const url = new URL(`${VIETMAP_BASE_URL}${path}`);
@@ -72,9 +87,9 @@ const fetchVietmapJson = async (path, params) => {
   }
 };
 
-const pickSearchResult = (results) => {
+const pickSearchResults = (results, limit) => {
   if (!Array.isArray(results)) return null;
-  return results.find((item) => item?.ref_id || item?.refId) || null;
+  return results.filter((item) => item?.ref_id || item?.refId).slice(0, limit);
 };
 
 const normalizeVietmapPlace = (place, searchResult) => {
@@ -108,30 +123,51 @@ export const searchMapAddress = async (req, res) => {
     }
 
     const focus = getSearchFocus(req.query);
-    const searchResults = await fetchVietmapJson("/search/v4", {
+    const searchParams = {
       apikey: apiKey,
       text,
-      focus: `${focus.lat},${focus.lng}`,
       display_type: req.query.displayType || DEFAULT_DISPLAY_TYPE,
+    };
+
+    if (focus) {
+      searchParams.focus = `${focus.lat},${focus.lng}`;
+    }
+
+    VIETMAP_SEARCH_FILTER_PARAMS.forEach((param) => {
+      if (req.query[param]) {
+        searchParams[param] = req.query[param];
+      }
     });
 
-    const searchResult = pickSearchResult(searchResults);
-    const refId = searchResult?.ref_id || searchResult?.refId;
-    if (!refId) {
+    const searchResults = await fetchVietmapJson("/search/v4", searchParams);
+
+    const candidateResults = pickSearchResults(searchResults, getSearchLimit(req.query.limit));
+    if (!candidateResults?.length) {
       return res.status(404).json({ message: "Không tìm thấy địa chỉ phù hợp." });
     }
 
-    const place = await fetchVietmapJson("/place/v4", {
-      apikey: apiKey,
-      refid: refId,
-    });
-    const location = normalizeVietmapPlace(place, searchResult);
+    const locations = (
+      await Promise.all(
+        candidateResults.map(async (searchResult) => {
+          const refId = searchResult?.ref_id || searchResult?.refId;
+          try {
+            const place = await fetchVietmapJson("/place/v4", {
+              apikey: apiKey,
+              refid: refId,
+            });
+            return normalizeVietmapPlace(place, searchResult);
+          } catch {
+            return null;
+          }
+        }),
+      )
+    ).filter(Boolean);
 
-    if (!location) {
+    if (!locations.length) {
       return res.status(404).json({ message: "Địa chỉ tìm thấy chưa có tọa độ hợp lệ." });
     }
 
-    return res.status(200).json({ location });
+    return res.status(200).json({ location: locations[0], locations });
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({

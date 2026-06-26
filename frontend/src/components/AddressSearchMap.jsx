@@ -1,9 +1,49 @@
 import { useEffect, useRef, useState } from "react";
-import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl";
+import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl.js";
 import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
 import { api } from "../api/client.js";
 import { DEFAULT_MAP_CENTER, getVietmapStyleUrl, hasVietmapMapKey } from "../utils/mapProvider.js";
 import { Button, Input } from "./Ui.jsx";
+
+const getValidLngLat = (point) => {
+  const lat = Number(point?.lat);
+  const lng = Number(point?.lng);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return [lng, lat];
+};
+
+const normalizeLocation = (location) => {
+  const lngLat = getValidLngLat(location);
+  if (!lngLat) return null;
+
+  return {
+    lat: lngLat[1],
+    lng: lngLat[0],
+    displayName: location.displayName,
+    provider: location.provider,
+    refId: location.refId,
+  };
+};
+
+const normalizeSearchText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const getCityIdFromAddress = (value) => {
+  const normalized = normalizeSearchText(value);
+  const isHoChiMinh =
+    normalized.includes("ho chi minh") ||
+    normalized.includes("tphcm") ||
+    normalized.includes("tp hcm") ||
+    normalized.includes("sai gon") ||
+    normalized.includes("saigon");
+
+  return isHoChiMinh ? "12" : "";
+};
 
 const MAP_PICKED_LABEL = "Vị trí đã chọn trên bản đồ";
 
@@ -19,12 +59,17 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
   const mapRef = useRef(null);
   const markerRef = useRef(null);
   const onPickRef = useRef(onPick);
+  const addressRef = useRef(address);
   const initialViewRef = useRef({ center, hasLocation: Boolean(location) });
   const hasMapKey = hasVietmapMapKey();
 
   useEffect(() => {
     onPickRef.current = onPick;
   }, [onPick]);
+
+  useEffect(() => {
+    addressRef.current = address;
+  }, [address]);
 
   useEffect(() => {
     if (!containerRef.current || !hasMapKey) return undefined;
@@ -42,7 +87,7 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
       onPickRef.current?.({
         lat: event.lngLat.lat,
         lng: event.lngLat.lng,
-        displayName: MAP_PICKED_LABEL,
+        displayName: addressRef.current?.trim() || MAP_PICKED_LABEL,
       });
     });
 
@@ -77,15 +122,34 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
       return;
     }
 
-    const popupText =
-      location.displayName || address || `${Number(location.lat).toFixed(6)}, ${Number(location.lng).toFixed(6)}`;
+    const lngLat = getValidLngLat(location);
+    if (!lngLat) return;
+
+    const popupText = location.displayName || address || `${lngLat[1].toFixed(6)}, ${lngLat[0].toFixed(6)}`;
 
     if (!markerRef.current) {
-      markerRef.current = new vietmapgl.Marker({ element: buildMarkerElement(), anchor: "bottom" }).addTo(map);
+      markerRef.current = new vietmapgl.Marker({
+        element: buildMarkerElement(),
+        anchor: "bottom",
+        draggable: true,
+      })
+        .setLngLat(lngLat)
+        .addTo(map);
+
+      markerRef.current.on("dragend", () => {
+        const nextLngLat = markerRef.current?.getLngLat?.();
+        if (!nextLngLat) return;
+
+        onPickRef.current?.({
+          lat: nextLngLat.lat,
+          lng: nextLngLat.lng,
+          displayName: addressRef.current?.trim() || MAP_PICKED_LABEL,
+        });
+      });
     }
 
     markerRef.current
-      .setLngLat([Number(location.lng), Number(location.lat)])
+      .setLngLat(lngLat)
       .setPopup(new vietmapgl.Popup({ offset: 28 }).setText(popupText));
   }, [address, location]);
 
@@ -103,11 +167,19 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
 const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange }) => {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
   const center = location ? { lat: Number(location.lat), lng: Number(location.lng) } : DEFAULT_MAP_CENTER;
   const trimmedAddress = address?.trim() || "";
   const hasMapPickedLabel = trimmedAddress === MAP_PICKED_LABEL;
   const isMapPickReady = Boolean(location) && hasMapPickedLabel;
   const searchButtonLabel = isMapPickReady ? "Đã chọn trên bản đồ" : searching ? "Đang tìm..." : "Tìm trên bản đồ";
+
+  const selectLocation = (nextLocation) => {
+    setSuggestions([]);
+    setError("");
+    onLocationChange(nextLocation);
+    onAddressChange(nextLocation.displayName || trimmedAddress);
+  };
 
   const searchAddress = async () => {
     if (hasMapPickedLabel) {
@@ -122,28 +194,40 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
 
     setSearching(true);
     setError("");
+    setSuggestions([]);
     try {
       const params = new URLSearchParams({
         text: trimmedAddress,
-        lat: String(center.lat),
-        lng: String(center.lng),
+        limit: "5",
       });
-      const result = await api.get(`/maps/search?${params}`);
-      const nextLocation = result.location;
+      const cityId = getCityIdFromAddress(trimmedAddress);
+      const focus = getValidLngLat(location);
 
-      if (!nextLocation?.lat || !nextLocation?.lng) {
+      if (cityId) {
+        params.set("cityId", cityId);
+      }
+
+      if (focus) {
+        params.set("lng", String(focus[0]));
+        params.set("lat", String(focus[1]));
+      }
+
+      const result = await api.get(`/maps/search?${params}`);
+      const locations = (Array.isArray(result.locations) ? result.locations : [result.location])
+        .map(normalizeLocation)
+        .filter(Boolean);
+
+      if (!locations.length) {
         setError("Không tìm thấy địa chỉ có tọa độ hợp lệ. Vui lòng thử lại.");
         return;
       }
 
-      onLocationChange({
-        lat: Number(nextLocation.lat),
-        lng: Number(nextLocation.lng),
-        displayName: nextLocation.displayName,
-        provider: nextLocation.provider,
-        refId: nextLocation.refId,
-      });
-      onAddressChange(nextLocation.displayName || trimmedAddress);
+      if (locations.length === 1) {
+        selectLocation(locations[0]);
+        return;
+      }
+
+      setSuggestions(locations);
     } catch (err) {
       setError(err.message || "Không thể tìm địa chỉ. Vui lòng thử lại sau.");
     } finally {
@@ -153,6 +237,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
 
   const handleAddressInputChange = (event) => {
     setError("");
+    setSuggestions([]);
     onAddressChange(event.target.value);
     if (location) {
       onLocationChange(null);
@@ -161,6 +246,7 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
 
   const handleMapPick = (addressLocation) => {
     setError("");
+    setSuggestions([]);
     onLocationChange(addressLocation);
     if (!address?.trim()) {
       onAddressChange(addressLocation.displayName || MAP_PICKED_LABEL);
@@ -178,13 +264,35 @@ const AddressSearchMap = ({ address, location, onAddressChange, onLocationChange
         </div>
       </div>
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {suggestions.length ? (
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <p className="px-3 pt-3 text-sm font-semibold text-slate-700">Chọn địa chỉ phù hợp</p>
+          <div className="divide-y divide-slate-100">
+            {suggestions.map((item, index) => (
+              <button
+                type="button"
+                key={`${item.refId || `${item.lat}-${item.lng}`}-${index}`}
+                className="block w-full px-3 py-3 text-left text-sm transition hover:bg-teal-50 focus:bg-teal-50 focus:outline-none"
+                onClick={() => selectLocation(item)}
+              >
+                <span className="block font-semibold text-slate-800">{item.displayName || `Kết quả ${index + 1}`}</span>
+                <span className="mt-1 block text-xs text-slate-500">
+                  {item.lat.toFixed(6)}, {item.lng.toFixed(6)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="relative z-0 h-80 overflow-hidden rounded-lg border border-slate-200">
         <AddressPickerMap center={center} location={location} address={address} onPick={handleMapPick} />
       </div>
       {location ? (
         <p className="text-sm text-slate-500">
           Đã ghim: {Number(location.lat).toFixed(6)}, {Number(location.lng).toFixed(6)}
-          {isMapPickReady ? ". Nhập địa chỉ nếu muốn tìm vị trí khác." : null}
+          {isMapPickReady
+            ? ". Nhập địa chỉ nếu muốn tìm vị trí khác."
+            : ". Nếu vị trí chưa đúng, kéo ghim hoặc bấm vào vị trí đúng trên bản đồ."}
         </p>
       ) : (
         <p className="text-sm text-slate-500">Bạn có thể tìm địa chỉ hoặc bấm trực tiếp trên bản đồ để ghim vị trí</p>
