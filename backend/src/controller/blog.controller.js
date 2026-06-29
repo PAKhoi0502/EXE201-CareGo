@@ -206,6 +206,60 @@ const defaultBlogPosts = [
       },
     ],
   },
+  {
+    slug: "5-dau-hieu-nguoi-than-can-duoc-cham-soc-chuyen-nghiep",
+    category: "Chăm sóc chuyên nghiệp",
+    readTime: "6 phút đọc",
+    date: "29/06/2026",
+    title: "5 dấu hiệu cho thấy người thân của bạn cần được chăm sóc chuyên nghiệp",
+    imageUrl: "/blog 2.png",
+    excerpt:
+      "Nhận biết đúng thời điểm cần đến sự hỗ trợ chuyên nghiệp sẽ giúp người thân được chăm sóc tốt hơn và giảm bớt áp lực cho cả gia đình.",
+    highlight:
+      "Yêu thương không chỉ là luôn ở cạnh, mà còn là biết chọn giải pháp phù hợp để người thân được chăm sóc an toàn và chu đáo.",
+    content: [
+      {
+        heading: "Khi nào gia đình nên tìm hỗ trợ chuyên nghiệp?",
+        body:
+          "Chăm sóc người thân là điều mà ai cũng mong muốn tự mình thực hiện. Tuy nhiên, không phải lúc nào chúng ta cũng có đủ thời gian, kiến thức hoặc điều kiện để đáp ứng mọi nhu cầu. Nhận biết đúng thời điểm cần đến sự hỗ trợ chuyên nghiệp sẽ giúp người thân được chăm sóc tốt hơn và giảm bớt áp lực cho cả gia đình.",
+      },
+      {
+        heading: "1. Gặp khó khăn trong sinh hoạt hằng ngày",
+        body:
+          "Nếu người thân bắt đầu gặp khó khăn khi đi lại, tắm rửa, thay quần áo hoặc chuẩn bị bữa ăn, đó là dấu hiệu họ cần có người hỗ trợ thường xuyên để đảm bảo an toàn và duy trì chất lượng cuộc sống.",
+      },
+      {
+        heading: "2. Cần theo dõi sức khỏe liên tục",
+        body:
+          "Đối với người cao tuổi hoặc người đang phục hồi sau phẫu thuật, việc theo dõi tình trạng sức khỏe, nhắc nhở dùng thuốc và hỗ trợ các hoạt động hằng ngày là rất quan trọng. Một người chăm sóc có kinh nghiệm sẽ giúp giảm thiểu những rủi ro không mong muốn.",
+      },
+      {
+        heading: "3. Gia đình quá bận rộn",
+        body:
+          "Áp lực công việc khiến nhiều người không thể ở bên người thân như mong muốn. Việc tìm kiếm một dịch vụ chăm sóc đáng tin cậy không có nghĩa là thay thế tình yêu của gia đình, mà là bổ sung sự hỗ trợ cần thiết để mọi người đều yên tâm.",
+      },
+      {
+        heading: "4. Người thân thường xuyên cảm thấy cô đơn",
+        body:
+          "Sự quan tâm không chỉ đến từ việc chăm sóc sức khỏe mà còn đến từ những cuộc trò chuyện và sự đồng hành mỗi ngày. Có người bên cạnh lắng nghe và hỗ trợ sẽ giúp người cao tuổi hoặc người bệnh cảm thấy vui vẻ, tích cực hơn.",
+      },
+      {
+        heading: "5. Bạn luôn lo lắng khi phải rời khỏi nhà",
+        body:
+          "Nếu mỗi lần đi làm hoặc đi công tác, bạn đều thấp thỏm vì không biết người thân ở nhà có ổn không, đó là lúc nên cân nhắc tìm một giải pháp chăm sóc phù hợp. Sự an tâm của gia đình cũng là một phần quan trọng trong việc chăm sóc.",
+      },
+      {
+        heading: "CareGo - đồng hành cùng gia đình bạn",
+        body:
+          "CareGo được xây dựng để kết nối những gia đình có nhu cầu với đội ngũ chăm sóc tận tâm và chuyên nghiệp. Chúng tôi mong muốn giúp việc tìm kiếm người chăm sóc trở nên nhanh chóng, minh bạch và đáng tin cậy, để mỗi gia đình có thêm thời gian dành cho nhau mà vẫn đảm bảo người thân luôn được quan tâm chu đáo.",
+      },
+      {
+        heading: "Lời kết",
+        body:
+          "Yêu thương không chỉ được thể hiện bằng việc luôn ở bên cạnh, mà còn bằng cách lựa chọn giải pháp tốt nhất cho người mình yêu quý. Khi cần sự hỗ trợ, hãy để CareGo trở thành người bạn đồng hành đáng tin cậy của gia đình bạn.",
+      },
+    ],
+  },
 ];
 
 export const ensureDefaultBlogPosts = async () => {
