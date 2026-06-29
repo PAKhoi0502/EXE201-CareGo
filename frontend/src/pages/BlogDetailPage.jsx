@@ -194,12 +194,9 @@ const BlogDetailPage = () => {
                 </div>
 
                 <div className="mt-9 grid gap-9">
-                  {post.content.map((section, index) => (
+                  {post.content.map((section) => (
                     <section key={section.heading} className="relative border-b border-teal-50 pb-8 last:border-b-0 last:pb-0">
                       <div className="mb-4 flex items-center gap-3">
-                        <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-50 text-sm font-black text-teal-700">
-                          {index + 1}
-                        </span>
                         <h2 className="text-2xl font-black text-[#12312f]">{section.heading}</h2>
                       </div>
                       <p className="whitespace-pre-line text-base leading-8 text-slate-600">{section.body}</p>
