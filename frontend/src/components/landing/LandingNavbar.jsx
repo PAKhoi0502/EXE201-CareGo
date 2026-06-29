@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import CareGoLogo from "../CareGoLogo.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import NotificationBell from "../notifications/NotificationBell.jsx";
@@ -59,6 +59,7 @@ const UserAvatar = ({ user, className = "h-10 w-10", fallbackClassName = "" }) =
 
 const LandingNavbar = () => {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
@@ -66,9 +67,10 @@ const LandingNavbar = () => {
   const isCompanion = user?.role === "companion";
   const isApprovedCompanionUser = isApprovedCompanion(user);
   const bookingPath = canUseCustomerWorkspace ? "/customer/bookings/new" : "/register";
-  const sectionNavItems = canUseCustomerWorkspace
-    ? navItems.map(([label, href]) => [label, href.startsWith("#") ? `/${href}` : href])
-    : navItems;
+  const sectionNavItems = navItems.map(([label, href]) => [
+    label,
+    href.startsWith("#") && (location.pathname !== "/" || canUseCustomerWorkspace) ? `/${href}` : href,
+  ]);
   const roleLabel = isCompanion ? "Khách hàng & đồng hành" : "Khách hàng";
 
   const handleLogout = () => {
