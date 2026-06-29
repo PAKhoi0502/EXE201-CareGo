@@ -187,17 +187,17 @@ const defaultBlogPosts = [
       {
         heading: "Chăm sóc tại nhà - giải pháp vừa tiện lợi vừa nhân văn",
         body:
-          "Đối với người cao tuổi, việc được sinh hoạt trong môi trường quen thuộc giúp họ cảm thấy thoải mái và an tâm hơn. Với người đang hồi phục sau điều trị, việc có người hỗ trợ theo dõi sức khỏe và sinh hoạt hằng ngày cũng góp phần cải thiện quá trình phục hồi. Không chỉ vậy, các bậc phụ huynh hay những người thường xuyên đi công tác cũng có thể yên tâm hơn khi biết rằng người thân của mình luôn được quan tâm đúng cách.",
+          "Đối với người cao tuổi, việc được sinh hoạt trong môi trường quen thuộc giúp họ cảm thấy thoải mái và an tâm hơn. Với người đang hồi phục sau điều trị, việc có người hỗ trợ theo dõi sức khỏe và sinh hoạt hằng ngày cũng góp phần cải thiện quá trình phục hồi.\n\nKhông chỉ vậy, các bậc phụ huynh hay những người thường xuyên đi công tác cũng có thể yên tâm hơn khi biết rằng người thân của mình luôn được quan tâm đúng cách.",
       },
       {
         heading: "Điều quan trọng không chỉ là có người chăm sóc",
         body:
-          "Một dịch vụ chăm sóc chất lượng cần đảm bảo đội ngũ có kỹ năng và thái độ chuyên nghiệp, thông tin minh bạch, quy trình kết nối nhanh chóng, đồng thời luôn đặt sự an toàn và sức khỏe của khách hàng lên hàng đầu. Khi những yếu tố này được đáp ứng, người sử dụng dịch vụ không chỉ nhận được sự hỗ trợ về mặt thể chất mà còn có được sự an tâm về tinh thần.",
+          "Một dịch vụ chăm sóc chất lượng cần đảm bảo nhiều yếu tố như:\n\n- Đội ngũ có kỹ năng và thái độ chuyên nghiệp.\n- Thông tin minh bạch, rõ ràng.\n- Quy trình kết nối nhanh chóng.\n- Luôn đặt sự an toàn và sức khỏe của khách hàng lên hàng đầu.\n\nKhi những yếu tố này được đáp ứng, người sử dụng dịch vụ không chỉ nhận được sự hỗ trợ về mặt thể chất mà còn có được sự an tâm về tinh thần.",
       },
       {
         heading: "CareGo - đồng hành cùng mọi gia đình",
         body:
-          "CareGo được xây dựng với mong muốn giúp việc tìm kiếm người chăm sóc trở nên đơn giản và đáng tin cậy hơn. Thông qua nền tảng kết nối, người dùng có thể dễ dàng tiếp cận các dịch vụ phù hợp với nhu cầu của mình, tiết kiệm thời gian và giảm bớt áp lực trong cuộc sống. Chúng tôi tin rằng mỗi hành động chăm sóc đều mang một giá trị lớn: sự quan tâm, sẻ chia và yêu thương dành cho những người thân yêu.",
+          "CareGo được xây dựng với mong muốn giúp việc tìm kiếm người chăm sóc trở nên đơn giản và đáng tin cậy hơn. Thông qua nền tảng kết nối, người dùng có thể dễ dàng tiếp cận các dịch vụ phù hợp với nhu cầu của mình, tiết kiệm thời gian và giảm bớt áp lực trong cuộc sống.\n\nChúng tôi tin rằng, mỗi hành động chăm sóc đều mang một giá trị lớn. Đó không chỉ là sự hỗ trợ trong cuộc sống hằng ngày mà còn là sự quan tâm, sẻ chia và yêu thương dành cho những người thân yêu.",
       },
       {
         heading: "Kết luận",
@@ -213,7 +213,7 @@ export const ensureDefaultBlogPosts = async () => {
     defaultBlogPosts.map((post) =>
       BlogPost.findOneAndUpdate(
         { slug: post.slug },
-        { $setOnInsert: post },
+        { $set: post },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       ),
     ),

@@ -202,7 +202,7 @@ const BlogDetailPage = () => {
                         </span>
                         <h2 className="text-2xl font-black text-[#12312f]">{section.heading}</h2>
                       </div>
-                      <p className="text-base leading-8 text-slate-600">{section.body}</p>
+                      <p className="whitespace-pre-line text-base leading-8 text-slate-600">{section.body}</p>
                     </section>
                   ))}
                 </div>
