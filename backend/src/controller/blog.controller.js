@@ -260,6 +260,50 @@ const defaultBlogPosts = [
       },
     ],
   },
+  {
+    slug: "carego-khi-viec-cham-soc-khong-con-la-ganh-nang",
+    category: "CareGo",
+    readTime: "5 phút đọc",
+    date: "29/06/2026",
+    title: "CareGo - Khi việc chăm sóc không còn là gánh nặng",
+    imageUrl: "/Blog 3.png",
+    excerpt:
+      "CareGo được hình thành để giúp việc chăm sóc người thân trở nên dễ tiếp cận, minh bạch và đáng tin cậy hơn trong cuộc sống hiện đại.",
+    highlight:
+      "Khi công nghệ kết hợp với sự tận tâm của con người, việc chăm sóc sẽ trở nên đơn giản hơn và mang lại nhiều giá trị tích cực cho cộng đồng.",
+    content: [
+      {
+        heading: "Trong cuộc sống hiện đại",
+        body:
+          "Trong cuộc sống hiện đại, mỗi chúng ta đều bận rộn với công việc, học tập và những trách nhiệm cá nhân. Tuy nhiên, nhu cầu chăm sóc người thân - từ người cao tuổi, trẻ nhỏ đến người đang điều trị bệnh - vẫn luôn hiện hữu. Không phải lúc nào gia đình cũng có đủ thời gian hoặc chuyên môn để đáp ứng những nhu cầu đó.\n\nĐó là lý do CareGo được hình thành.",
+      },
+      {
+        heading: "CareGo là gì?",
+        body:
+          "CareGo là dự án kết nối người có nhu cầu chăm sóc với đội ngũ chăm sóc được đào tạo, mang đến dịch vụ nhanh chóng, minh bạch và đáng tin cậy. Chúng tôi hướng đến việc giúp mỗi gia đình dễ dàng tìm được người đồng hành phù hợp, đồng thời tạo cơ hội việc làm cho những người có kỹ năng trong lĩnh vực chăm sóc.",
+      },
+      {
+        heading: "Sứ mệnh",
+        body:
+          "CareGo mong muốn xây dựng một hệ sinh thái nơi việc chăm sóc trở nên dễ tiếp cận hơn, giúp mọi người an tâm rằng người thân của mình luôn nhận được sự quan tâm chu đáo và chuyên nghiệp.",
+      },
+      {
+        heading: "Giá trị cốt lõi",
+        body:
+          "- Tận tâm: Luôn đặt con người làm trung tâm của mọi dịch vụ.\n- Uy tín: Minh bạch thông tin và đảm bảo chất lượng.\n- Kết nối: Rút ngắn khoảng cách giữa người cần hỗ trợ và người có chuyên môn.\n- Đồng hành: Không chỉ cung cấp dịch vụ mà còn mang đến sự an tâm cho mỗi gia đình.",
+      },
+      {
+        heading: "Tầm nhìn",
+        body:
+          "CareGo hướng tới trở thành nền tảng chăm sóc cộng đồng đáng tin cậy, nơi mọi người đều có thể tiếp cận dịch vụ chăm sóc chất lượng một cách thuận tiện, nhanh chóng và an toàn.",
+      },
+      {
+        heading: "Kết luận",
+        body:
+          "Chăm sóc không chỉ là một dịch vụ, mà còn là sự sẻ chia và yêu thương. CareGo tin rằng, khi công nghệ kết hợp với sự tận tâm của con người, việc chăm sóc sẽ trở nên đơn giản hơn, hiệu quả hơn và mang lại nhiều giá trị tích cực cho cộng đồng.",
+      },
+    ],
+  },
 ];
 
 export const ensureDefaultBlogPosts = async () => {
