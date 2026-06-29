@@ -167,6 +167,45 @@ const defaultBlogPosts = [
       },
     ],
   },
+  {
+    slug: "vi-sao-dich-vu-cham-soc-tai-nha-ngay-cang-pho-bien",
+    category: "Chăm sóc tại nhà",
+    readTime: "6 phút đọc",
+    date: "29/06/2026",
+    title: "Vì sao dịch vụ chăm sóc tại nhà ngày càng trở thành lựa chọn của nhiều gia đình?",
+    imageUrl: "/Blog 1.png",
+    excerpt:
+      "Nhịp sống hiện đại khiến quỹ thời gian dành cho gia đình ngày càng hạn hẹp. Dịch vụ chăm sóc tại nhà trở thành giải pháp tiện lợi, nhân văn và đáng tin cậy.",
+    highlight:
+      "Chăm sóc tại nhà giúp người thân được hỗ trợ trong môi trường quen thuộc, còn gia đình có thêm sự an tâm trong cuộc sống bận rộn.",
+    content: [
+      {
+        heading: "Nhịp sống hiện đại và nhu cầu chăm sóc người thân",
+        body:
+          "Nhịp sống hiện đại mang đến nhiều cơ hội phát triển, nhưng cũng khiến quỹ thời gian dành cho gia đình ngày càng hạn hẹp. Nhiều người phải cân bằng giữa công việc, học tập và trách nhiệm chăm sóc người thân. Chính vì vậy, dịch vụ chăm sóc tại nhà đang dần trở thành một giải pháp được nhiều gia đình lựa chọn.",
+      },
+      {
+        heading: "Chăm sóc tại nhà - giải pháp vừa tiện lợi vừa nhân văn",
+        body:
+          "Đối với người cao tuổi, việc được sinh hoạt trong môi trường quen thuộc giúp họ cảm thấy thoải mái và an tâm hơn. Với người đang hồi phục sau điều trị, việc có người hỗ trợ theo dõi sức khỏe và sinh hoạt hằng ngày cũng góp phần cải thiện quá trình phục hồi. Không chỉ vậy, các bậc phụ huynh hay những người thường xuyên đi công tác cũng có thể yên tâm hơn khi biết rằng người thân của mình luôn được quan tâm đúng cách.",
+      },
+      {
+        heading: "Điều quan trọng không chỉ là có người chăm sóc",
+        body:
+          "Một dịch vụ chăm sóc chất lượng cần đảm bảo đội ngũ có kỹ năng và thái độ chuyên nghiệp, thông tin minh bạch, quy trình kết nối nhanh chóng, đồng thời luôn đặt sự an toàn và sức khỏe của khách hàng lên hàng đầu. Khi những yếu tố này được đáp ứng, người sử dụng dịch vụ không chỉ nhận được sự hỗ trợ về mặt thể chất mà còn có được sự an tâm về tinh thần.",
+      },
+      {
+        heading: "CareGo - đồng hành cùng mọi gia đình",
+        body:
+          "CareGo được xây dựng với mong muốn giúp việc tìm kiếm người chăm sóc trở nên đơn giản và đáng tin cậy hơn. Thông qua nền tảng kết nối, người dùng có thể dễ dàng tiếp cận các dịch vụ phù hợp với nhu cầu của mình, tiết kiệm thời gian và giảm bớt áp lực trong cuộc sống. Chúng tôi tin rằng mỗi hành động chăm sóc đều mang một giá trị lớn: sự quan tâm, sẻ chia và yêu thương dành cho những người thân yêu.",
+      },
+      {
+        heading: "Kết luận",
+        body:
+          "Cuộc sống sẽ nhẹ nhàng hơn khi chúng ta biết tìm đến những giải pháp phù hợp. Với CareGo, việc chăm sóc không còn là nỗi lo, mà trở thành một hành trình được đồng hành bởi những con người tận tâm và chuyên nghiệp.",
+      },
+    ],
+  },
 ];
 
 export const ensureDefaultBlogPosts = async () => {

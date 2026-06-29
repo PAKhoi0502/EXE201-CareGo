@@ -37,10 +37,19 @@ const ArticleMetric = ({ label, value, tone = "teal" }) => {
   );
 };
 
-const BlogHeroVisual = ({ category }) => (
+const BlogHeroVisual = ({ category, imageUrl }) => (
   <div className="relative min-h-[280px] overflow-hidden rounded-[34px] bg-gradient-to-br from-teal-700 via-teal-500 to-sky-500 shadow-2xl shadow-teal-900/15">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.35),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(255,255,255,0.24),transparent_24%)]" />
-    <div className="absolute -bottom-20 -right-12 h-64 w-64 rounded-full bg-white/20 blur-2xl" />
+    {imageUrl ? (
+      <>
+        <img src={imageUrl} alt={category || "CareGo blog"} className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/10 to-transparent" />
+      </>
+    ) : (
+      <>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.35),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(255,255,255,0.24),transparent_24%)]" />
+        <div className="absolute -bottom-20 -right-12 h-64 w-64 rounded-full bg-white/20 blur-2xl" />
+      </>
+    )}
     <div className="absolute left-6 top-6 rounded-full border border-white/25 bg-white/20 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur">
       {category}
     </div>
@@ -172,7 +181,7 @@ const BlogDetailPage = () => {
                   <ArticleMetric label="Bình luận" value={post.comments?.length ?? post.commentCount ?? 0} tone="sky" />
                 </div>
               </div>
-              <BlogHeroVisual category={post.category} />
+              <BlogHeroVisual category={post.category} imageUrl={post.imageUrl} />
             </div>
           </section>
 

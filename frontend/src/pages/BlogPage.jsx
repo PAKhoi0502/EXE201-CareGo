@@ -12,8 +12,24 @@ const categoryStyles = {
   "Người đồng hành": "from-teal-600 to-blue-600",
 };
 
-const BlogArtwork = ({ category, large = false }) => {
+const BlogArtwork = ({ category, imageUrl, large = false }) => {
   const gradient = categoryStyles[category] || "from-teal-600 to-sky-500";
+
+  if (imageUrl) {
+    return (
+      <div className={`relative overflow-hidden rounded-[30px] bg-teal-50 ${large ? "min-h-[340px]" : "h-56"}`}>
+        <img src={imageUrl} alt={category || "CareGo blog"} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-slate-950/10 to-transparent" />
+        <div className="absolute left-5 top-5 rounded-full border border-white/30 bg-white/20 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white shadow-lg backdrop-blur">
+          {category}
+        </div>
+        <div className="absolute bottom-5 left-5 right-5 rounded-[24px] border border-white/25 bg-white/90 p-4 shadow-2xl shadow-slate-950/20 backdrop-blur">
+          <p className="text-sm font-black text-slate-950">CareGo Blog</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Kiến thức chăm sóc dễ đọc, dễ áp dụng.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative overflow-hidden rounded-[30px] bg-gradient-to-br ${gradient} ${large ? "min-h-[340px]" : "h-56"}`}>
@@ -53,7 +69,7 @@ const BlogCard = ({ post }) => (
     to={`/blog/${post.slug}`}
     className="group flex h-full flex-col rounded-[32px] border border-teal-100 bg-white p-4 shadow-xl shadow-teal-900/5 transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-2xl hover:shadow-teal-900/10"
   >
-    <BlogArtwork category={post.category} />
+    <BlogArtwork category={post.category} imageUrl={post.imageUrl} />
     <div className="flex flex-1 flex-col p-3">
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
         <span>{post.date}</span>
@@ -116,7 +132,7 @@ const BlogPage = () => {
               </div>
             </div>
             <div className="rounded-[36px] border border-teal-100 bg-white/80 p-4 shadow-2xl shadow-teal-900/10 backdrop-blur">
-              <BlogArtwork category={featuredPost?.category || "CareGo"} large />
+              <BlogArtwork category={featuredPost?.category || "CareGo"} imageUrl={featuredPost?.imageUrl} large />
             </div>
           </div>
         </section>
@@ -155,7 +171,7 @@ const BlogPage = () => {
                 className="group mb-8 grid overflow-hidden rounded-[36px] border border-teal-100 bg-white shadow-2xl shadow-teal-900/8 transition hover:-translate-y-1 hover:shadow-teal-900/12 lg:grid-cols-[0.9fr_1.1fr]"
               >
                 <div className="p-4">
-                  <BlogArtwork category={featuredPost.category} large />
+                  <BlogArtwork category={featuredPost.category} imageUrl={featuredPost.imageUrl} large />
                 </div>
                 <div className="flex flex-col justify-center p-6 sm:p-9">
                   <span className="inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-amber-700">

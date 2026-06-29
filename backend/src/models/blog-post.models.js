@@ -48,6 +48,11 @@ const BlogPostSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    imageUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     readTime: {
       type: String,
       default: "5 phút đọc",
