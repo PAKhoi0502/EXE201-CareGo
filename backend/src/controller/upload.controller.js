@@ -3,7 +3,7 @@ import cloudinary from "../config/cloudinary.js";
 export const uploadImageController = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: "image file is required" });
+      return res.status(400).json({ message: "Vui lòng chọn ảnh cần tải lên." });
     }
 
     if (
@@ -11,7 +11,7 @@ export const uploadImageController = async (req, res) => {
       !process.env.CLOUDINARY_API_KEY?.trim() ||
       !process.env.CLOUDINARY_API_SECRET?.trim()
     ) {
-      return res.status(500).json({ message: "cloudinary config is missing" });
+      return res.status(500).json({ message: "Dịch vụ lưu trữ ảnh chưa được cấu hình." });
     }
 
     const folder = req.body.folder || "carego";
@@ -22,13 +22,13 @@ export const uploadImageController = async (req, res) => {
     });
 
     return res.status(201).json({
-      message: "image uploaded",
+      message: "Tải ảnh lên thành công.",
       url: result.secure_url,
       publicId: result.public_id,
     });
   } catch (error) {
     return res.status(500).json({
-      message: "cloudinary upload failed",
+      message: "Tải ảnh lên không thành công. Vui lòng thử lại.",
       error: error.message,
     });
   }

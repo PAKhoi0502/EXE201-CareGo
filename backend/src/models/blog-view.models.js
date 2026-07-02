@@ -14,12 +14,17 @@ const BlogViewSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    seedKey: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true },
 );
 
 BlogViewSchema.index({ postId: 1, createdAt: -1 });
 BlogViewSchema.index({ slug: 1, createdAt: -1 });
+BlogViewSchema.index({ seedKey: 1 }, { unique: true, sparse: true });
 
 const BlogView = mongoose.model("blogView", BlogViewSchema);
 export default BlogView;

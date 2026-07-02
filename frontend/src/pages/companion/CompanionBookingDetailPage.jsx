@@ -66,15 +66,22 @@ const shiftRequirementMessages = {
 const formatShiftError = (err) => {
   const missingRequirements = err?.data?.missingRequirements;
   if (Array.isArray(missingRequirements) && missingRequirements.length > 0) {
-    const labels = missingRequirements.map((item) => shiftRequirementMessages[item] || item);
+    const labels = missingRequirements.map((item) => shiftRequirementMessages[item] || "thông tin bắt buộc");
     return `Bạn cần lưu ${labels.join(", ")} trước khi tiếp tục.`;
   }
 
-  if (err?.message === "gps location is too far from booking address") {
+  if (err?.message === "Vị trí GPS hiện tại quá xa địa chỉ chăm sóc.") {
     return "GPS hiện tại đang quá xa địa chỉ đặt lịch. Vui lòng đến đúng vị trí rồi thử lại.";
   }
 
   return err?.message || "Không thể cập nhật ca làm. Vui lòng thử lại.";
+};
+
+const getGeolocationErrorMessage = (error) => {
+  if (error?.code === 1) return "Bạn chưa cấp quyền truy cập vị trí. Vui lòng bật quyền GPS và thử lại.";
+  if (error?.code === 2) return "Không xác định được vị trí hiện tại. Vui lòng kiểm tra GPS và thử lại.";
+  if (error?.code === 3) return "Quá thời gian chờ lấy vị trí. Vui lòng thử lại.";
+  return "Không thể lấy vị trí hiện tại. Vui lòng kiểm tra GPS và thử lại.";
 };
 
 const InfoMini = ({ label, value }) => (
@@ -194,7 +201,7 @@ const CompanionBookingDetailPage = () => {
           companionId: companionUserId,
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          note: "Realtime GPS",
+          note: "GPS thời gian thực",
           recordedAt: new Date().toISOString(),
         };
 
@@ -207,7 +214,7 @@ const CompanionBookingDetailPage = () => {
         if (!active) return;
 
         setGpsReady(false);
-        setGpsError(error.message);
+        setGpsError(getGeolocationErrorMessage(error));
         locationSocket.emit("location:stop", { bookingId: id, companionId: companionUserId });
       },
       {
@@ -287,7 +294,7 @@ const CompanionBookingDetailPage = () => {
             lng: position.coords.longitude,
           });
         },
-        (error) => reject(error),
+        (error) => reject(new Error(getGeolocationErrorMessage(error))),
         {
           enableHighAccuracy: true,
           maximumAge: 5000,
@@ -459,7 +466,7 @@ const CompanionBookingDetailPage = () => {
 
   const checkInShift = async ({ useDemoLocation = false } = {}) => {
     if (!hasSavedCheckInPhoto) {
-      setCheckInError("Bạn cần chụp hoặc tải ảnh check-in trước khi bấm Đã đến nơi.");
+      setCheckInError("Bạn cần chụp hoặc tải ảnh xác nhận đến nơi trước khi tiếp tục.");
       return;
     }
 

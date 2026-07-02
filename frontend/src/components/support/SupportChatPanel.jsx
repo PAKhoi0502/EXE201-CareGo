@@ -225,7 +225,7 @@ export default function SupportChatPanel({ conversation, onConversationChange, c
                 mine ? "rounded-br-md bg-teal-700 text-white" : "rounded-bl-md border border-teal-100 bg-white text-slate-700"
               }`}>
                 <p className={`mb-1 text-[11px] font-black ${mine ? "text-white/70" : "text-teal-700"}`}>
-                  {mine ? "Bạn" : message.senderId?.role === "admin" ? "CareGo Admin" : message.senderId?.name || "Người dùng"}
+                  {mine ? "Bạn" : message.senderId?.role === "admin" ? "Quản trị viên CareGo" : message.senderId?.name || "Người dùng"}
                 </p>
                 <p className="whitespace-pre-wrap leading-6">{message.message}</p>
                 <p className={`mt-1 text-right text-[10px] ${mine ? "text-white/60" : "text-slate-400"}`}>

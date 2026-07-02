@@ -46,7 +46,7 @@ const VerifyEmailPage = () => {
     try {
       await verifyEmail({ email: normalizedEmail, otp });
       sessionStorage.removeItem(VERIFY_EMAIL_STORAGE_KEY);
-      setMessage("Xac thuc thanh cong.");
+      setMessage("Xác thực email thành công.");
       if (password) {
         const user = await login({ email: normalizedEmail, password });
         navigate(getUserHomePath(user));
@@ -72,7 +72,7 @@ const VerifyEmailPage = () => {
 
     try {
       await resendOtp(normalizedEmail);
-      setMessage("Da gui lai OTP. Neu chua cau hinh SMTP, xem OTP trong terminal backend.");
+      setMessage("Đã gửi lại mã OTP. Nếu hệ thống email chưa được cấu hình, mã OTP sẽ hiển thị tại máy chủ.");
     } catch (err) {
       setError(err.message);
     }

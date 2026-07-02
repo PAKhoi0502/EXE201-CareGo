@@ -22,49 +22,49 @@ const loginRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
   max: 8,
   keyGenerator: authRateLimitKeys.ipAndEmail,
-  message: "Too many login attempts, please try again later.",
+  message: "Bạn đăng nhập quá nhiều lần. Vui lòng thử lại sau.",
 });
 
 const verifyEmailOtpRateLimit = createRateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5,
   keyGenerator: authRateLimitKeys.ipAndEmail,
-  message: "Too many OTP attempts, please try again later.",
+  message: "Bạn nhập OTP quá nhiều lần. Vui lòng thử lại sau.",
 });
 
 const resendEmailOtpRateLimit = createRateLimit({
   windowMs: 10 * 60 * 1000,
   max: 3,
   keyGenerator: authRateLimitKeys.ipAndEmail,
-  message: "Too many OTP resend requests, please try again later.",
+  message: "Bạn yêu cầu gửi lại OTP quá nhiều lần. Vui lòng thử lại sau.",
 });
 
 const forgotPasswordRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
   max: 3,
   keyGenerator: authRateLimitKeys.ipAndEmail,
-  message: "Too many password reset requests, please try again later.",
+  message: "Bạn yêu cầu đặt lại mật khẩu quá nhiều lần. Vui lòng thử lại sau.",
 });
 
 const resetPasswordRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   keyGenerator: authRateLimitKeys.ipAndResetToken,
-  message: "Too many password reset attempts, please try again later.",
+  message: "Bạn thử đặt lại mật khẩu quá nhiều lần. Vui lòng thử lại sau.",
 });
 
 const currentUserPasswordOtpRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
   max: 3,
   keyGenerator: authRateLimitKeys.ipAndUser,
-  message: "Too many password OTP requests, please try again later.",
+  message: "Bạn yêu cầu OTP đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau.",
 });
 
 const changeCurrentUserPasswordRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   keyGenerator: authRateLimitKeys.ipAndUser,
-  message: "Too many password change attempts, please try again later.",
+  message: "Bạn thử đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau.",
 });
 //express.Router(): được dùng để để tách các route trong ứng dụng thành các module riêng biệt
 //giúp quản lý mã nguồn tốt hơn

@@ -18,14 +18,14 @@ const ResetPasswordPage = () => {
     setError("");
 
     if (form.password !== form.confirmPassword) {
-      setError("Mat khau xac nhan khong khop");
+      setError("Mật khẩu xác nhận không khớp.");
       return;
     }
 
     setSubmitting(true);
     try {
       await api.post(`/auth/reset-password/${token}`, { password: form.password });
-      setMessage("Dat lai mat khau thanh cong. Dang chuyen ve dang nhap...");
+      setMessage("Đặt lại mật khẩu thành công. Đang chuyển về trang đăng nhập...");
       setTimeout(() => navigate("/login"), 900);
     } catch (err) {
       setError(err.message);

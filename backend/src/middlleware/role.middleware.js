@@ -16,7 +16,7 @@ export const hasRole = (user, role) => getEffectiveRoles(user).includes(role);
 export const allowRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.some((role) => hasRole(req.user, role))) {
-      return res.status(403).json({ message: "permission denied" });
+      return res.status(403).json({ message: "Bạn không có quyền thực hiện thao tác này." });
     }
 
     next();

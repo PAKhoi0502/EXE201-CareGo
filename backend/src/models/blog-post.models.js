@@ -94,6 +94,31 @@ const BlogPostSchema = new mongoose.Schema(
     isPublished: {
       type: Boolean,
       default: true,
+      index: true,
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    displayOrder: {
+      type: Number,
+      default: 0,
+    },
+    publishedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    authorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+      default: null,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   { timestamps: true },
@@ -106,6 +131,8 @@ BlogPostSchema.virtual("ratingAverage").get(function getRatingAverage() {
 
 BlogPostSchema.set("toJSON", { virtuals: true });
 BlogPostSchema.set("toObject", { virtuals: true });
+BlogPostSchema.index({ isPublished: 1, isDeleted: 1, displayOrder: 1, publishedAt: -1 });
+BlogPostSchema.index({ isFeatured: 1, isPublished: 1, isDeleted: 1, displayOrder: 1 });
 
 const BlogPost = mongoose.model("blogPost", BlogPostSchema);
 export default BlogPost;

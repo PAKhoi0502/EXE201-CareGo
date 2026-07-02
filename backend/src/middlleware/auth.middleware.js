@@ -12,7 +12,7 @@ export const verifyToken = async (req, res, next) => {
   const token = getTokenFromHeader(req);
 
   if (!token) {
-    return res.status(401).json({ message: "no token provided" });
+    return res.status(401).json({ message: "Bạn chưa cung cấp mã xác thực." });
   }
 
   try {
@@ -20,21 +20,21 @@ export const verifyToken = async (req, res, next) => {
     const userId = decoded.userId || decoded.id || decoded._id;
 
     if (!userId) {
-      return res.status(403).json({ message: "invalid token" });
+      return res.status(403).json({ message: "Phiên đăng nhập không hợp lệ." });
     }
 
-    const user = await User.findById(userId).select("_id role isActive isEmailVerified email");
+    const user = await User.findById(userId).select("_id name role isActive isEmailVerified email");
     if (!user) {
-      return res.status(401).json({ message: "user not found" });
+      return res.status(401).json({ message: "Không tìm thấy tài khoản." });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({ message: "account is inactive" });
+      return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa." });
     }
 
     if (!user.isEmailVerified) {
       return res.status(403).json({
-        message: "email is not verified",
+        message: "Email chưa được xác thực.",
         code: "EMAIL_NOT_VERIFIED",
         email: user.email,
       });
@@ -43,6 +43,8 @@ export const verifyToken = async (req, res, next) => {
     const requestUser = {
       ...decoded,
       userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
       role: user.role,
     };
     requestUser.roles = getEffectiveRoles(requestUser);
@@ -50,6 +52,42 @@ export const verifyToken = async (req, res, next) => {
 
     return next();
   } catch {
-    return res.status(403).json({ message: "invalid token" });
+    return res.status(403).json({ message: "Phiên đăng nhập không hợp lệ." });
   }
+};
+
+export const optionalVerifyToken = async (req, _res, next) => {
+  const token = getTokenFromHeader(req);
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const userId = decoded.userId || decoded.id || decoded._id;
+
+    if (!userId) {
+      return next();
+    }
+
+    const user = await User.findById(userId).select("_id name role isActive isEmailVerified email");
+    if (!user || !user.isActive || !user.isEmailVerified) {
+      return next();
+    }
+
+    const requestUser = {
+      ...decoded,
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+    requestUser.roles = getEffectiveRoles(requestUser);
+    req.user = requestUser;
+  } catch {
+    req.user = undefined;
+  }
+
+  return next();
 };

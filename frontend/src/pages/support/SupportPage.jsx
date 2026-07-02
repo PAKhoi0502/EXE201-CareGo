@@ -4,7 +4,7 @@ import SupportChatPanel from "../../components/support/SupportChatPanel.jsx";
 import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 
 const categories = [
-  ["booking", "Vấn đề booking"],
+  ["booking", "Vấn đề lịch chăm sóc"],
   ["payment", "Thanh toán / rút tiền"],
   ["account", "Tài khoản"],
   ["safety", "An toàn / SOS"],

@@ -65,6 +65,9 @@ export const StatusBadge = ({ status }) => {
     cancelled: "bg-rose-50 text-rose-700 ring-rose-200",
     rejected: "bg-rose-50 text-rose-700 ring-rose-200",
     suspended: "bg-slate-100 text-slate-600 ring-slate-200",
+    customer: "bg-blue-50 text-blue-700 ring-blue-200",
+    companion: "bg-cyan-50 text-cyan-700 ring-cyan-200",
+    admin: "bg-violet-50 text-violet-700 ring-violet-200",
   };
   const labels = {
     pending: "Chờ xử lý",
@@ -76,6 +79,9 @@ export const StatusBadge = ({ status }) => {
     cancelled: "Đã hủy",
     rejected: "Từ chối",
     suspended: "Tạm khóa",
+    customer: "Khách hàng",
+    companion: "Người đồng hành",
+    admin: "Quản trị viên",
   };
 
   return (

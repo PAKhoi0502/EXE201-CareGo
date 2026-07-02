@@ -14,6 +14,12 @@ const BlogCommentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+      default: null,
+      index: true,
+    },
     name: {
       type: String,
       trim: true,
@@ -23,6 +29,8 @@ const BlogCommentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      minlength: 2,
+      maxlength: 1000,
     },
     rating: {
       type: Number,
@@ -35,12 +43,19 @@ const BlogCommentSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    status: {
+      type: String,
+      enum: ["pending", "visible", "hidden"],
+      default: "visible",
+      index: true,
+    },
   },
   { timestamps: true },
 );
 
 BlogCommentSchema.index({ postId: 1, createdAt: -1 });
 BlogCommentSchema.index({ slug: 1, createdAt: -1 });
+BlogCommentSchema.index({ postId: 1, status: 1, createdAt: -1 });
 
 const BlogComment = mongoose.model("blogComment", BlogCommentSchema);
 export default BlogComment;

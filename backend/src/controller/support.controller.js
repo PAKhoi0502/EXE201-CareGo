@@ -127,7 +127,7 @@ const findAllowedBookingId = async ({ bookingId, userId }) => {
     return {
       error: {
         statusCode: 400,
-        message: "bookingId không hợp lệ.",
+        message: "Mã lịch chăm sóc không hợp lệ.",
       },
     };
   }
@@ -144,7 +144,7 @@ const findAllowedBookingId = async ({ bookingId, userId }) => {
     return {
       error: {
         statusCode: 404,
-        message: "Không tìm thấy booking thuộc tài khoản của bạn.",
+        message: "Không tìm thấy lịch chăm sóc thuộc tài khoản của bạn.",
       },
     };
   }
@@ -161,7 +161,7 @@ const findAssignableAdminId = async (assignedAdminId) => {
     return {
       error: {
         statusCode: 400,
-        message: "assignedAdminId không hợp lệ.",
+        message: "Mã quản trị viên được chỉ định không hợp lệ.",
       },
     };
   }
@@ -176,7 +176,7 @@ const findAssignableAdminId = async (assignedAdminId) => {
     return {
       error: {
         statusCode: 400,
-        message: "assignedAdminId phải là admin đang hoạt động.",
+        message: "Quản trị viên được chỉ định phải là tài khoản đang hoạt động.",
       },
     };
   }
@@ -205,7 +205,7 @@ const getSupportMessageCursorFilter = async ({ conversationId, before }) => {
     return {
       error: {
         statusCode: 400,
-        message: "Cursor tin nhắn không hợp lệ.",
+        message: "Mốc phân trang tin nhắn không hợp lệ.",
       },
     };
   }
@@ -219,7 +219,7 @@ const getSupportMessageCursorFilter = async ({ conversationId, before }) => {
     return {
       error: {
         statusCode: 400,
-        message: "Cursor tin nhắn không thuộc cuộc trò chuyện này.",
+        message: "Mốc phân trang tin nhắn không thuộc cuộc trò chuyện này.",
       },
     };
   }
@@ -288,7 +288,7 @@ export const createSupportConversation = async (req, res) => {
       return res.status(requestError.statusCode).json(requestError);
     }
 
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -304,7 +304,7 @@ export const getMySupportConversations = async (req, res) => {
       return res.status(requestError.statusCode).json(requestError);
     }
 
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -345,7 +345,7 @@ export const getAdminSupportConversations = async (req, res) => {
       return res.status(requestError.statusCode).json(requestError);
     }
 
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -403,7 +403,7 @@ export const getSupportMessages = async (req, res) => {
       return res.status(requestError.statusCode).json(requestError);
     }
 
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -480,7 +480,7 @@ export const sendSupportMessage = async (req, res) => {
       return res.status(requestError.statusCode).json(requestError);
     }
 
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   } finally {
     await session.endSession();
   }
@@ -493,11 +493,11 @@ export const updateSupportConversation = async (req, res) => {
     }
 
     if (req.body.assignToMe && req.body.assignedAdminId !== undefined) {
-      return res.status(400).json({ message: "Không thể vừa nhận xử lý vừa chỉ định admin khác." });
+      return res.status(400).json({ message: "Không thể vừa nhận xử lý vừa chỉ định quản trị viên khác." });
     }
 
     if (req.body.assignToMe && req.body.status !== undefined && req.body.status !== "active") {
-      return res.status(400).json({ message: "Nhận xử lý chỉ có thể chuyển ticket sang trạng thái active." });
+      return res.status(400).json({ message: "Nhận xử lý chỉ có thể chuyển yêu cầu sang trạng thái đang xử lý." });
     }
 
     const conversation = await SupportConversation.findById(req.params.id).select(
@@ -514,15 +514,15 @@ export const updateSupportConversation = async (req, res) => {
 
     if (hasStatus) {
       if (!SUPPORT_STATUSES.includes(req.body.status)) {
-        return res.status(400).json({ message: "Trạng thái support không hợp lệ." });
+        return res.status(400).json({ message: "Trạng thái hỗ trợ không hợp lệ." });
       }
 
       if (!isSupportStatusTransitionAllowed(conversation.status, req.body.status)) {
-        return res.status(409).json({ message: "Không thể chuyển trạng thái support theo chiều này." });
+        return res.status(409).json({ message: "Không thể chuyển trạng thái hỗ trợ theo chiều này." });
       }
 
       if (currentAssignedAdminId && currentAssignedAdminId !== userId && !hasAssignedAdmin && !req.body.assignToMe) {
-        return res.status(409).json({ message: "Ticket đang được admin khác xử lý." });
+        return res.status(409).json({ message: "Yêu cầu hỗ trợ đang được quản trị viên khác xử lý." });
       }
 
       updates.status = req.body.status;
@@ -530,7 +530,7 @@ export const updateSupportConversation = async (req, res) => {
 
     if (hasPriority) {
       if (!SUPPORT_PRIORITIES.includes(req.body.priority)) {
-        return res.status(400).json({ message: "Mức ưu tiên support không hợp lệ." });
+        return res.status(400).json({ message: "Mức ưu tiên hỗ trợ không hợp lệ." });
       }
 
       updates.priority = req.body.priority;
@@ -538,11 +538,11 @@ export const updateSupportConversation = async (req, res) => {
 
     if (req.body.assignToMe) {
       if (conversation.status === "resolved") {
-        return res.status(409).json({ message: "Ticket đã được giải quyết, không thể nhận xử lý." });
+        return res.status(409).json({ message: "Yêu cầu hỗ trợ đã được giải quyết nên không thể nhận xử lý." });
       }
 
       if (currentAssignedAdminId && currentAssignedAdminId !== userId) {
-        return res.status(409).json({ message: "Ticket đã được admin khác nhận xử lý." });
+        return res.status(409).json({ message: "Yêu cầu hỗ trợ đã được quản trị viên khác nhận xử lý." });
       }
 
       updates.assignedAdminId = userId;
@@ -551,7 +551,7 @@ export const updateSupportConversation = async (req, res) => {
 
     if (hasAssignedAdmin) {
       if (conversation.status === "resolved") {
-        return res.status(409).json({ message: "Ticket đã được giải quyết, không thể đổi người xử lý." });
+        return res.status(409).json({ message: "Yêu cầu hỗ trợ đã được giải quyết nên không thể đổi người xử lý." });
       }
 
       const assignee = await findAssignableAdminId(req.body.assignedAdminId);
@@ -573,7 +573,7 @@ export const updateSupportConversation = async (req, res) => {
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: "Không có dữ liệu support hợp lệ để cập nhật." });
+      return res.status(400).json({ message: "Không có dữ liệu hỗ trợ hợp lệ để cập nhật." });
     }
 
     const updated = await populateConversation(
@@ -587,7 +587,7 @@ export const updateSupportConversation = async (req, res) => {
       ),
     );
     if (!updated) {
-      return res.status(409).json({ message: "Ticket đã được cập nhật bởi admin khác. Vui lòng tải lại." });
+      return res.status(409).json({ message: "Yêu cầu hỗ trợ đã được quản trị viên khác cập nhật. Vui lòng tải lại." });
     }
 
     emitSupportConversation("support:conversation-updated", updated);
@@ -598,6 +598,6 @@ export const updateSupportConversation = async (req, res) => {
       return res.status(requestError.statusCode).json(requestError);
     }
 
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };

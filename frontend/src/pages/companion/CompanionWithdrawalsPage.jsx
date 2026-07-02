@@ -114,7 +114,7 @@ export default function CompanionWithdrawalsPage() {
         bankAccountName: "",
         note: "",
       });
-      setMessage("Đã gửi yêu cầu rút tiền cho admin.");
+      setMessage("Đã gửi yêu cầu rút tiền cho quản trị viên.");
       await reload();
     } catch (submitError) {
       setMessage(

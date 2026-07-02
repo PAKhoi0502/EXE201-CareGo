@@ -4,7 +4,7 @@ export const createElderProfile = async (req, res) => {
   try {
     const { fullName, address } = req.body;
     if (!fullName || !address) {
-      return res.status(400).json({ message: "fullName and address are required" });
+      return res.status(400).json({ message: "Vui lòng nhập họ tên và địa chỉ của người thân." });
     }
 
     const elder = await ElderProfile.create({
@@ -12,9 +12,9 @@ export const createElderProfile = async (req, res) => {
       customerId: req.user.userId,
     });
 
-    return res.status(201).json({ message: "elder profile created", elder });
+    return res.status(201).json({ message: "Tạo hồ sơ người thân thành công.", elder });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -25,7 +25,7 @@ export const getMyElderProfiles = async (req, res) => {
     });
     return res.status(200).json({ elders });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -36,12 +36,12 @@ export const getElderProfileById = async (req, res) => {
       customerId: req.user.userId,
     });
     if (!elder) {
-      return res.status(404).json({ message: "elder profile not found" });
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
     }
 
     return res.status(200).json({ elder });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -53,12 +53,12 @@ export const updateElderProfile = async (req, res) => {
       { new: true },
     );
     if (!elder) {
-      return res.status(404).json({ message: "elder profile not found" });
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
     }
 
-    return res.status(200).json({ message: "elder profile updated", elder });
+    return res.status(200).json({ message: "Cập nhật hồ sơ người thân thành công.", elder });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -69,11 +69,11 @@ export const deleteElderProfile = async (req, res) => {
       customerId: req.user.userId,
     });
     if (!elder) {
-      return res.status(404).json({ message: "elder profile not found" });
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
     }
 
-    return res.status(200).json({ message: "elder profile deleted" });
+    return res.status(200).json({ message: "Xóa hồ sơ người thân thành công." });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };

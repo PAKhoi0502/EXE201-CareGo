@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import { Link } from "react-router";
 import { api } from "../../api/client.js";
+import BlogManagementPanel from "../../components/admin/BlogManagementPanel.jsx";
 import { Card } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 
@@ -43,9 +44,30 @@ const rangePresets = [
   { label: "90 ngày gần nhất", days: 90 },
 ];
 
+const commentStatusLabels = {
+  pending: "Chờ duyệt",
+  visible: "Đang hiển thị",
+  hidden: "Đã ẩn",
+};
+
+const commentStatusStyles = {
+  pending: "bg-amber-50 text-amber-700 ring-amber-200",
+  visible: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  hidden: "bg-slate-100 text-slate-600 ring-slate-200",
+};
+
+const dateTime = (value) => (value ? new Intl.DateTimeFormat("vi-VN", {
+  dateStyle: "short",
+  timeStyle: "short",
+}).format(new Date(value)) : "");
+
 const AdminBlogsPage = () => {
   const [dateRange, setDateRange] = useState(() => getRecentRange(7));
-  const { data, loading, error } = useAsync(
+  const [commentBlog, setCommentBlog] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState("");
+  const { data, loading, error, reload } = useAsync(
     () => api.get(`/blogs/admin/stats?from=${dateRange.from}&to=${dateRange.to}`),
     [dateRange.from, dateRange.to],
   );
@@ -61,6 +83,51 @@ const AdminBlogsPage = () => {
     0,
   );
   const bestPost = blogStats[0];
+
+  const openComments = async (blog) => {
+    setCommentBlog(blog);
+    setComments([]);
+    setCommentsLoading(true);
+    setCommentsError("");
+    try {
+      const result = await api.get(`/admin/blogs/${blog._id}/comments`);
+      setComments(result.comments || []);
+    } catch (err) {
+      setCommentsError(err.message);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const closeComments = () => {
+    setCommentBlog(null);
+    setComments([]);
+    setCommentsError("");
+  };
+
+  const updateCommentStatus = async (comment, status) => {
+    if (!commentBlog) return;
+    setCommentsError("");
+    try {
+      const result = await api.patch(`/admin/blogs/${commentBlog._id}/comments/${comment._id}`, { status });
+      setComments((current) => current.map((item) => (item._id === comment._id ? result.comment : item)));
+      reload();
+    } catch (err) {
+      setCommentsError(err.message);
+    }
+  };
+
+  const deleteComment = async (comment) => {
+    if (!commentBlog) return;
+    setCommentsError("");
+    try {
+      await api.delete(`/admin/blogs/${commentBlog._id}/comments/${comment._id}`);
+      setComments((current) => current.filter((item) => item._id !== comment._id));
+      reload();
+    } catch (err) {
+      setCommentsError(err.message);
+    }
+  };
 
   const trendData = {
     labels: dailyViews.map((item) => item.label),
@@ -216,6 +283,8 @@ const AdminBlogsPage = () => {
           Xem trang blog
         </Link>
       </div>
+
+      <BlogManagementPanel onChanged={reload} />
 
       <Card className="overflow-hidden border-teal-100 bg-white/95 p-0 shadow-xl shadow-teal-900/5">
         <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-500 p-5 text-white">
@@ -396,6 +465,7 @@ const AdminBlogsPage = () => {
                 <th className="p-4 text-right">Đánh giá</th>
                 <th className="p-4 text-right">Bình luận</th>
                 <th className="p-4 text-right">Mở bài</th>
+                <th className="p-4 text-right">Quản lý</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -411,18 +481,30 @@ const AdminBlogsPage = () => {
                     ★ {item.ratingAverage || 0} ({item.ratingCount || 0})
                   </td>
                   <td className="p-4 text-right font-black text-sky-600">
-                    {item.comments?.length || item.commentCount || 0}
+                    <div>{item.visibleCommentCount ?? item.commentCount ?? 0}/{item.commentCount || 0}</div>
+                    {item.pendingCommentCount ? (
+                      <div className="mt-1 text-xs text-amber-600">{item.pendingCommentCount} chờ duyệt</div>
+                    ) : null}
                   </td>
                   <td className="p-4 text-right">
                     <Link className="font-black text-teal-700 hover:underline" to={`/blog/${item.slug}`}>
                       Xem
                     </Link>
                   </td>
+                  <td className="p-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => openComments(item)}
+                      className="rounded-full border border-teal-100 px-3 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-50"
+                    >
+                      Bình luận
+                    </button>
+                  </td>
                 </tr>
               ))}
               {!blogStats.length && !loading ? (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-sm font-semibold text-slate-400">
+                  <td colSpan="7" className="p-6 text-center text-sm font-semibold text-slate-400">
                     Chưa có dữ liệu blog trong khoảng ngày này.
                   </td>
                 </tr>
@@ -431,6 +513,87 @@ const AdminBlogsPage = () => {
           </table>
         </div>
       </Card>
+
+      {commentBlog ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
+          <div className="max-h-[86vh] w-full max-w-3xl overflow-y-auto rounded-[28px] bg-white p-6 shadow-2xl">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-700">Duyệt bình luận</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950">{commentBlog.title}</h2>
+                <p className="mt-1 text-xs font-semibold text-slate-400">{commentBlog.slug}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeComments}
+                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50"
+              >
+                Đóng
+              </button>
+            </div>
+
+            {commentsError ? (
+              <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{commentsError}</p>
+            ) : null}
+            {commentsLoading ? (
+              <p className="mt-4 text-sm font-semibold text-slate-500">Đang tải bình luận...</p>
+            ) : null}
+            {!commentsLoading && !comments.length ? (
+              <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                Chưa có bình luận nào cho bài viết này.
+              </p>
+            ) : null}
+
+            <div className="mt-4 grid gap-3">
+              {comments.map((comment) => (
+                <article key={comment._id} className="rounded-2xl border border-slate-200 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-black text-slate-900">{comment.userId?.name || comment.name}</p>
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${commentStatusStyles[comment.status]}`}>
+                          {commentStatusLabels[comment.status] || "Không rõ"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-slate-400">
+                        {comment.userId?.email || "Dữ liệu cũ"} • {dateTime(comment.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {comment.status !== "visible" ? (
+                        <button
+                          type="button"
+                          onClick={() => updateCommentStatus(comment, "visible")}
+                          className="rounded-full bg-emerald-600 px-3 py-2 text-xs font-black text-white transition hover:bg-emerald-700"
+                        >
+                          Duyệt
+                        </button>
+                      ) : null}
+                      {comment.status !== "hidden" ? (
+                        <button
+                          type="button"
+                          onClick={() => updateCommentStatus(comment, "hidden")}
+                          className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200"
+                        >
+                          Ẩn
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => deleteComment(comment)}
+                        className="rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">{comment.content || comment.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
