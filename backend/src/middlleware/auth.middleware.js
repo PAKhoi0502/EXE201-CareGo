@@ -23,7 +23,7 @@ export const verifyToken = async (req, res, next) => {
       return res.status(403).json({ message: "invalid token" });
     }
 
-    const user = await User.findById(userId).select("_id role isActive isEmailVerified email");
+    const user = await User.findById(userId).select("_id name role isActive isEmailVerified email");
     if (!user) {
       return res.status(401).json({ message: "user not found" });
     }
@@ -43,6 +43,8 @@ export const verifyToken = async (req, res, next) => {
     const requestUser = {
       ...decoded,
       userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
       role: user.role,
     };
     requestUser.roles = getEffectiveRoles(requestUser);
@@ -52,4 +54,40 @@ export const verifyToken = async (req, res, next) => {
   } catch {
     return res.status(403).json({ message: "invalid token" });
   }
+};
+
+export const optionalVerifyToken = async (req, _res, next) => {
+  const token = getTokenFromHeader(req);
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const userId = decoded.userId || decoded.id || decoded._id;
+
+    if (!userId) {
+      return next();
+    }
+
+    const user = await User.findById(userId).select("_id name role isActive isEmailVerified email");
+    if (!user || !user.isActive || !user.isEmailVerified) {
+      return next();
+    }
+
+    const requestUser = {
+      ...decoded,
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+    requestUser.roles = getEffectiveRoles(requestUser);
+    req.user = requestUser;
+  } catch {
+    req.user = undefined;
+  }
+
+  return next();
 };

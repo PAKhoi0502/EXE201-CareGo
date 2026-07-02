@@ -1,13 +1,14 @@
 import express from "express";
 import {
   commentBlogPost,
+  getFeaturedBlogPosts,
   getBlogPostBySlug,
   getBlogPosts,
   getBlogStats,
   increaseBlogView,
   rateBlogPost,
 } from "../controller/blog.controller.js";
-import { verifyToken } from "../middlleware/auth.middleware.js";
+import { optionalVerifyToken, verifyToken } from "../middlleware/auth.middleware.js";
 import { blogRateLimitKeys, createRateLimit, getPositiveEnvNumber } from "../middlleware/rate-limit.middleware.js";
 import { allowRoles } from "../middlleware/role.middleware.js";
 
@@ -33,9 +34,11 @@ const blogCommentRateLimit = createRateLimit({
 
 router.get("/", getBlogPosts);
 router.get("/admin/stats", verifyToken, allowRoles("admin"), getBlogStats);
-router.get("/:slug", getBlogPostBySlug);
+router.get("/featured", getFeaturedBlogPosts);
+router.get("/:slug", optionalVerifyToken, getBlogPostBySlug);
 router.post("/:slug/view", blogViewRateLimit, increaseBlogView);
-router.post("/:slug/rating", blogRatingRateLimit, rateBlogPost);
-router.post("/:slug/comments", blogCommentRateLimit, commentBlogPost);
+router.post("/:slug/rating", verifyToken, allowRoles("customer", "companion"), blogRatingRateLimit, rateBlogPost);
+router.put("/:slug/rating", verifyToken, allowRoles("customer", "companion"), blogRatingRateLimit, rateBlogPost);
+router.post("/:slug/comments", verifyToken, allowRoles("customer", "companion"), blogCommentRateLimit, commentBlogPost);
 
 export default router;

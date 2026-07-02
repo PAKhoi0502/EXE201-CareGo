@@ -4,7 +4,6 @@ import CompanionProfile from "../models/companion-profile.models.js";
 import Payment from "../models/payment.models.js";
 import Service from "../models/service.models.js";
 import User from "../models/user.models.js";
-import { ensureDefaultBlogPosts } from "./blog.controller.js";
 import BlogPost from "../models/blog-post.models.js";
 import {
   disconnectUserSockets,
@@ -248,8 +247,6 @@ const buildReportSummary = ({ bookings, pendingCompanions }) => {
 
 export const getAdminDashboard = async (req, res) => {
   try {
-    await ensureDefaultBlogPosts();
-
     const [totalUsers, totalCompanions, totalServices, totalBookings, revenueStats, blogStats] =
       await Promise.all([
         User.countDocuments(),

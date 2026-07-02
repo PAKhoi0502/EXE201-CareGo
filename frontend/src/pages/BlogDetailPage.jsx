@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "react-router";
 import { api } from "../api/client.js";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 import { LandingFooter } from "../components/landing/LandingSections.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useAsync } from "../hooks/useAsync.js";
 
 const RatingStars = ({ value, onChange, disabled = false }) => (
@@ -64,15 +65,21 @@ const COMMENTS_PER_PAGE = 5;
 
 const BlogDetailPage = () => {
   const { slug } = useParams();
+  const { user } = useAuth();
   const { data, setData, loading, error } = useAsync(() => api.get(`/blogs/${slug}`), [slug]);
   const { data: postsData } = useAsync(() => api.get("/blogs"), []);
-  const [rating, setRating] = useState(5);
-  const [commentForm, setCommentForm] = useState({ name: "", content: "", rating: 5 });
+  const [ratingChoice, setRatingChoice] = useState({ slug: "", value: 0 });
+  const [commentContent, setCommentContent] = useState("");
   const [commentPagination, setCommentPagination] = useState({ slug: "", page: 1 });
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [ratingMessage, setRatingMessage] = useState("");
+  const [commentMessage, setCommentMessage] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const post = data?.post;
+  const canInteract = user && ["customer", "companion"].includes(user.role);
+  const selectedRating = ratingChoice.slug === slug ? ratingChoice.value : Number(post?.viewerRating || 0);
   const relatedPosts = useMemo(
     () => (postsData?.posts || []).filter((item) => item.slug !== slug).slice(0, 3),
     [postsData?.posts, slug],
@@ -115,7 +122,7 @@ const BlogDetailPage = () => {
           }));
         }
       } catch {
-        // View tracking should not block reading.
+        return;
       }
     };
     trackView();
@@ -124,19 +131,55 @@ const BlogDetailPage = () => {
     };
   }, [slug, setData]);
 
+  const submitRating = async () => {
+    setSubmitError("");
+    setRatingMessage("");
+    if (!selectedRating) return;
+    setRatingSaving(true);
+    const hasRatedBefore = Number(post?.viewerRating || 0) > 0;
+    try {
+      const result = await api.put(`/blogs/${slug}/rating`, { value: selectedRating });
+      setData((current) => ({
+        ...current,
+        post: {
+          ...(current?.post || {}),
+          ...(result.post || {}),
+          comments: current?.post?.comments || result.post?.comments || [],
+        },
+      }));
+      setRatingMessage(hasRatedBefore ? "Đã cập nhật đánh giá của bạn." : "Đã ghi nhận đánh giá của bạn.");
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setRatingSaving(false);
+    }
+  };
+
   const submitComment = async (event) => {
     event.preventDefault();
     setSubmitError("");
-    setSuccess("");
+    setCommentMessage("");
+    const content = commentContent.trim();
+    if (content.length < 2) return;
+    setCommentSaving(true);
     try {
-      const result = await api.post(`/blogs/${slug}/comments`, { ...commentForm, rating });
-      setData(result);
-      setCommentForm({ name: "", content: "", rating: 5 });
-      setRating(5);
+      const result = await api.post(`/blogs/${slug}/comments`, { content });
+      setData((current) => ({
+        ...current,
+        ...result,
+        post: {
+          ...(current?.post || {}),
+          ...(result.post || {}),
+          viewerRating: current?.post?.viewerRating || result.post?.viewerRating || 0,
+        },
+      }));
+      setCommentContent("");
       setCommentPage(1);
-      setSuccess("Bình luận và đánh giá của bạn đã được ghi nhận.");
+      setCommentMessage("Bình luận đã được gửi và đang chờ admin duyệt.");
     } catch (err) {
       setSubmitError(err.message);
+    } finally {
+      setCommentSaving(false);
     }
   };
 
@@ -207,43 +250,65 @@ const BlogDetailPage = () => {
                 <div className="mt-10 rounded-[28px] border border-teal-100 bg-[#fbfffe] p-6">
                   <h2 className="text-xl font-black">Bình luận và đánh giá</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Chọn số sao và để lại cảm nhận của bạn về bài viết.
+                    Đánh giá sao được lưu theo tài khoản. Bình luận mới sẽ chờ admin duyệt trước khi hiển thị.
                   </p>
-                  <form className="mt-5 grid gap-4" onSubmit={submitComment}>
-                    <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4">
-                      <p className="mb-2 text-sm font-black text-slate-800">Đánh giá của bạn</p>
-                      <RatingStars value={rating} onChange={setRating} />
+                  {canInteract ? (
+                    <div className="mt-5 grid gap-4">
+                      <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4">
+                        <p className="mb-2 text-sm font-black text-slate-800">Đánh giá của bạn</p>
+                        <RatingStars
+                          value={selectedRating}
+                          onChange={(value) => setRatingChoice({ slug, value })}
+                          disabled={ratingSaving}
+                        />
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <button
+                            type="button"
+                            disabled={!selectedRating || ratingSaving}
+                            onClick={submitRating}
+                            className="min-h-10 rounded-full bg-amber-500 px-4 text-xs font-black text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {ratingSaving ? "Đang lưu..." : post.viewerRating ? "Cập nhật đánh giá" : "Gửi đánh giá"}
+                          </button>
+                          {post.viewerRating ? (
+                            <span className="text-xs font-bold text-amber-700">Bạn đã đánh giá {post.viewerRating}/5</span>
+                          ) : null}
+                        </div>
+                        {ratingMessage ? <p className="mt-3 text-sm font-bold text-emerald-700">{ratingMessage}</p> : null}
+                      </div>
+
+                      <form className="grid gap-3" onSubmit={submitComment}>
+                        <textarea
+                          value={commentContent}
+                          onChange={(event) => setCommentContent(event.target.value)}
+                          maxLength={1000}
+                          placeholder="Viết bình luận về bài viết..."
+                          className="min-h-28 rounded-2xl border border-teal-100 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <span className="text-xs font-semibold text-slate-400">{commentContent.length}/1000 ký tự</span>
+                          <button
+                            disabled={commentSaving || commentContent.trim().length < 2}
+                            className="min-h-12 rounded-full bg-teal-700 px-5 text-sm font-black text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {commentSaving ? "Đang gửi..." : "Gửi bình luận"}
+                          </button>
+                        </div>
+                      </form>
+                      {submitError ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{submitError}</p> : null}
+                      {commentMessage ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{commentMessage}</p> : null}
                     </div>
-                    <input
-                      value={commentForm.name}
-                      onChange={(event) => setCommentForm({ ...commentForm, name: event.target.value })}
-                      placeholder="Tên của bạn"
-                      className="min-h-12 rounded-2xl border border-teal-100 bg-white px-4 text-sm outline-none focus:border-teal-500"
-                    />
-                    <textarea
-                      value={commentForm.content}
-                      onChange={(event) => setCommentForm({ ...commentForm, content: event.target.value })}
-                      placeholder="Viết bình luận về bài viết..."
-                      className="min-h-28 rounded-2xl border border-teal-100 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
-                    />
-                    {submitError ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{submitError}</p> : null}
-                    {success ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{success}</p> : null}
-                    <button className="min-h-12 rounded-full bg-teal-700 px-5 text-sm font-black text-white transition hover:bg-teal-800">
-                      Gửi bình luận
-                    </button>
-                  </form>
+                  ) : (
+                    <div className="mt-5 rounded-2xl border border-teal-100 bg-white p-4 text-sm font-semibold text-slate-600">
+                      <Link to="/login" className="font-black text-teal-700 hover:text-teal-900">Đăng nhập</Link> bằng tài khoản customer hoặc companion để đánh giá và gửi bình luận.
+                    </div>
+                  )}
 
                   <div className="mt-6 grid gap-3">
                     {pagedComments.map((comment) => (
                       <div key={comment._id || comment.createdAt} className="rounded-2xl border border-teal-100 bg-white p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <strong className="text-sm text-[#12312f]">{comment.name}</strong>
-                            <div className="mt-1 text-sm font-black text-amber-400">
-                              {"★".repeat(comment.rating || 5)}
-                              <span className="text-slate-300">{"★".repeat(5 - (comment.rating || 5))}</span>
-                            </div>
-                          </div>
+                          <strong className="text-sm text-[#12312f]">{comment.name}</strong>
                           <span className="text-xs font-semibold text-slate-400">
                             {comment.createdAt ? new Intl.DateTimeFormat("vi-VN").format(new Date(comment.createdAt)) : ""}
                           </span>

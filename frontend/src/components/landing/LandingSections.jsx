@@ -225,7 +225,7 @@ export const SafetySection = () => (
 );
 
 export const BlogPreviewSection = () => {
-  const { data } = useAsync(() => api.get("/blogs"), []);
+  const { data } = useAsync(() => api.get("/blogs/featured?limit=3"), []);
   const previewPosts = (data?.posts || []).slice(0, 3);
 
   return (
