@@ -15,6 +15,15 @@ const statusOptions = [
   "cancelled",
 ];
 
+const statusLabels = {
+  pending: "Chờ xử lý",
+  accepted: "Đã nhận",
+  in_progress: "Đang diễn ra",
+  completed: "Hoàn thành",
+  paid: "Đã thanh toán",
+  cancelled: "Đã hủy",
+};
+
 const initials = (name = "CG") =>
   name
     .split(" ")
@@ -102,7 +111,7 @@ const AdminBookingsPage = () => {
         paymentDueAt: updatedBooking.paymentDueAt,
         updatedAt: updatedBooking.updatedAt || new Date().toISOString(),
       });
-      setActionMessage("Đã cập nhật trạng thái booking.");
+      setActionMessage("Đã cập nhật trạng thái lịch chăm sóc.");
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -113,7 +122,7 @@ const AdminBookingsPage = () => {
   const handleCancelBooking = async () => {
     if (!selectedBooking) return;
 
-    if (!window.confirm("Hủy booking này? Thao tác này sẽ dừng ca chăm sóc nếu booking chưa thanh toán.")) {
+    if (!window.confirm("Hủy lịch chăm sóc này? Thao tác sẽ dừng ca nếu lịch chưa được thanh toán.")) {
       return;
     }
 
@@ -127,7 +136,7 @@ const AdminBookingsPage = () => {
         status: updatedBooking.status || "cancelled",
         updatedAt: updatedBooking.updatedAt || new Date().toISOString(),
       });
-      setActionMessage("Đã hủy booking.");
+      setActionMessage("Đã hủy lịch chăm sóc.");
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -210,7 +219,7 @@ const AdminBookingsPage = () => {
             >
               {statusOptions.map((status) => (
                 <option key={status} value={status}>
-                  {status === "all" ? "Trạng thái: Tất cả" : status}
+                  {status === "all" ? "Trạng thái: Tất cả" : statusLabels[status] || "Không rõ"}
                 </option>
               ))}
             </select>

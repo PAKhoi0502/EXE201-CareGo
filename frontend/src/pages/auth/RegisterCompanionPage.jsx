@@ -51,8 +51,8 @@ const CccdCameraCapture = ({ label, value, onChange }) => {
 
       streamRef.current = stream;
       setCameraOpen(true);
-    } catch (err) {
-      setCameraError(err.message || "Không mở được camera. Hãy cấp quyền camera rồi thử lại.");
+    } catch {
+      setCameraError("Không mở được camera. Hãy cấp quyền camera rồi thử lại.");
     }
   };
 

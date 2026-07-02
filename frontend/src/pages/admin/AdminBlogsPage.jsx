@@ -552,7 +552,7 @@ const AdminBlogsPage = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-black text-slate-900">{comment.userId?.name || comment.name}</p>
                         <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${commentStatusStyles[comment.status]}`}>
-                          {commentStatusLabels[comment.status] || comment.status}
+                          {commentStatusLabels[comment.status] || "Không rõ"}
                         </span>
                       </div>
                       <p className="mt-1 text-xs font-semibold text-slate-400">

@@ -56,7 +56,7 @@ export const getPositiveEnvNumber = (names, fallback) => {
 export const createRateLimit = ({
   windowMs,
   max,
-  message = "Too many requests, please try again later.",
+  message = "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
   keyGenerator = defaultKeyGenerator,
 }) => {
   const checkLimit = createRateLimitBucket({ windowMs, max, keyGenerator });

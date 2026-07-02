@@ -68,7 +68,7 @@ const fetchVietmapJson = async (path, params) => {
     }
 
     if (!response.ok) {
-      const error = new Error(data?.message || "Vietmap request failed");
+      const error = new Error(data?.message || "Yêu cầu đến Vietmap không thành công.");
       error.statusCode = response.status >= 500 ? 502 : response.status;
       throw error;
     }
@@ -76,7 +76,7 @@ const fetchVietmapJson = async (path, params) => {
     return data;
   } catch (error) {
     if (error.name === "AbortError") {
-      const timeoutError = new Error("Vietmap request timed out");
+      const timeoutError = new Error("Kết nối đến Vietmap đã quá thời gian chờ.");
       timeoutError.statusCode = 504;
       throw timeoutError;
     }
@@ -114,12 +114,12 @@ export const searchMapAddress = async (req, res) => {
   try {
     const apiKey = getVietmapApiKey();
     if (!apiKey) {
-      return res.status(503).json({ message: "Vietmap API key is not configured" });
+      return res.status(503).json({ message: "Khóa API Vietmap chưa được cấu hình." });
     }
 
     const text = String(req.query.text || req.query.q || "").trim();
     if (text.length < 2) {
-      return res.status(400).json({ message: "address text must contain at least 2 characters" });
+      return res.status(400).json({ message: "Địa chỉ tìm kiếm phải có ít nhất 2 ký tự." });
     }
 
     const focus = getSearchFocus(req.query);
@@ -171,7 +171,9 @@ export const searchMapAddress = async (req, res) => {
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({
-      message: statusCode >= 500 ? "Không thể kết nối Vietmap. Vui lòng thử lại sau." : error.message,
+      message: statusCode >= 500
+        ? "Không thể kết nối Vietmap. Vui lòng thử lại sau."
+        : "Không thể tìm địa chỉ phù hợp. Vui lòng kiểm tra lại nội dung tìm kiếm.",
     });
   }
 };

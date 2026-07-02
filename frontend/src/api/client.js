@@ -12,6 +12,14 @@ const AUTH_PATHS_WITHOUT_REFRESH = [
 
 let refreshPromise = null;
 
+const safeFetch = async (...args) => {
+  try {
+    return await fetch(...args);
+  } catch {
+    throw new Error("Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng và thử lại.");
+  }
+};
+
 export const getToken = () => localStorage.getItem("carego_token");
 
 export const setToken = (token) => {
@@ -33,8 +41,28 @@ const parseResponse = async (response) => {
   }
 };
 
-const createRequestError = (data, status, fallbackMessage = "Request failed") => {
-  const error = new Error(data?.message || data?.error || fallbackMessage);
+const VIETNAMESE_MESSAGE_MAP = {
+  "invalid token": "Phiên đăng nhập không hợp lệ.",
+  unauthorized: "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.",
+  "socket session revoked": "Phiên kết nối đã hết hạn.",
+};
+
+const containsVietnameseCharacters = (value) =>
+  /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/iu.test(value);
+
+const localizeErrorMessage = (value, fallbackMessage = "Yêu cầu không thành công. Vui lòng thử lại.") => {
+  const message = String(value || "").trim();
+  if (!message) return fallbackMessage;
+
+  const translatedMessage = VIETNAMESE_MESSAGE_MAP[message.toLowerCase()];
+  if (translatedMessage) return translatedMessage;
+  if (containsVietnameseCharacters(message)) return message;
+
+  return fallbackMessage;
+};
+
+const createRequestError = (data, status, fallbackMessage = "Yêu cầu không thành công. Vui lòng thử lại.") => {
+  const error = new Error(localizeErrorMessage(data?.message || data?.error, fallbackMessage));
   error.status = status;
   error.code = data?.code;
   error.email = data?.email;
@@ -57,7 +85,8 @@ const buildHeaders = (headers = {}, body, token = getToken()) => {
 };
 
 const shouldAttemptRefresh = (path, status, data = {}) => {
-  const isAuthFailure = status === 401 || (status === 403 && data?.message === "invalid token");
+  const invalidTokenMessages = ["invalid token", "Phiên đăng nhập không hợp lệ."];
+  const isAuthFailure = status === 401 || (status === 403 && invalidTokenMessages.includes(data?.message));
   if (!isAuthFailure || !getToken()) return false;
   return !AUTH_PATHS_WITHOUT_REFRESH.some((authPath) => path.startsWith(authPath));
 };
@@ -65,7 +94,7 @@ const shouldAttemptRefresh = (path, status, data = {}) => {
 export const refreshAccessToken = async () => {
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+      const response = await safeFetch(`${API_BASE_URL}/auth/refresh-token`, {
         method: "POST",
         credentials: "include",
       });
@@ -73,7 +102,7 @@ export const refreshAccessToken = async () => {
 
       if (!response.ok || !data.accessToken) {
         setToken(null);
-        throw createRequestError(data, response.status, "Session expired");
+        throw createRequestError(data, response.status, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       }
 
       setToken(data.accessToken);
@@ -87,7 +116,7 @@ export const refreshAccessToken = async () => {
 };
 
 const sendRequest = (path, options = {}, token = getToken()) =>
-  fetch(`${API_BASE_URL}${path}`, {
+  safeFetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: buildHeaders(options.headers, options.body, token),
@@ -125,7 +154,7 @@ export const uploadImage = async ({ file, folder = "carego" }) => {
   formData.append("folder", folder);
 
   const sendUploadRequest = (accessToken) =>
-    fetch(`${API_BASE_URL}/upload/image`, {
+    safeFetch(`${API_BASE_URL}/upload/image`, {
       method: "POST",
       credentials: "include",
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
@@ -142,7 +171,7 @@ export const uploadImage = async ({ file, folder = "carego" }) => {
   }
 
   if (!response.ok) {
-    throw createRequestError(data, response.status, "Upload failed");
+    throw createRequestError(data, response.status, "Tải ảnh lên không thành công. Vui lòng thử lại.");
   }
 
   return data;

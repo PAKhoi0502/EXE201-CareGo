@@ -10,11 +10,11 @@ const parsePagination = ({ page, limit }) => {
   const limitValue = Number(limit || DEFAULT_LIMIT);
 
   if (!Number.isInteger(pageValue) || pageValue < 1) {
-    return { error: "page must be a positive integer" };
+    return { error: "Số trang phải là số nguyên dương." };
   }
 
   if (!Number.isInteger(limitValue) || limitValue < 1 || limitValue > MAX_LIMIT) {
-    return { error: `limit must be between 1 and ${MAX_LIMIT}` };
+    return { error: `Số thông báo mỗi trang phải từ 1 đến ${MAX_LIMIT}.` };
   }
 
   return {
@@ -52,7 +52,7 @@ export const getMyNotifications = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -64,14 +64,14 @@ export const getUnreadNotificationCount = async (req, res) => {
     });
     return res.status(200).json({ unreadCount });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
 export const markNotificationRead = async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: "invalid notification id" });
+      return res.status(400).json({ message: "Mã thông báo không hợp lệ." });
     }
 
     const notification = await Notification.findOneAndUpdate(
@@ -81,12 +81,12 @@ export const markNotificationRead = async (req, res) => {
     );
 
     if (!notification) {
-      return res.status(404).json({ message: "notification not found" });
+      return res.status(404).json({ message: "Không tìm thấy thông báo." });
     }
 
     return res.status(200).json({ notification: serializeNotification(notification) });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -97,8 +97,8 @@ export const markAllNotificationsRead = async (req, res) => {
       { $set: { readAt: new Date() } },
     );
 
-    return res.status(200).json({ message: "notifications marked as read", unreadCount: 0 });
+    return res.status(200).json({ message: "Đã đánh dấu tất cả thông báo là đã đọc.", unreadCount: 0 });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };

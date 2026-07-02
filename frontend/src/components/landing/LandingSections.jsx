@@ -120,7 +120,7 @@ export const CompanionJoinSection = () => (
             Trở thành người đồng hành CareGo
           </h2>
           <p className="relative mt-4 max-w-2xl text-base leading-7 text-slate-500">
-            Đăng ký hồ sơ, xác thực email và chờ admin kiểm duyệt để bắt đầu nhận ca chăm sóc theo giờ.
+            Đăng ký hồ sơ, xác thực email và chờ quản trị viên kiểm duyệt để bắt đầu nhận ca chăm sóc theo giờ.
             Mỗi ca đều có quy trình rõ ràng, GPS theo dõi và báo cáo minh bạch cho gia đình.
           </p>
 
@@ -156,7 +156,7 @@ export const CompanionJoinSection = () => (
                 <div>
                   <p className="text-xs font-black uppercase tracking-wide text-teal-700">Hồ sơ ứng tuyển</p>
                   <h3 className="mt-1 text-xl font-black">Người đồng hành mới</h3>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">Chờ admin kiểm duyệt</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">Chờ quản trị viên kiểm duyệt</p>
                 </div>
               </div>
 

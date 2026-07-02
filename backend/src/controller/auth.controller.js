@@ -15,7 +15,7 @@ import crypto from "crypto";
 const OTP_EXPIRES_IN_MS = 10 * 60 * 1000;
 const PENDING_REGISTER_EXPIRES_IN_MS = 30 * 60 * 1000;
 const PASSWORD_RESET_RESPONSE = {
-  message: "If this email is registered, a password reset link has been sent.",
+  message: "Nếu email đã được đăng ký, liên kết đặt lại mật khẩu đã được gửi.",
 };
 const REFRESH_TOKEN_COOKIE = "refreshToken";
 const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -57,7 +57,7 @@ export const signupController = async (req, res) => {
     const { name, email, password, phone } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({
-        message: "name,email,password are required",
+        message: "Vui lòng nhập đầy đủ họ tên, email và mật khẩu.",
       });
     }
     // kiểm tra email đã tòn tại trong db chưa
@@ -66,7 +66,7 @@ export const signupController = async (req, res) => {
     //findOne: tìm 1 document trong collection User thỏa mãn điều kiện
     if (existingUser) {
       return res.status(400).json({
-        message: "email already existing",
+        message: "Email đã được sử dụng.",
       });
     }
     //phải mã hóa password trước khi lưu vào database
@@ -89,12 +89,12 @@ export const signupController = async (req, res) => {
     );
     await sendOtpEmail({ to: normalizedEmail, name, otp: otpPayload.otp });
     return res.status(201).json({
-      message: "register successfully, please verify email otp",
+      message: "Đăng ký thành công. Vui lòng xác thực email bằng mã OTP.",
       email: normalizedEmail,
     });
   } catch (error) {
     return res.status(500).json({
-      message: "interal server error",
+      message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
       error: error.message,
     });
   }
@@ -107,21 +107,21 @@ export const loginController = async (req, res) => {
     const user = await User.findOne({ email });
     // console.log("tìm trong db", user);
     if (!user) {
-      return res.status(400).json({ message: "invalid email or password" });
+      return res.status(400).json({ message: "Email hoặc mật khẩu không đúng." });
     }
     if (!user.isActive) {
-      return res.status(403).json({ message: "account is inactive" });
+      return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa." });
     }
     if (!user.isEmailVerified) {
       return res.status(403).json({
-        message: "email is not verified",
+        message: "Email chưa được xác thực.",
         code: "EMAIL_NOT_VERIFIED",
         email: user.email,
       });
     }
     const isPasswordMatched = await bcrypt.compare(password, user.password);
     if (!isPasswordMatched) {
-      return res.status(400).json({ message: "invalid password" });
+      return res.status(400).json({ message: "Mật khẩu không đúng." });
     }
 
     //tạo JWT access token
@@ -141,7 +141,7 @@ export const loginController = async (req, res) => {
     res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, getRefreshTokenCookieOptions());
     // Signature: dùng để xác thực token, đảm bảo token không bị thay đổi
     return res.status(200).json({
-      message: "login success",
+      message: "Đăng nhập thành công.",
       accessToken: accessToken,
       user: {
         id: user._id,
@@ -164,7 +164,7 @@ export const loginController = async (req, res) => {
   } catch (error) {
     return res
       .status(400)
-      .json({ message: "internal sever error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -172,7 +172,7 @@ export const verifyEmailOtpController = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
-      return res.status(400).json({ message: "email and otp are required" });
+      return res.status(400).json({ message: "Vui lòng nhập email và mã OTP." });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -180,16 +180,16 @@ export const verifyEmailOtpController = async (req, res) => {
     if (!user) {
       const pending = await PendingRegistration.findOne({ email: normalizedEmail });
       if (!pending) {
-        return res.status(404).json({ message: "user not found" });
+        return res.status(404).json({ message: "Không tìm thấy tài khoản." });
       }
 
       if (!pending.emailOtpHash || !pending.emailOtpExpires || pending.emailOtpExpires < new Date()) {
-        return res.status(400).json({ message: "otp expired, please request a new otp" });
+        return res.status(400).json({ message: "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới." });
       }
 
       const isMatched = await verifyOtp(otp, pending.emailOtpHash);
       if (!isMatched) {
-        return res.status(400).json({ message: "invalid otp" });
+        return res.status(400).json({ message: "Mã OTP không đúng." });
       }
 
       const createdUser = await User.create({
@@ -216,7 +216,7 @@ export const verifyEmailOtpController = async (req, res) => {
       }
 
       return res.status(200).json({
-        message: "email verified successfully",
+        message: "Xác thực email thành công.",
         user: {
           id: createdUser._id,
           name: createdUser.name,
@@ -227,16 +227,16 @@ export const verifyEmailOtpController = async (req, res) => {
     }
 
     if (user.isEmailVerified) {
-      return res.status(200).json({ message: "email already verified" });
+      return res.status(200).json({ message: "Email đã được xác thực trước đó." });
     }
 
     if (!user.emailOtpHash || !user.emailOtpExpires || user.emailOtpExpires < new Date()) {
-      return res.status(400).json({ message: "otp expired, please request a new otp" });
+      return res.status(400).json({ message: "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới." });
     }
 
     const isMatched = await verifyOtp(otp, user.emailOtpHash);
     if (!isMatched) {
-      return res.status(400).json({ message: "invalid otp" });
+      return res.status(400).json({ message: "Mã OTP không đúng." });
     }
 
     user.isEmailVerified = true;
@@ -244,9 +244,9 @@ export const verifyEmailOtpController = async (req, res) => {
     user.emailOtpExpires = undefined;
     await user.save();
 
-    return res.status(200).json({ message: "email verified successfully" });
+    return res.status(200).json({ message: "Xác thực email thành công." });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -254,7 +254,7 @@ export const resendEmailOtpController = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({ message: "email is required" });
+      return res.status(400).json({ message: "Vui lòng nhập email." });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -262,7 +262,7 @@ export const resendEmailOtpController = async (req, res) => {
     if (!user) {
       const pending = await PendingRegistration.findOne({ email: normalizedEmail });
       if (!pending) {
-        return res.status(404).json({ message: "user not found" });
+        return res.status(404).json({ message: "Không tìm thấy tài khoản." });
       }
 
       const otpPayload = await createOtpPayload();
@@ -272,17 +272,17 @@ export const resendEmailOtpController = async (req, res) => {
       await pending.save();
       await sendOtpEmail({ to: pending.email, name: pending.name, otp: otpPayload.otp });
 
-      return res.status(200).json({ message: "otp resent successfully", email: pending.email });
+      return res.status(200).json({ message: "Đã gửi lại mã OTP.", email: pending.email });
     }
 
     if (user.isEmailVerified) {
-      return res.status(400).json({ message: "email already verified" });
+      return res.status(400).json({ message: "Email đã được xác thực trước đó." });
     }
 
     await attachEmailOtp(user);
-    return res.status(200).json({ message: "otp resent successfully", email: user.email });
+    return res.status(200).json({ message: "Đã gửi lại mã OTP.", email: user.email });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -304,11 +304,11 @@ export const logoutController = async (req, res) => {
     res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
     return res
       .status(200)
-      .json({ success: true, message: "logout successfully" });
+      .json({ success: true, message: "Đăng xuất thành công." });
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -316,23 +316,23 @@ export const logoutController = async (req, res) => {
 export const refreshTokenController = async (req, res) => {
   const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
   if (!refreshToken) {
-    return res.status(401).json({ message: "no refresh token provided" });
+    return res.status(401).json({ message: "Không tìm thấy mã làm mới phiên đăng nhập." });
   }
 
   try {
     const user = await User.findOne({ refreshToken });
     if (!user) {
       res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
-      return res.status(403).json({ message: "invalid refresh token" });
+      return res.status(403).json({ message: "Phiên đăng nhập không hợp lệ." });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({ message: "account is inactive" });
+      return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa." });
     }
 
     if (!user.isEmailVerified) {
       return res.status(403).json({
-        message: "email is not verified",
+        message: "Email chưa được xác thực.",
         code: "EMAIL_NOT_VERIFIED",
         email: user.email,
       });
@@ -342,7 +342,7 @@ export const refreshTokenController = async (req, res) => {
 
     if (user._id.toString() !== decode.userId) {
       res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
-      return res.status(403).json({ message: "invalid refresh token" });
+      return res.status(403).json({ message: "Phiên đăng nhập không hợp lệ." });
     }
 
     // tạo accesstoken mới
@@ -351,12 +351,12 @@ export const refreshTokenController = async (req, res) => {
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
       res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
-      return res.status(403).json({ message: "invalid refresh token" });
+      return res.status(403).json({ message: "Phiên đăng nhập không hợp lệ." });
     }
 
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -368,7 +368,7 @@ export const getCurrentUser = async (req, res) => {
       "-password -refreshToken -__V",
     ); // loại bỏ trường password và refreshToken khỏi kết quả
     if (!user) {
-      return res.status(400).json({ message: "user not found" });
+      return res.status(400).json({ message: "Không tìm thấy tài khoản." });
     }
     const companionProfile =
       user.role === "companion"
@@ -381,7 +381,7 @@ export const getCurrentUser = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server erro", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -394,7 +394,7 @@ export const updateCurrentUser = async (req, res) => {
     if (name !== undefined) {
       const cleanName = String(name).trim();
       if (!cleanName) {
-        return res.status(400).json({ message: "name is required" });
+        return res.status(400).json({ message: "Vui lòng nhập họ tên." });
       }
       updates.name = cleanName;
     }
@@ -414,7 +414,7 @@ export const updateCurrentUser = async (req, res) => {
     }).select("-password -refreshToken -__V");
 
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
 
     const companionProfile =
@@ -424,9 +424,9 @@ export const updateCurrentUser = async (req, res) => {
           )
         : null;
 
-    return res.status(200).json({ message: "profile updated", user, companionProfile });
+    return res.status(200).json({ message: "Cập nhật hồ sơ thành công.", user, companionProfile });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -436,21 +436,21 @@ export const requestCurrentUserPasswordOtp = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: "currentPassword and newPassword are required" });
+      return res.status(400).json({ message: "Vui lòng nhập mật khẩu hiện tại và mật khẩu mới." });
     }
 
     if (String(newPassword).length < 6) {
-      return res.status(400).json({ message: "new password must be at least 6 characters" });
+      return res.status(400).json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự." });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
 
     const isMatched = await bcrypt.compare(currentPassword, user.password);
     if (!isMatched) {
-      return res.status(400).json({ message: "current password is incorrect" });
+      return res.status(400).json({ message: "Mật khẩu hiện tại không đúng." });
     }
 
     const otpPayload = await createOtpPayload();
@@ -462,11 +462,11 @@ export const requestCurrentUserPasswordOtp = async (req, res) => {
     await sendOtpEmail({ to: user.email, name: user.name, otp: otpPayload.otp });
 
     return res.status(200).json({
-      message: "otp has been sent to your email",
+      message: "Mã OTP đã được gửi đến email của bạn.",
       email: user.email,
     });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -476,25 +476,25 @@ export const changeCurrentUserPassword = async (req, res) => {
     const { otp } = req.body;
 
     if (!otp) {
-      return res.status(400).json({ message: "otp is required" });
+      return res.status(400).json({ message: "Vui lòng nhập mã OTP." });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
 
     if (!user.pendingPasswordHash || !user.passwordChangeOtpHash || !user.passwordChangeOtpExpires) {
-      return res.status(400).json({ message: "please request a password change otp first" });
+      return res.status(400).json({ message: "Vui lòng yêu cầu mã OTP đổi mật khẩu trước." });
     }
 
     if (user.passwordChangeOtpExpires < new Date()) {
-      return res.status(400).json({ message: "otp expired, please request a new otp" });
+      return res.status(400).json({ message: "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới." });
     }
 
     const isMatched = await verifyOtp(otp, user.passwordChangeOtpHash);
     if (!isMatched) {
-      return res.status(400).json({ message: "invalid otp" });
+      return res.status(400).json({ message: "Mã OTP không đúng." });
     }
 
     user.password = user.pendingPasswordHash;
@@ -503,9 +503,9 @@ export const changeCurrentUserPassword = async (req, res) => {
     user.passwordChangeOtpExpires = undefined;
     await user.save();
 
-    return res.status(200).json({ message: "password changed successfully" });
+    return res.status(200).json({ message: "Đổi mật khẩu thành công." });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -516,7 +516,7 @@ export const forgetpasswordController = async (req, res) => {
     const normalizedEmail = String(email || "").trim().toLowerCase();
 
     if (!normalizedEmail) {
-      return res.status(400).json({ message: "email is required" });
+      return res.status(400).json({ message: "Vui lòng nhập email." });
     }
     const user = await User.findOne({ email: normalizedEmail });
     if (user) {
@@ -546,7 +546,7 @@ export const forgetpasswordController = async (req, res) => {
   } catch (err) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: err.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: err.message });
   }
 };
 
@@ -557,11 +557,11 @@ export const resetPasswordController = async (req, res) => {
     const { password } = req.body;
 
     if (!password) {
-      return res.status(400).json({ message: "password is required" });
+      return res.status(400).json({ message: "Vui lòng nhập mật khẩu." });
     }
 
     if (String(password).length < 6) {
-      return res.status(400).json({ message: "password must be at least 6 characters" });
+      return res.status(400).json({ message: "Mật khẩu phải có ít nhất 6 ký tự." });
     }
 
     const user = await User.findOne({
@@ -569,7 +569,7 @@ export const resetPasswordController = async (req, res) => {
       resetPasswordExpries: { $gt: Date.now() }, //kiểm tra token chưa hết hạn $gt là lớn hơn
     });
     if (!user) {
-      return res.status(400).json({ message: "invalid or expired token" });
+      return res.status(400).json({ message: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn." });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     user.password = hashedPassword;
@@ -579,10 +579,10 @@ export const resetPasswordController = async (req, res) => {
     await user.save();
     return res
       .status(200)
-      .json({ message: "password has been reset successfully" });
+      .json({ message: "Đặt lại mật khẩu thành công." });
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };

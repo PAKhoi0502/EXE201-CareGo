@@ -178,13 +178,13 @@ const ensureApprovedCompanionRequest = async (req, res) => {
 
   const profile = await CompanionProfile.findOne({ userId: req.user.userId }).select("vettingStatus");
   if (!profile) {
-    res.status(403).json({ message: "companion profile not found" });
+    res.status(403).json({ message: "Không tìm thấy hồ sơ người đồng hành." });
     return false;
   }
 
   if (profile.vettingStatus !== "approved") {
     res.status(403).json({
-      message: "companion account is waiting for admin approval",
+      message: "Tài khoản người đồng hành đang chờ quản trị viên phê duyệt.",
       vettingStatus: profile.vettingStatus,
     });
     return false;
@@ -312,7 +312,7 @@ const shouldStoreShiftGpsLocation = ({ locations, userId, location }) => {
   if (elapsedMs >= 0 && elapsedMs < SHIFT_GPS_MIN_INTERVAL_MS) {
     return {
       shouldStore: false,
-      reason: "gps location was sampled too recently",
+      reason: "Vị trí GPS vừa được ghi nhận nên chưa cần cập nhật lại.",
       retryAfterMs: SHIFT_GPS_MIN_INTERVAL_MS - elapsedMs,
     };
   }
@@ -321,7 +321,7 @@ const shouldStoreShiftGpsLocation = ({ locations, userId, location }) => {
   if (previousLocation && getDistanceMeters(previousLocation, location) < SHIFT_GPS_MIN_DISTANCE_METERS) {
     return {
       shouldStore: false,
-      reason: "gps location has not moved enough",
+      reason: "Vị trí GPS chưa thay đổi đủ xa để ghi nhận điểm mới.",
       minDistanceMeters: SHIFT_GPS_MIN_DISTANCE_METERS,
     };
   }
@@ -385,7 +385,7 @@ const createUniquePayOSOrderCode = async () => {
     }
   }
 
-  const error = new Error("Khong the tao ma thanh toan PayOS.");
+  const error = new Error("Không thể tạo mã thanh toán PayOS.");
   error.statusCode = 500;
   throw error;
 };
@@ -454,7 +454,7 @@ const refreshReusablePendingPayOSPayment = async ({ payment, booking, paidAmount
     if (paidAmount > 0 && amountPaid !== paidAmount && orderAmount !== paidAmount) {
       payment.status = "failed";
       await payment.save();
-      const error = new Error("payment amount mismatch");
+      const error = new Error("Số tiền thanh toán không khớp.");
       error.statusCode = 400;
       throw error;
     }
@@ -536,13 +536,13 @@ const normalizeAddressLocation = (addressLocation) => {
 };
 
 const createBookingLockBusyError = () => {
-  const error = new Error("Companion schedule is being updated. Please try again.");
+  const error = new Error("Lịch làm việc của người đồng hành đang được cập nhật. Vui lòng thử lại.");
   error.statusCode = 409;
   return error;
 };
 
 const createPaymentLockBusyError = () => {
-  const error = new Error("Payment link is being created. Please try again.");
+  const error = new Error("Liên kết thanh toán đang được tạo. Vui lòng thử lại.");
   error.statusCode = 409;
   return error;
 };
@@ -705,7 +705,7 @@ export const createBooking = async (req, res) => {
 
     if (!elderProfileId || !serviceId || !companionId || !startTime || !durationHours || !cleanAddress) {
       return res.status(400).json({
-        message: "elderProfileId, serviceId, companionId, startTime, durationHours and address are required",
+        message: "Vui lòng chọn người thân, dịch vụ, người đồng hành, thời gian, thời lượng và địa chỉ.",
       });
     }
 
@@ -722,11 +722,11 @@ export const createBooking = async (req, res) => {
 
     const normalizedAddressLocation = normalizeAddressLocation(addressLocation);
     if (!normalizedAddressLocation) {
-      return res.status(400).json({ message: "valid addressLocation with lat and lng is required" });
+      return res.status(400).json({ message: "Vui lòng ghim vị trí có vĩ độ và kinh độ hợp lệ." });
     }
 
     if (toIdString(companionId) === req.user.userId) {
-      return res.status(409).json({ message: "Bạn không thể đặt lịch cho chính tài khoản companion của mình." });
+      return res.status(409).json({ message: "Bạn không thể đặt lịch cho chính tài khoản người đồng hành của mình." });
     }
 
     const overdueBooking = await Booking.findOne({
@@ -739,7 +739,7 @@ export const createBooking = async (req, res) => {
 
     if (overdueBooking) {
       return res.status(409).json({
-        message: "Bạn có booking quá hạn thanh toán. Vui lòng thanh toán booking quá hạn trước khi đặt lịch mới.",
+        message: "Bạn có lịch chăm sóc quá hạn thanh toán. Vui lòng thanh toán lịch quá hạn trước khi đặt lịch mới.",
         bookingId: overdueBooking._id,
         overdueBookingId: overdueBooking._id,
         paymentDueAt: overdueBooking.paymentDueAt,
@@ -752,12 +752,12 @@ export const createBooking = async (req, res) => {
       customerId: req.user.userId,
     });
     if (!elder) {
-      return res.status(404).json({ message: "elder profile not found" });
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
     }
 
     const service = await Service.findById(serviceId);
     if (!service || !service.isActive) {
-      return res.status(404).json({ message: "service not found" });
+      return res.status(404).json({ message: "Không tìm thấy dịch vụ." });
     }
 
     const companionUser = await User.findOne({
@@ -767,7 +767,7 @@ export const createBooking = async (req, res) => {
       isEmailVerified: true,
     }).select("_id name email");
     if (!companionUser) {
-      return res.status(404).json({ message: "active companion not found" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản người đồng hành đang hoạt động." });
     }
 
     const companionProfile = await CompanionProfile.findOne({
@@ -775,7 +775,7 @@ export const createBooking = async (req, res) => {
       vettingStatus: "approved",
     });
     if (!companionProfile) {
-      return res.status(404).json({ message: "approved companion not found" });
+      return res.status(404).json({ message: "Không tìm thấy người đồng hành đã được phê duyệt." });
     }
 
     bookingLock = await acquireCompanionBookingLock(companionId);
@@ -827,11 +827,11 @@ export const createBooking = async (req, res) => {
       }),
     ]);
 
-    return res.status(201).json({ message: "booking created", booking });
+    return res.status(201).json({ message: "Tạo lịch chăm sóc thành công.", booking });
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({
-      message: error.statusCode ? error.message : "internal server error",
+      message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
       error: error.message,
     });
   } finally {
@@ -843,7 +843,7 @@ export const getMyBookings = async (req, res) => {
   try {
     const perspective = getBookingListPerspective(req);
     if (perspective === "companion" && req.user.role !== "companion") {
-      return res.status(403).json({ message: "permission denied" });
+      return res.status(403).json({ message: "Bạn không có quyền xem lịch chăm sóc này." });
     }
 
     if (perspective === "companion" && !(await ensureApprovedCompanionRequest(req, res))) {
@@ -857,7 +857,7 @@ export const getMyBookings = async (req, res) => {
     const bookings = await Booking.find(filter).populate(populateBooking).sort({ createdAt: -1 });
     return res.status(200).json({ bookings, perspective });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -865,18 +865,18 @@ export const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id).populate(populateBooking);
     if (!booking || !canAccessBooking(booking, req.user)) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     const perspective = getBookingDetailPerspective(req, booking);
     const isCustomerSide = toIdString(booking.customerId) === req.user.userId;
     const isCompanionSide = toIdString(booking.companionId) === req.user.userId;
     if (req.user.role !== "admin" && perspective === "customer" && !isCustomerSide) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (req.user.role !== "admin" && perspective === "companion" && !isCompanionSide) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (
@@ -893,7 +893,7 @@ export const getBookingById = async (req, res) => {
 
     return res.status(200).json({ booking, shiftLog, payment, review, perspective });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -902,16 +902,16 @@ export const updateBookingStatus = async (req, res) => {
     const { status } = req.body;
     const allowed = ["accepted", "in_progress", "completed", "cancelled"];
     if (!allowed.includes(status)) {
-      return res.status(400).json({ message: "invalid status" });
+      return res.status(400).json({ message: "Trạng thái lịch chăm sóc không hợp lệ." });
     }
 
     const booking = await Booking.findById(req.params.id);
     if (!booking || !canAccessBooking(booking, req.user)) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (req.user.role === "companion" && toIdString(booking.companionId) !== req.user.userId) {
-      return res.status(403).json({ message: "permission denied" });
+      return res.status(403).json({ message: "Bạn không có quyền cập nhật lịch chăm sóc này." });
     }
 
     if (
@@ -919,11 +919,11 @@ export const updateBookingStatus = async (req, res) => {
       status === "cancelled" &&
       !COMPANION_REJECTABLE_BOOKING_STATUSES.includes(booking.status)
     ) {
-      return res.status(409).json({ message: "companion can only reject pending bookings" });
+      return res.status(409).json({ message: "Người đồng hành chỉ có thể từ chối lịch đang chờ xác nhận." });
     }
 
     if (!BOOKING_STATUS_TRANSITIONS[booking.status]?.includes(status)) {
-      return res.status(409).json({ message: "booking status transition is not allowed" });
+      return res.status(409).json({ message: "Không thể chuyển lịch chăm sóc sang trạng thái này." });
     }
 
     if (["accepted", "in_progress"].includes(status)) {
@@ -948,7 +948,7 @@ export const updateBookingStatus = async (req, res) => {
 
       if (missingRequirements.length > 0) {
         return res.status(409).json({
-          message: "booking shift evidence is incomplete",
+          message: "Vui lòng hoàn tất ảnh và ghi chú của ca chăm sóc trước khi tiếp tục.",
           missingRequirements,
         });
       }
@@ -969,7 +969,7 @@ export const updateBookingStatus = async (req, res) => {
       { new: true, runValidators: true },
     );
     if (!updatedBooking) {
-      return res.status(409).json({ message: "booking status changed, please retry" });
+      return res.status(409).json({ message: "Trạng thái lịch chăm sóc đã thay đổi. Vui lòng thử lại." });
     }
 
     emitBookingChatState(updatedBooking);
@@ -990,9 +990,9 @@ export const updateBookingStatus = async (req, res) => {
       await createPaymentReminderNotification(updatedBooking);
     }
 
-    return res.status(200).json({ message: "booking status updated", booking: updatedBooking });
+    return res.status(200).json({ message: "Cập nhật trạng thái lịch chăm sóc thành công.", booking: updatedBooking });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -1000,11 +1000,11 @@ export const cancelBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking || !canAccessBooking(booking, req.user)) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (req.user.role !== "admin" && toIdString(booking.customerId) !== req.user.userId) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     const cancellableStatuses =
@@ -1012,7 +1012,7 @@ export const cancelBooking = async (req, res) => {
         ? ADMIN_CANCELLABLE_BOOKING_STATUSES
         : CUSTOMER_CANCELLABLE_BOOKING_STATUSES;
     if (!cancellableStatuses.includes(booking.status)) {
-      return res.status(409).json({ message: "booking cannot be cancelled in current status" });
+      return res.status(409).json({ message: "Không thể hủy lịch chăm sóc ở trạng thái hiện tại." });
     }
 
     const paidPayment = await Payment.exists({
@@ -1020,15 +1020,15 @@ export const cancelBooking = async (req, res) => {
       status: "paid",
     });
     if (paidPayment) {
-      return res.status(409).json({ message: "paid booking cannot be cancelled" });
+      return res.status(409).json({ message: "Không thể hủy lịch chăm sóc đã thanh toán." });
     }
 
     booking.status = "cancelled";
     await booking.save();
     emitBookingChatState(booking);
-    return res.status(200).json({ message: "booking cancelled", booking });
+    return res.status(200).json({ message: "Hủy lịch chăm sóc thành công.", booking });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -1036,21 +1036,21 @@ export const addLocation = async (req, res) => {
   try {
     const { lat, lng, note } = req.body;
     if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ message: "lat and lng are required" });
+      return res.status(400).json({ message: "Vui lòng cung cấp vĩ độ và kinh độ." });
     }
 
     const gpsLocation = normalizeGpsLocation({ lat, lng });
     if (!gpsLocation) {
-      return res.status(400).json({ message: "valid lat and lng are required" });
+      return res.status(400).json({ message: "Vĩ độ và kinh độ không hợp lệ." });
     }
 
     const booking = await Booking.findById(req.params.id);
     if (!booking || !canAccessBooking(booking, req.user)) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (!canUpdateShiftEvidence(booking)) {
-      return res.status(409).json({ message: "booking shift evidence cannot be updated in current status" });
+      return res.status(409).json({ message: "Không thể cập nhật minh chứng ca chăm sóc ở trạng thái hiện tại." });
     }
 
     const location = {
@@ -1062,7 +1062,7 @@ export const addLocation = async (req, res) => {
 
     if (!isGpsNearBookingAddress(location, booking)) {
       return res.status(409).json({
-        message: "gps location is too far from booking address",
+        message: "Vị trí GPS hiện tại quá xa địa chỉ chăm sóc.",
         maxDistanceMeters: SHIFT_GPS_MAX_DISTANCE_METERS,
       });
     }
@@ -1075,7 +1075,7 @@ export const addLocation = async (req, res) => {
     });
     if (!sampleDecision.shouldStore) {
       return res.status(200).json({
-        message: "location already sampled",
+        message: "Vị trí này đã được ghi nhận.",
         ...sampleDecision,
         maxLocations: SHIFT_GPS_MAX_LOCATIONS,
         shiftLog: existingShiftLog,
@@ -1095,9 +1095,9 @@ export const addLocation = async (req, res) => {
       { new: true, upsert: true },
     );
 
-    return res.status(200).json({ message: "location added", maxLocations: SHIFT_GPS_MAX_LOCATIONS, shiftLog });
+    return res.status(200).json({ message: "Cập nhật vị trí thành công.", maxLocations: SHIFT_GPS_MAX_LOCATIONS, shiftLog });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -1105,11 +1105,11 @@ export const updateShiftLog = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking || !canAccessBooking(booking, req.user)) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (!canUpdateShiftEvidence(booking)) {
-      return res.status(409).json({ message: "booking shift evidence cannot be updated in current status" });
+      return res.status(409).json({ message: "Không thể cập nhật minh chứng ca chăm sóc ở trạng thái hiện tại." });
     }
 
     const allowedFields = {};
@@ -1129,7 +1129,7 @@ export const updateShiftLog = async (req, res) => {
 
     if (allowedFields.__invalidPhotoField) {
       return res.status(400).json({
-        message: "shift photo url must be a trusted uploaded image",
+        message: "Ảnh ca chăm sóc phải là ảnh đã được tải lên hệ thống.",
         field: allowedFields.__invalidPhotoField,
       });
     }
@@ -1160,9 +1160,9 @@ export const updateShiftLog = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ message: "shift log updated", shiftLog });
+    return res.status(200).json({ message: "Cập nhật nhật ký ca chăm sóc thành công.", shiftLog });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -1177,15 +1177,15 @@ export const payBooking = async (req, res) => {
       .populate("customerId", "name email phone")
       .populate("serviceId", "name");
     if (!booking) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (booking.status === "paid") {
-      return res.status(400).json({ message: "Booking da duoc thanh toan." });
+      return res.status(400).json({ message: "Lịch chăm sóc đã được thanh toán." });
     }
 
     if (booking.status !== "completed") {
-      return res.status(400).json({ message: "Chi co the thanh toan sau khi ca cham soc hoan thanh." });
+      return res.status(400).json({ message: "Chỉ có thể thanh toán sau khi ca chăm sóc hoàn thành." });
     }
 
     const now = new Date();
@@ -1199,14 +1199,14 @@ export const payBooking = async (req, res) => {
     const paidAmount = baseAmount + penaltyAmount;
 
     if (baseAmount <= 0 || paidAmount <= 0) {
-      return res.status(400).json({ message: "So tien thanh toan khong hop le." });
+      return res.status(400).json({ message: "Số tiền thanh toán không hợp lệ." });
     }
 
     paymentLock = await acquireBookingPaymentLock(booking._id);
 
     const existingPayment = await Payment.findOne({ bookingId: booking._id });
     if (existingPayment?.status === "paid") {
-      return res.status(400).json({ message: "Booking da duoc thanh toan." });
+      return res.status(400).json({ message: "Lịch chăm sóc đã được thanh toán." });
     }
 
     if (isReusablePendingPayOSPayment(existingPayment, paidAmount, now)) {
@@ -1217,12 +1217,12 @@ export const payBooking = async (req, res) => {
       });
 
       if (!reusablePayment && existingPayment.status === "paid") {
-        return res.status(400).json({ message: "Booking da duoc thanh toan." });
+        return res.status(400).json({ message: "Lịch chăm sóc đã được thanh toán." });
       }
 
       if (reusablePayment) {
         return res.status(200).json({
-          message: "payment link ready",
+          message: "Liên kết thanh toán đã sẵn sàng.",
           checkoutUrl: reusablePayment.checkoutUrl,
           payment: reusablePayment,
           booking,
@@ -1314,7 +1314,7 @@ export const payBooking = async (req, res) => {
       await payment.save();
 
       return res.status(200).json({
-        message: "payment link created",
+        message: "Tạo liên kết thanh toán thành công.",
         checkoutUrl: payment.checkoutUrl,
         payment,
         booking,
@@ -1328,7 +1328,10 @@ export const payBooking = async (req, res) => {
       throw error;
     }
   } catch (error) {
-    return res.status(error.statusCode || 500).json({ message: "internal server error", error: error.message });
+    return res.status(error.statusCode || 500).json({
+      message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+      error: error.message,
+    });
   } finally {
     await releaseBookingPaymentLock(paymentLock);
   }
@@ -1340,11 +1343,11 @@ export const createReview = async (req, res) => {
     const ratingValue = Number(rating);
 
     if (!rating) {
-      return res.status(400).json({ message: "rating is required" });
+      return res.status(400).json({ message: "Vui lòng chọn số sao đánh giá." });
     }
 
     if (!Number.isFinite(ratingValue) || ratingValue < 1 || ratingValue > 5) {
-      return res.status(400).json({ message: "rating must be between 1 and 5" });
+      return res.status(400).json({ message: "Số sao đánh giá phải từ 1 đến 5." });
     }
 
     const booking = await Booking.findOne({
@@ -1352,16 +1355,16 @@ export const createReview = async (req, res) => {
       customerId: req.user.userId,
     });
     if (!booking) {
-      return res.status(404).json({ message: "booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (booking.status !== "paid") {
-      return res.status(409).json({ message: "booking must be paid before review" });
+      return res.status(409).json({ message: "Lịch chăm sóc phải được thanh toán trước khi đánh giá." });
     }
 
     const existingReview = await Review.exists({ bookingId: booking._id });
     if (existingReview) {
-      return res.status(409).json({ message: "booking already reviewed" });
+      return res.status(409).json({ message: "Lịch chăm sóc này đã được đánh giá." });
     }
 
     const review = await Review.create({
@@ -1380,12 +1383,12 @@ export const createReview = async (req, res) => {
 
     await createCompanionReviewCreatedNotification({ booking, review });
 
-    return res.status(201).json({ message: "review created", review });
+    return res.status(201).json({ message: "Gửi đánh giá thành công.", review });
   } catch (error) {
     if (error?.code === 11000) {
-      return res.status(409).json({ message: "booking already reviewed" });
+      return res.status(409).json({ message: "Lịch chăm sóc này đã được đánh giá." });
     }
 
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };

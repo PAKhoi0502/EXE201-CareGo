@@ -167,7 +167,7 @@ const AdminCompanionsPage = () => {
   const updateStatus = async (id, vettingStatus) => {
     const payload = { vettingStatus };
     if (vettingStatus === "rejected") {
-      const rejectionReason = window.prompt("Nhập lý do từ chối hồ sơ companion:");
+      const rejectionReason = window.prompt("Nhập lý do từ chối hồ sơ người đồng hành:");
       if (!rejectionReason?.trim()) return;
       payload.rejectionReason = rejectionReason.trim();
     }
@@ -300,9 +300,9 @@ const AdminCompanionsPage = () => {
                     <p className="font-semibold text-slate-700">{item.university || "Chua cap nhat truong"}</p>
                     <p className="mt-1 text-slate-400">{item.major || "Chua cap nhat nganh"}</p>
                     <div className="mt-2 space-y-1">
-                      <p className="font-semibold text-emerald-600">L1: CCCD / The SV</p>
+                      <p className="font-semibold text-emerald-600">L1: CCCD / Thẻ SV</p>
                       <p className={item.vettingStatus === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
-                        L2-L3: {item.vettingStatus === "approved" ? "Hoan tat" : "Dang kiem duyet"}
+                        L2-L3: {item.vettingStatus === "approved" ? "Hoàn tất" : "Đang kiểm duyệt"}
                       </p>
                     </div>
                   </td>

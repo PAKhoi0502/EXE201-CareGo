@@ -5,7 +5,7 @@ let payOSClient;
 const requirePayOSEnv = (keys) => {
   const missingKeys = keys.filter((key) => !process.env[key]);
   if (missingKeys.length > 0) {
-    const error = new Error(`Missing PayOS config: ${missingKeys.join(", ")}`);
+    const error = new Error(`Thiếu cấu hình PayOS: ${missingKeys.join(", ")}`);
     error.statusCode = 500;
     throw error;
   }
@@ -45,7 +45,7 @@ export const getPayOSPaymentExpireMinutes = () => {
 
 export const buildPayOSRedirectUrl = (baseUrl, params, label) => {
   if (!baseUrl) {
-    const error = new Error(`Missing PayOS ${label}`);
+    const error = new Error(`Thiếu thông tin PayOS: ${label}`);
     error.statusCode = 500;
     throw error;
   }
@@ -59,7 +59,7 @@ export const buildPayOSRedirectUrl = (baseUrl, params, label) => {
     });
     return url.toString();
   } catch {
-    const error = new Error(`Invalid PayOS ${label}`);
+    const error = new Error(`Thông tin PayOS không hợp lệ: ${label}`);
     error.statusCode = 500;
     throw error;
   }

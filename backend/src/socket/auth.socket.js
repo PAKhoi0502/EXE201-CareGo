@@ -4,12 +4,12 @@ import User from "../models/user.models.js";
 
 const getActiveSocketUser = async (userId) => {
   if (!userId) {
-    throw new Error("unauthorized");
+    throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
   }
 
   const user = await User.findById(userId).select("_id role isActive isEmailVerified");
   if (!user || !user.isActive || !user.isEmailVerified) {
-    throw new Error("unauthorized");
+    throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
   }
 
   let companionProfile = null;
@@ -33,7 +33,7 @@ export const revalidateSocketUser = async (socket) => {
     };
     return socket.user;
   } catch {
-    socket?.emit?.("auth:revoked", { message: "socket session revoked" });
+    socket?.emit?.("auth:revoked", { message: "Phiên kết nối đã hết hạn." });
     socket?.disconnect?.(true);
     return null;
   }
@@ -46,7 +46,7 @@ export const setupSocketAuthentication = (io) => {
     const token = socket.handshake.auth?.token || headerToken;
 
     if (!token) {
-      return next(new Error("unauthorized"));
+      return next(new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn."));
     }
 
     try {
@@ -54,7 +54,7 @@ export const setupSocketAuthentication = (io) => {
       const userId = decoded.userId || decoded.id || decoded._id;
 
       if (!userId) {
-        return next(new Error("unauthorized"));
+        return next(new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn."));
       }
 
       const activeUser = await getActiveSocketUser(userId);
@@ -66,7 +66,7 @@ export const setupSocketAuthentication = (io) => {
 
       return next();
     } catch {
-      return next(new Error("unauthorized"));
+      return next(new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn."));
     }
   });
 };

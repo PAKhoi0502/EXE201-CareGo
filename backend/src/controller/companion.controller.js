@@ -136,7 +136,7 @@ const getMissingApprovalDocuments = (documents = {}) =>
   );
 
 const buildApprovalDocumentError = (fields) => ({
-  message: "valid citizen ID front and back images are required for companion approval",
+  message: "Cần có ảnh CCCD mặt trước và mặt sau hợp lệ để duyệt hồ sơ người đồng hành.",
   fields,
 });
 
@@ -156,7 +156,7 @@ export const getCompanions = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -171,14 +171,14 @@ export const getCompanionById = async (req, res) => {
       match: { role: "companion", isActive: true, isEmailVerified: true },
     });
     if (!companion || !companion.userId) {
-      return res.status(404).json({ message: "companion not found" });
+      return res.status(404).json({ message: "Không tìm thấy người đồng hành." });
     }
 
     return res.status(200).json({ companion });
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -204,7 +204,7 @@ export const getCompanionOnlineStatuses = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -219,7 +219,7 @@ export const getCompanionReviews = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -243,7 +243,7 @@ export const registerCompanion = async (req, res) => {
     if (!name || !email || !password || !fullName) {
       return res
         .status(400)
-        .json({ message: "name, email, password and fullName are required" });
+        .json({ message: "Vui lòng nhập đầy đủ tên hiển thị, họ tên, email và mật khẩu." });
     }
 
     const normalizedDocuments = normalizeCompanionDocuments(documents);
@@ -255,7 +255,7 @@ export const registerCompanion = async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
-      return res.status(400).json({ message: "email already existing" });
+      return res.status(400).json({ message: "Email đã được sử dụng." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -297,7 +297,7 @@ export const registerCompanion = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -319,17 +319,17 @@ export const applyForCompanion = async (req, res) => {
 
     const currentUser = await User.findById(userId);
     if (!currentUser) {
-      return res.status(404).json({ message: "user not found" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
 
     const existingProfile = await CompanionProfile.findOne({ userId });
     if (existingProfile) {
-      return res.status(409).json({ message: "companion profile already exists" });
+      return res.status(409).json({ message: "Hồ sơ người đồng hành đã tồn tại." });
     }
 
     const cleanFullName = String(fullName || name || currentUser.name || "").trim();
     if (!cleanFullName) {
-      return res.status(400).json({ message: "fullName is required" });
+      return res.status(400).json({ message: "Vui lòng nhập họ tên đầy đủ." });
     }
 
     const normalizedDocuments = normalizeCompanionDocuments(documents);
@@ -364,12 +364,12 @@ export const applyForCompanion = async (req, res) => {
     }).select("-password -refreshToken -__V");
 
     return res.status(201).json({
-      message: "companion application submitted and waiting for admin approval",
+      message: "Hồ sơ người đồng hành đã được gửi và đang chờ quản trị viên phê duyệt.",
       user,
       companionProfile,
     });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -393,12 +393,12 @@ export const adminCreateCompanion = async (req, res) => {
     if (!name || !email || !password || !fullName) {
       return res
         .status(400)
-        .json({ message: "name, email, password and fullName are required" });
+        .json({ message: "Vui lòng nhập đầy đủ tên hiển thị, họ tên, email và mật khẩu." });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "email already existing" });
+      return res.status(400).json({ message: "Email đã được sử dụng." });
     }
 
     const normalizedDocuments = normalizeCompanionDocuments(documents);
@@ -432,8 +432,8 @@ export const adminCreateCompanion = async (req, res) => {
 
     return res.status(201).json({
       message: hasApprovalDocuments
-        ? "companion account created"
-        : "companion account created and pending document approval",
+        ? "Tạo tài khoản người đồng hành thành công."
+        : "Đã tạo tài khoản người đồng hành và đang chờ duyệt giấy tờ.",
       companion: profile,
       user: {
         id: user._id,
@@ -445,7 +445,7 @@ export const adminCreateCompanion = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -460,7 +460,7 @@ export const adminGetCompanions = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -473,7 +473,7 @@ export const updateMyCompanionProfile = async (req, res) => {
     if (fullName !== undefined) {
       const cleanFullName = String(fullName).trim();
       if (!cleanFullName) {
-        return res.status(400).json({ message: "fullName is required" });
+        return res.status(400).json({ message: "Vui lòng nhập họ tên đầy đủ." });
       }
       profileUpdates.fullName = cleanFullName;
     }
@@ -498,7 +498,7 @@ export const updateMyCompanionProfile = async (req, res) => {
       .lean();
 
     if (!currentProfile) {
-      return res.status(404).json({ message: "companion profile not found" });
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ người đồng hành." });
     }
 
     if (hasReapprovalProfileChanges(currentProfile, profileUpdates)) {
@@ -517,7 +517,7 @@ export const updateMyCompanionProfile = async (req, res) => {
     );
 
     if (!profile) {
-      return res.status(404).json({ message: "companion profile not found" });
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ người đồng hành." });
     }
 
     const userUpdates = {};
@@ -533,7 +533,7 @@ export const updateMyCompanionProfile = async (req, res) => {
       : await User.findById(userId).select("-password -refreshToken -__V");
 
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
 
     if (currentProfile.vettingStatus === "approved" && profile.vettingStatus !== "approved") {
@@ -541,14 +541,14 @@ export const updateMyCompanionProfile = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: "companion profile updated",
+      message: "Cập nhật hồ sơ người đồng hành thành công.",
       user,
       companionProfile: profile,
     });
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -556,7 +556,7 @@ export const adminUpdateCompanion = async (req, res) => {
   try {
     const currentProfile = await CompanionProfile.findById(req.params.id).lean();
     if (!currentProfile) {
-      return res.status(404).json({ message: "companion not found" });
+      return res.status(404).json({ message: "Không tìm thấy người đồng hành." });
     }
 
     const updates = { ...req.body };
@@ -580,11 +580,11 @@ export const adminUpdateCompanion = async (req, res) => {
       hasStatusUpdate &&
       !Object.hasOwn(COMPANION_VETTING_STATUS_TRANSITIONS, nextVettingStatus)
     ) {
-      return res.status(400).json({ message: "invalid vettingStatus" });
+      return res.status(400).json({ message: "Trạng thái kiểm duyệt không hợp lệ." });
     }
 
     if (hasStatusUpdate && !canTransitionVettingStatus(currentVettingStatus, nextVettingStatus)) {
-      return res.status(409).json({ message: "companion status transition is not allowed" });
+      return res.status(409).json({ message: "Không thể chuyển hồ sơ người đồng hành sang trạng thái này." });
     }
 
     if (hasStatusUpdate) {
@@ -592,7 +592,7 @@ export const adminUpdateCompanion = async (req, res) => {
     }
 
     if (isStatusChange && nextVettingStatus === "rejected" && !rejectionReason) {
-      return res.status(400).json({ message: "rejectionReason is required when rejecting companion profile" });
+      return res.status(400).json({ message: "Vui lòng nhập lý do khi từ chối hồ sơ người đồng hành." });
     }
 
     if (isStatusChange) {
@@ -632,7 +632,7 @@ export const adminUpdateCompanion = async (req, res) => {
       .populate("userId", "name email phone avatar isActive")
       .populate("reviewedBy", "name email");
     if (!profile) {
-      return res.status(409).json({ message: "companion status changed, please retry" });
+      return res.status(409).json({ message: "Trạng thái hồ sơ đã thay đổi. Vui lòng thử lại." });
     }
 
     if (isStatusChange && nextVettingStatus !== "approved") {
@@ -641,11 +641,11 @@ export const adminUpdateCompanion = async (req, res) => {
 
     return res
       .status(200)
-      .json({ message: "companion updated", companion: profile });
+      .json({ message: "Cập nhật người đồng hành thành công.", companion: profile });
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -657,22 +657,22 @@ export const adminUpdateCompanionStatus = async (req, res) => {
       req.body?.rejectionReason ?? req.body?.reason ?? req.body?.adminNote,
     );
     if (!Object.hasOwn(COMPANION_VETTING_STATUS_TRANSITIONS, nextVettingStatus)) {
-      return res.status(400).json({ message: "invalid vettingStatus" });
+      return res.status(400).json({ message: "Trạng thái kiểm duyệt không hợp lệ." });
     }
 
     const profile = await CompanionProfile.findById(req.params.id);
     if (!profile) {
-      return res.status(404).json({ message: "companion not found" });
+      return res.status(404).json({ message: "Không tìm thấy người đồng hành." });
     }
 
     const currentVettingStatus = normalizeVettingStatus(profile.vettingStatus);
     const isStatusChange = currentVettingStatus !== nextVettingStatus;
     if (!canTransitionVettingStatus(currentVettingStatus, nextVettingStatus)) {
-      return res.status(409).json({ message: "companion status transition is not allowed" });
+      return res.status(409).json({ message: "Không thể chuyển hồ sơ người đồng hành sang trạng thái này." });
     }
 
     if (isStatusChange && nextVettingStatus === "rejected" && !rejectionReason) {
-      return res.status(400).json({ message: "rejectionReason is required when rejecting companion profile" });
+      return res.status(400).json({ message: "Vui lòng nhập lý do khi từ chối hồ sơ người đồng hành." });
     }
 
     if (nextVettingStatus === "approved") {
@@ -699,7 +699,7 @@ export const adminUpdateCompanionStatus = async (req, res) => {
       .populate("userId", "name email phone avatar isActive")
       .populate("reviewedBy", "name email");
     if (!updatedProfile) {
-      return res.status(409).json({ message: "companion status changed, please retry" });
+      return res.status(409).json({ message: "Trạng thái hồ sơ đã thay đổi. Vui lòng thử lại." });
     }
 
     if (isStatusChange && nextVettingStatus !== "approved") {
@@ -708,10 +708,10 @@ export const adminUpdateCompanionStatus = async (req, res) => {
 
     return res
       .status(200)
-      .json({ message: "companion status updated", companion: updatedProfile });
+      .json({ message: "Cập nhật trạng thái người đồng hành thành công.", companion: updatedProfile });
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "internal server error", error: error.message });
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };

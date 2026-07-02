@@ -126,7 +126,7 @@ export default function BookingChatFloatingButton() {
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-wide text-teal-100">Trao đổi ca chăm sóc</p>
                 <h2 className="mt-0.5 truncate font-black">
-                  {counterpart?.name || "Người tham gia booking"}
+                  {counterpart?.name || "Người tham gia lịch chăm sóc"}
                 </h2>
                 <p className="mt-1 truncate text-xs text-white/70">
                   {booking?.serviceId?.name || "Dịch vụ CareGo"}
@@ -135,7 +135,7 @@ export default function BookingChatFloatingButton() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Đóng chat booking"
+                aria-label="Đóng trò chuyện của lịch chăm sóc"
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/15 text-lg font-bold transition hover:bg-white/25"
               >
                 ×
@@ -173,7 +173,7 @@ export default function BookingChatFloatingButton() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        aria-label="Mở chat booking"
+        aria-label="Mở trò chuyện của lịch chăm sóc"
         aria-expanded={open}
         className="group flex h-14 items-center gap-3 rounded-full bg-[#12312f] px-4 text-white shadow-2xl shadow-slate-900/30 transition hover:-translate-y-1 hover:bg-teal-900 sm:h-16 sm:px-5"
       >
@@ -190,7 +190,7 @@ export default function BookingChatFloatingButton() {
         <span className="hidden text-left sm:block">
           <span className="block text-sm font-black">Trao đổi ca</span>
           <span className="block text-[10px] font-semibold text-white/70">
-            {chats.length > 1 ? `${chats.length} booking đang mở` : `Chat với ${counterpart?.name || "đối phương"}`}
+            {chats.length > 1 ? `${chats.length} cuộc trò chuyện đang mở` : `Trò chuyện với ${counterpart?.name || "người tham gia"}`}
           </span>
         </span>
       </button>

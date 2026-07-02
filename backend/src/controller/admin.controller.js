@@ -38,16 +38,16 @@ const parseReportRange = ({ from, to }) => {
   const toValue = to || defaults.to;
 
   if (!REPORT_DATE_PATTERN.test(fromValue) || !REPORT_DATE_PATTERN.test(toValue)) {
-    return { error: "from and to must use YYYY-MM-DD format" };
+    return { error: "Ngày bắt đầu và ngày kết thúc phải có định dạng YYYY-MM-DD." };
   }
 
   const start = new Date(`${fromValue}T00:00:00.000Z`);
   const end = new Date(`${toValue}T23:59:59.999Z`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return { error: "invalid report date range" };
+    return { error: "Khoảng thời gian báo cáo không hợp lệ." };
   }
   if (start > end) {
-    return { error: "from must be before or equal to to" };
+    return { error: "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc." };
   }
 
   return { from: fromValue, to: toValue, start, end };
@@ -58,10 +58,10 @@ const parseReportPagination = ({ page, limit }) => {
   const limitValue = Number(limit || REPORT_DETAIL_DEFAULT_LIMIT);
 
   if (!Number.isInteger(pageValue) || pageValue < 1) {
-    return { error: "page must be a positive integer" };
+    return { error: "Số trang phải là số nguyên dương." };
   }
   if (!Number.isInteger(limitValue) || limitValue < 1 || limitValue > REPORT_DETAIL_MAX_LIMIT) {
-    return { error: `limit must be between 1 and ${REPORT_DETAIL_MAX_LIMIT}` };
+    return { error: `Số bản ghi mỗi trang phải từ 1 đến ${REPORT_DETAIL_MAX_LIMIT}.` };
   }
 
   return {
@@ -308,7 +308,7 @@ export const getAdminDashboard = async (req, res) => {
       })),
     });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -317,7 +317,7 @@ export const getAdminUsers = async (req, res) => {
     const users = await User.find().select("-password -refreshToken").sort({ createdAt: -1 });
     return res.status(200).json({ users });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -325,23 +325,23 @@ export const updateUserStatus = async (req, res) => {
   try {
     const { isActive } = req.body;
     if (typeof isActive !== "boolean") {
-      return res.status(400).json({ message: "isActive must be boolean" });
+      return res.status(400).json({ message: "Trạng thái hoạt động phải là giá trị đúng hoặc sai." });
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, { isActive }, { new: true }).select(
       "-password -refreshToken",
     );
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
 
     if (!user.isActive) {
       disconnectUserSockets(user._id, "account has been disabled");
     }
 
-    return res.status(200).json({ message: "user status updated", user });
+    return res.status(200).json({ message: "Cập nhật trạng thái tài khoản thành công.", user });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -375,7 +375,7 @@ export const getAdminBookings = async (req, res) => {
 
     return res.status(200).json({ bookings: bookingsWithPayment });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -457,7 +457,7 @@ export const getAdminReports = async (req, res) => {
       bookings: detailBookingsWithPayment,
     });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -465,7 +465,7 @@ export const getAdminGpsStatuses = async (req, res) => {
   try {
     return res.status(200).json({ gpsStatuses: getCompanionGpsStatuses() });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
@@ -473,6 +473,6 @@ export const getAdminOnlineStatuses = async (req, res) => {
   try {
     return res.status(200).json({ onlineStatuses: getUserOnlineStatuses() });
   } catch (error) {
-    return res.status(500).json({ message: "internal server error", error: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };

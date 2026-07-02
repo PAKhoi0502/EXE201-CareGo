@@ -244,7 +244,7 @@ const CustomerBookingDetailPage = () => {
     try {
       const paymentData = await api.post(`/bookings/${id}/pay`, { method: "payos" });
       if (!paymentData.checkoutUrl) {
-        throw new Error("Không nhận được link thanh toán PayOS.");
+        throw new Error("Không nhận được liên kết thanh toán PayOS.");
       }
       window.location.href = paymentData.checkoutUrl;
     } catch (err) {
@@ -257,7 +257,7 @@ const CustomerBookingDetailPage = () => {
     event.preventDefault();
     setSubmitError("");
     if (!canReview) {
-      setSubmitError("Bạn chỉ có thể đánh giá sau khi booking đã thanh toán.");
+      setSubmitError("Bạn chỉ có thể đánh giá sau khi lịch chăm sóc đã được thanh toán.");
       return;
     }
 

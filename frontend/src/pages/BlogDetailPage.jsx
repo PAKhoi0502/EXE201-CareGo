@@ -175,7 +175,7 @@ const BlogDetailPage = () => {
       }));
       setCommentContent("");
       setCommentPage(1);
-      setCommentMessage("Bình luận đã được gửi và đang chờ admin duyệt.");
+      setCommentMessage("Bình luận đã được gửi và đang chờ quản trị viên duyệt.");
     } catch (err) {
       setSubmitError(err.message);
     } finally {
@@ -250,7 +250,7 @@ const BlogDetailPage = () => {
                 <div className="mt-10 rounded-[28px] border border-teal-100 bg-[#fbfffe] p-6">
                   <h2 className="text-xl font-black">Bình luận và đánh giá</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Đánh giá sao được lưu theo tài khoản. Bình luận mới sẽ chờ admin duyệt trước khi hiển thị.
+                    Đánh giá sao được lưu theo tài khoản. Bình luận mới sẽ chờ quản trị viên duyệt trước khi hiển thị.
                   </p>
                   {canInteract ? (
                     <div className="mt-5 grid gap-4">
@@ -300,7 +300,7 @@ const BlogDetailPage = () => {
                     </div>
                   ) : (
                     <div className="mt-5 rounded-2xl border border-teal-100 bg-white p-4 text-sm font-semibold text-slate-600">
-                      <Link to="/login" className="font-black text-teal-700 hover:text-teal-900">Đăng nhập</Link> bằng tài khoản customer hoặc companion để đánh giá và gửi bình luận.
+                      <Link to="/login" className="font-black text-teal-700 hover:text-teal-900">Đăng nhập</Link> bằng tài khoản khách hàng hoặc người đồng hành để đánh giá và gửi bình luận.
                     </div>
                   )}
 

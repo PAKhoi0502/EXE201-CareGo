@@ -17,7 +17,7 @@ const ForgotPasswordPage = () => {
     setError("");
     try {
       const data = await api.post("/auth/forget-password", { email });
-      setMessage(data.message || "Da gui link dat lai mat khau.");
+      setMessage(data.message || "Đã gửi liên kết đặt lại mật khẩu.");
     } catch (err) {
       setError(err.message);
     } finally {

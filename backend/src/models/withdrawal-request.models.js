@@ -14,7 +14,7 @@ const WithdrawalRequestSchema = new mongoose.Schema(
       min: 1000,
       validate: {
         validator: Number.isInteger,
-        message: "Withdrawal amount must be an integer.",
+        message: "Số tiền rút phải là số nguyên.",
       },
     },
     bankName: {

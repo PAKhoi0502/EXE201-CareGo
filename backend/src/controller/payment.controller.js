@@ -63,7 +63,7 @@ const syncPaymentStatusFromPayOSLink = async ({ payment, booking, paymentLink })
     if (paidAmount > 0 && amountPaid !== paidAmount && orderAmount !== paidAmount) {
       payment.status = "failed";
       await payment.save();
-      const error = new Error("payment amount mismatch");
+      const error = new Error("Số tiền thanh toán không khớp.");
       error.statusCode = 400;
       throw error;
     }
@@ -96,19 +96,19 @@ export const handlePayOSWebhook = async (req, res) => {
     const paymentQuery = getPayOSPaymentQuery(webhookData);
 
     if (!paymentQuery) {
-      return res.status(400).json({ success: false, message: "invalid webhook payment reference" });
+      return res.status(400).json({ success: false, message: "Thông tin tham chiếu thanh toán không hợp lệ." });
     }
 
     const payment = await Payment.findOne(paymentQuery);
     if (!payment) {
-      return res.status(404).json({ success: false, message: "payment not found" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy giao dịch thanh toán." });
     }
 
     payment.rawWebhook = req.body;
 
     if (!req.body?.success || req.body?.code !== "00" || webhookData.code !== "00") {
       await payment.save();
-      return res.status(200).json({ success: true, message: "webhook ignored" });
+      return res.status(200).json({ success: true, message: "Thông báo thanh toán đã được bỏ qua." });
     }
 
     const paidAmount = Number(payment.paidAmount || payment.amount || 0);
@@ -116,27 +116,27 @@ export const handlePayOSWebhook = async (req, res) => {
     if (paidAmount > 0 && webhookAmount !== paidAmount) {
       payment.status = "failed";
       await payment.save();
-      return res.status(400).json({ success: false, message: "payment amount mismatch" });
+      return res.status(400).json({ success: false, message: "Số tiền thanh toán không khớp." });
     }
 
     const booking = await Booking.findById(payment.bookingId);
     if (!booking) {
       await payment.save();
-      return res.status(404).json({ success: false, message: "booking not found" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy lịch chăm sóc." });
     }
 
     await updatePaidPayment({ payment, booking, rawWebhook: req.body, paidAt: new Date() });
 
     return res.status(200).json({
       success: true,
-      message: "payment webhook processed",
+      message: "Đã xử lý thông báo thanh toán.",
       paymentStatus: payment.status,
       bookingStatus: booking.status,
     });
   } catch (error) {
     return res.status(error.statusCode || 400).json({
       success: false,
-      message: "invalid payos webhook",
+      message: "Thông báo thanh toán từ PayOS không hợp lệ.",
       error: error.message,
     });
   }
@@ -148,21 +148,21 @@ export const syncPayOSPayment = async (req, res) => {
     const bookingId = req.body?.bookingId;
 
     if (!Number.isFinite(orderCode)) {
-      return res.status(400).json({ success: false, message: "invalid order code" });
+      return res.status(400).json({ success: false, message: "Mã đơn thanh toán không hợp lệ." });
     }
 
     const payment = await Payment.findOne({ orderCode });
     if (!payment || (bookingId && payment.bookingId.toString() !== bookingId)) {
-      return res.status(404).json({ success: false, message: "payment not found" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy giao dịch thanh toán." });
     }
 
     const booking = await Booking.findById(payment.bookingId);
     if (!booking) {
-      return res.status(404).json({ success: false, message: "booking not found" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy lịch chăm sóc." });
     }
 
     if (req.user.role !== "admin" && booking.customerId.toString() !== req.user.userId) {
-      return res.status(403).json({ success: false, message: "permission denied" });
+      return res.status(403).json({ success: false, message: "Bạn không có quyền đồng bộ giao dịch này." });
     }
 
     if (payment.status !== "paid") {
@@ -172,7 +172,7 @@ export const syncPayOSPayment = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "payment synced",
+      message: "Đồng bộ thanh toán thành công.",
       paymentStatus: payment.status,
       bookingStatus: booking.status,
       payment,
@@ -181,7 +181,7 @@ export const syncPayOSPayment = async (req, res) => {
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       success: false,
-      message: "payment sync failed",
+      message: "Đồng bộ thanh toán không thành công. Vui lòng thử lại.",
       error: error.message,
     });
   }

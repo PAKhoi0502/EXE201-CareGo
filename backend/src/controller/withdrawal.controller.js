@@ -20,7 +20,7 @@ const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createWithdrawalLockBusyError = () => {
-  const error = new Error("Withdrawal request is being created. Please try again.");
+  const error = new Error("Yêu cầu rút tiền đang được tạo. Vui lòng thử lại.");
   error.statusCode = 409;
   return error;
 };
@@ -163,7 +163,7 @@ export const getMyWithdrawalSummary = async (req, res) => {
     const summary = await getWithdrawalSummary(companionId);
     return res.status(200).json(summary);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -211,7 +211,9 @@ export const createWithdrawalRequest = async (req, res) => {
     const summary = await getWithdrawalSummary(companionId);
     return res.status(201).json({ withdrawal, ...summary });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({ message: error.message });
+    return res.status(error.statusCode || 500).json({
+      message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+    });
   } finally {
     await releaseCompanionWithdrawalLock(withdrawalLock);
   }
@@ -236,7 +238,7 @@ export const getAdminWithdrawalRequests = async (req, res) => {
       withdrawalRequests: normalizedRequests,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -293,7 +295,7 @@ export const updateWithdrawalStatus = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 

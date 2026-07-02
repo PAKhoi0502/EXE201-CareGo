@@ -206,7 +206,7 @@ export const getUserOnlineStatuses = () =>
     ]),
   );
 
-export const disconnectUserSockets = (userId, reason = "socket session revoked") => {
+export const disconnectUserSockets = (userId, reason = "Phiên kết nối đã hết hạn.") => {
   if (!locationIo || !userId) return false;
 
   const id = String(userId);
@@ -266,7 +266,7 @@ export const setupLocationSocket = (io) => {
 
       const gpsLocation = normalizeGpsLocation({ lat, lng });
       if (!gpsLocation) {
-        socket.emit("location:error", { message: "valid lat and lng are required" });
+        socket.emit("location:error", { message: "Vĩ độ và kinh độ không hợp lệ." });
         return;
       }
 
@@ -284,13 +284,13 @@ export const setupLocationSocket = (io) => {
             (isApprovedCompanionSocket(socket.user) &&
               String(booking.companionId) === String(socket.user.userId)));
         if (!canSend) {
-          socket.emit("location:error", { message: "permission denied" });
+          socket.emit("location:error", { message: "Bạn không có quyền cập nhật vị trí này." });
           return;
         }
 
         if (!LOCATION_TRACKABLE_BOOKING_STATUSES.includes(booking.status)) {
           socket.emit("location:error", {
-            message: "booking location cannot be updated in current status",
+            message: "Không thể cập nhật vị trí của lịch đặt ở trạng thái hiện tại.",
           });
           return;
         }
@@ -311,7 +311,7 @@ export const setupLocationSocket = (io) => {
           });
         }
       } catch (error) {
-        socket.emit("location:error", { message: error.message });
+        socket.emit("location:error", { message: "Không thể cập nhật vị trí. Vui lòng thử lại." });
       }
     });
 

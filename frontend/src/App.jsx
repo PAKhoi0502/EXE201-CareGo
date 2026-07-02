@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { lazy, Suspense, useLayoutEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 import AdminLayout from "./layouts/AdminLayout.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -41,6 +41,16 @@ const SupportPage = lazy(() => import("./pages/support/SupportPage.jsx"));
 
 const LoadingFallback = () => <div className="p-6 text-sm text-slate-500">Đang tải...</div>;
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
+
+  return null;
+};
+
 const RoleRoute = ({ role, children }) => {
   const { user, loading } = useAuth();
 
@@ -80,6 +90,7 @@ const HomeRoute = () => {
 
 const App = () => (
   <Suspense fallback={<LoadingFallback />}>
+    <ScrollToTop />
     <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/blog" element={<BlogPage />} />

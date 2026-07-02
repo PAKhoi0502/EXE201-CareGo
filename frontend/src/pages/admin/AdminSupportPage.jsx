@@ -4,6 +4,7 @@ import SupportChatPanel from "../../components/support/SupportChatPanel.jsx";
 import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 
 const statusLabels = { waiting: "Chờ hỗ trợ", active: "Đang xử lý", resolved: "Đã giải quyết" };
+const roleLabels = { customer: "Khách hàng", companion: "Người đồng hành", admin: "Quản trị viên" };
 
 export default function AdminSupportPage() {
   const [conversations, setConversations] = useState([]);
@@ -105,7 +106,9 @@ export default function AdminSupportPage() {
                   <p className="line-clamp-2 text-sm font-black text-slate-800">{item.subject}</p>
                   {item.priority === "urgent" ? <span className="rounded-full bg-rose-100 px-2 py-1 text-[10px] font-black text-rose-600">Khẩn</span> : null}
                 </div>
-                <p className="mt-1 text-xs font-bold text-teal-700">{item.userId?.name || "Người dùng"} · {item.userId?.role}</p>
+                <p className="mt-1 text-xs font-bold text-teal-700">
+                  {item.userId?.name || "Người dùng"} · {roleLabels[item.userId?.role] || "Người dùng"}
+                </p>
                 <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">{item.lastMessage}</p>
               </button>
             ))}

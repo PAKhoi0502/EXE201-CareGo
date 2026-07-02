@@ -113,7 +113,7 @@ export const getActiveBookingChats = async (req, res) => {
 
     return res.status(200).json({ chats });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -136,7 +136,7 @@ export const getBookingChatMessages = async (req, res) => {
 
     return res.status(200).json({ chat, messages: messages.reverse() });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
 
@@ -176,6 +176,6 @@ export const sendBookingChatMessage = async (req, res) => {
       return res.status(validationError.statusCode).json(validationError);
     }
 
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
   }
 };
