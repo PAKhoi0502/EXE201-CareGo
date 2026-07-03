@@ -17,6 +17,7 @@ export const hasRoleAccess = (user, role) => {
 
 export const getUserHomePath = (user) => {
   if (!user?.role) return "/";
+  if (user.mustChangePassword) return "/initial-password";
   if (user.role === "customer") return "/";
   if (user.role === "companion") {
     return isApprovedCompanion(user) ? "/companion/bookings" : "/companion-status";

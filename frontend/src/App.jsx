@@ -15,6 +15,7 @@ const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage.jsx"));
 const AdminWithdrawalsPage = lazy(() => import("./pages/admin/AdminWithdrawalsPage.jsx"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage.jsx"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage.jsx"));
+const InitialPasswordPage = lazy(() => import("./pages/auth/InitialPasswordPage.jsx"));
 const LoginPage = lazy(() => import("./pages/auth/LoginPage.jsx"));
 const RegisterCompanionPage = lazy(() => import("./pages/auth/RegisterCompanionPage.jsx"));
 const RegisterPage = lazy(() => import("./pages/auth/RegisterPage.jsx"));
@@ -53,6 +54,7 @@ const ScrollToTop = () => {
 
 const RoleRoute = ({ role, children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <LoadingFallback />;
@@ -60,6 +62,10 @@ const RoleRoute = ({ role, children }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user.mustChangePassword && location.pathname !== "/initial-password") {
+    return <Navigate to="/initial-password" replace />;
   }
 
   if (!hasRoleAccess(user, role)) {
@@ -97,6 +103,7 @@ const App = () => (
       <Route path="/blog/:slug" element={<BlogDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/initial-password" element={<InitialPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/companion-register" element={<RegisterCompanionPage />} />

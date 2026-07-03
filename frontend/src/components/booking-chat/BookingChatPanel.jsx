@@ -211,7 +211,9 @@ export default function BookingChatPanel({ chat, onChatChange, onUnavailable }) 
 
       {chat?.expiresAt ? (
         <p className="shrink-0 border-t border-amber-100 bg-amber-50 px-4 py-2 text-center text-xs font-bold text-amber-700">
-          Chat sau ca: {remainingText}
+          {booking?.bookingMode === "instant" && booking?.status === "pending"
+            ? `Trao đổi đặt ngay: ${remainingText}`
+            : `Chat sau ca: ${remainingText}`}
         </p>
       ) : null}
       {error ? (

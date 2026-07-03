@@ -88,6 +88,67 @@ export const sendOtpEmail = async ({ to, name, otp }) => {
   });
 };
 
+export const sendCompanionAccountEmail = async ({
+  to,
+  name,
+  accountEmail,
+  temporaryPassword,
+  expiresAt,
+}) => {
+  const transporter = createTransporter();
+  const loginUrl = `${getFrontendUrl()}/login`;
+  const expiresText = formatBookingDateTime(expiresAt);
+
+  if (!transporter) {
+    console.log(`[DEV COMPANION ACCOUNT] ${to}: ${accountEmail} / ${temporaryPassword}`);
+    return;
+  }
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject: "CareGo - Tai khoan companion da duoc cap",
+    text: [
+      `Xin chao ${name},`,
+      "Ho so companion cua ban da duoc phe duyet.",
+      `Tai khoan dang nhap: ${accountEmail}`,
+      `Mat khau tam thoi: ${temporaryPassword}`,
+      `Mat khau tam thoi het han luc: ${expiresText}`,
+      "Ban bat buoc doi mat khau ngay trong lan dang nhap dau tien.",
+      `Dang nhap tai: ${loginUrl}`,
+    ].join("\n"),
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#12312f">
+        <h2 style="margin:0 0 12px">CareGo - Tai khoan companion</h2>
+        <p>Xin chao ${escapeHtml(name)},</p>
+        <p>Ho so companion cua ban da duoc phe duyet.</p>
+        <table style="border-collapse:collapse;margin:16px 0;width:100%;max-width:560px">
+          <tbody>
+            <tr>
+              <td style="border:1px solid #d9f3ee;padding:10px;font-weight:700;background:#f5fbfa;width:180px">Tai khoan dang nhap</td>
+              <td style="border:1px solid #d9f3ee;padding:10px">${escapeHtml(accountEmail)}</td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #d9f3ee;padding:10px;font-weight:700;background:#f5fbfa">Mat khau tam thoi</td>
+              <td style="border:1px solid #d9f3ee;padding:10px">${escapeHtml(temporaryPassword)}</td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #d9f3ee;padding:10px;font-weight:700;background:#f5fbfa">Het han</td>
+              <td style="border:1px solid #d9f3ee;padding:10px">${escapeHtml(expiresText)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>Ban bat buoc doi mat khau ngay trong lan dang nhap dau tien.</p>
+        <p>
+          <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:700">
+            Dang nhap CareGo
+          </a>
+        </p>
+      </div>
+    `,
+  });
+};
+
 export const sendCompanionBookingCreatedEmail = async ({
   to,
   name,
@@ -108,6 +169,8 @@ export const sendCompanionBookingCreatedEmail = async ({
   const duration = Number(booking?.durationHours || 0);
   const totalAmount = formatMoney(booking?.totalAmount);
   const address = booking?.address || "Chua co dia chi";
+  const isInstant = booking?.bookingMode === "instant";
+  const responseDeadline = isInstant ? formatBookingDateTime(booking?.offerExpiresAt) : "";
 
   const transporter = createTransporter();
 
@@ -123,28 +186,32 @@ export const sendCompanionBookingCreatedEmail = async ({
     ["Thoi luong", duration ? `${duration} gio` : "Chua xac dinh"],
     ["Dia chi", address],
     ["Tong tien ca", totalAmount],
+    ...(isInstant ? [["Han phan hoi", responseDeadline]] : []),
   ];
 
   await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to,
-    subject: "CareGo - Co booking moi",
+    subject: isInstant ? "CareGo - Yeu cau dat ngay can phan hoi" : "CareGo - Co booking moi",
     text: [
       `Xin chao ${companionName},`,
-      "Ban vua nhan duoc mot booking moi tren CareGo.",
+      isInstant
+        ? "Ban vua nhan duoc yeu cau dat ngay. Vui long phan hoi trong 5 phut."
+        : "Ban vua nhan duoc mot booking moi tren CareGo.",
       `Dich vu: ${serviceName}`,
       `Nguoi than: ${elderName}`,
       `Thoi gian bat dau: ${startTime}`,
       `Thoi luong: ${duration ? `${duration} gio` : "Chua xac dinh"}`,
       `Dia chi: ${address}`,
       `Tong tien ca: ${totalAmount}`,
+      ...(isInstant ? [`Han phan hoi: ${responseDeadline}`] : []),
       `Xem chi tiet va phan hoi booking tai: ${bookingUrl}`,
     ].join("\n"),
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#12312f">
-        <h2 style="margin:0 0 12px">CareGo - Co booking moi</h2>
+        <h2 style="margin:0 0 12px">${isInstant ? "CareGo - Yeu cau dat ngay" : "CareGo - Co booking moi"}</h2>
         <p>Xin chao ${escapeHtml(companionName)},</p>
-        <p>Ban vua nhan duoc mot booking moi tren CareGo. Vui long kiem tra va phan hoi lich cham soc.</p>
+        <p>${isInstant ? "Ban vua nhan duoc yeu cau dat ngay. Vui long phan hoi trong 5 phut hoac trao doi qua box chat." : "Ban vua nhan duoc mot booking moi tren CareGo. Vui long kiem tra va phan hoi lich cham soc."}</p>
         <table style="border-collapse:collapse;margin:16px 0;width:100%;max-width:560px">
           <tbody>
             ${detailRows

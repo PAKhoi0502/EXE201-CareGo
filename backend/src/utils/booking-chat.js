@@ -16,6 +16,18 @@ export const isBookingChatParticipant = (booking, user) => {
 export const getBookingChatState = (booking, now = new Date()) => {
   const status = booking?.status;
 
+  if (status === "pending" && booking?.bookingMode === "instant" && booking?.offerExpiresAt) {
+    const expiresAt = new Date(booking.offerExpiresAt);
+    const isAvailable = !Number.isNaN(expiresAt.getTime()) && expiresAt > now;
+
+    return {
+      isAvailable,
+      canSend: isAvailable,
+      expiresAt,
+      reason: isAvailable ? null : "offer_expired",
+    };
+  }
+
   if (["accepted", "in_progress"].includes(status)) {
     return {
       isAvailable: true,

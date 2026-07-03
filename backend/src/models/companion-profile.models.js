@@ -5,8 +5,17 @@ const CompanionProfileSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
-      required: true,
       unique: true,
+      sparse: true,
+      default: undefined,
+    },
+    applicantCustomerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
+      unique: true,
+      sparse: true,
+      default: undefined,
+      select: false,
     },
     fullName: {
       type: String,
@@ -16,6 +25,25 @@ const CompanionProfileSchema = new mongoose.Schema(
     phone: {
       type: String,
       default: "",
+    },
+    phoneVerifiedAt: {
+      type: Date,
+      default: null,
+    },
+    phoneVerificationOtpHash: {
+      type: String,
+      default: "",
+      select: false,
+    },
+    phoneVerificationOtpExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    workingShift: {
+      type: String,
+      enum: ["morning", "afternoon", "full_day"],
+      default: "full_day",
     },
     gender: {
       type: String,

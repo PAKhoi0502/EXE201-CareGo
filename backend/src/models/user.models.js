@@ -14,6 +14,14 @@ const UserSchema = new mongoose.Schema(
       type: String,
       require: true,
       unique: true,
+      trim: true,
+      lowercase: true,
+    },
+    recoveryEmail: {
+      type: String,
+      default: "",
+      trim: true,
+      lowercase: true,
     },
     password: {
       type: String,
@@ -45,6 +53,14 @@ const UserSchema = new mongoose.Schema(
     isEmailVerified: {
       type: Boolean,
       default: false,
+    },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+    temporaryPasswordExpiresAt: {
+      type: Date,
+      default: null,
     },
     emailOtpHash: {
       type: String,

@@ -121,6 +121,7 @@ const CompanionBookingDetailPage = () => {
   const [gpsReady, setGpsReady] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [liveLocations, setLiveLocations] = useState([]);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const watchIdRef = useRef(null);
 
   const booking = data?.booking;
@@ -142,6 +143,11 @@ const CompanionBookingDetailPage = () => {
   const isChecklistDone = !hasChecklist || checklist.every((item) => item.done);
   const canEditRealtimeNote = booking?.status === "in_progress" && isChecklistDone;
   const canTrackLiveLocation = ["accepted", "in_progress"].includes(booking?.status);
+  const isInstantPending = booking?.bookingMode === "instant" && booking?.status === "pending";
+  const instantOfferRemainingMinutes = isInstantPending && booking?.offerExpiresAt
+    ? Math.max(0, Math.ceil((new Date(booking.offerExpiresAt).getTime() - currentTime.getTime()) / 60000))
+    : 0;
+  const instantOfferExpired = isInstantPending && instantOfferRemainingMinutes === 0;
   const allLocations = useMemo(
     () => [...(shiftLog?.locations || []), ...liveLocations].slice(-MAX_LIVE_LOCATION_POINTS),
     [shiftLog?.locations, liveLocations],
@@ -154,6 +160,12 @@ const CompanionBookingDetailPage = () => {
   const directionUrl = serviceLocation
     ? `https://www.google.com/maps/dir/?api=1&destination=${serviceLocation.lat},${serviceLocation.lng}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking?.address || "")}`;
+
+  useEffect(() => {
+    if (!isInstantPending) return undefined;
+    const timer = setInterval(() => setCurrentTime(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, [isInstantPending]);
 
   useEffect(() => {
     connectLocationSocket();
@@ -619,6 +631,18 @@ const CompanionBookingDetailPage = () => {
                 <InfoMini label="Thu nhập" value={money(earning)} />
               </div>
 
+              {isInstantPending ? (
+                <div className={`mt-5 rounded-3xl border p-4 text-sm font-semibold ${
+                  instantOfferExpired
+                    ? "border-slate-200 bg-slate-50 text-slate-600"
+                    : "border-amber-200 bg-amber-50 text-amber-800"
+                }`}>
+                  {instantOfferExpired
+                    ? "Yêu cầu đặt ngay đã hết thời gian phản hồi. Bạn chỉ có thể từ chối yêu cầu này."
+                    : `Khách hàng cần hỗ trợ sớm. Còn khoảng ${instantOfferRemainingMinutes} phút để chấp nhận hoặc trao đổi qua box chat.`}
+                </div>
+              ) : null}
+
               <div className="mt-5 grid gap-3">
                 <DetailItem number="1" title="Điểm đón / điểm thực hiện">
                   {booking.address || "Chưa có địa chỉ từ khách hàng."}
@@ -654,9 +678,22 @@ const CompanionBookingDetailPage = () => {
                 )}
               </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <Button className="min-h-12 rounded-full font-black" onClick={acceptBooking} disabled={booking.status !== "pending"}>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <Button className="min-h-12 rounded-full font-black" onClick={acceptBooking} disabled={booking.status !== "pending" || instantOfferExpired}>
                   Chấp nhận
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  className="min-h-12 rounded-full font-black"
+                  disabled={instantOfferExpired || !isInstantPending}
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("carego:open-booking-chat", { detail: { bookingId: booking._id } }),
+                    )
+                  }
+                >
+                  Box chat
                 </Button>
                 {booking.status === "pending" ? (
                   <button

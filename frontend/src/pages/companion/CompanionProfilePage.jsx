@@ -1,8 +1,17 @@
 import { useRef, useState } from "react";
 import { uploadImage } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { Button, Card, Input, PageHeader, StatusBadge, Textarea } from "../../components/Ui.jsx";
+import { Button, Card, Input, PageHeader, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import { dateTime } from "../../utils/format.js";
+
+const workingShiftOptions = [
+  { value: "morning", label: "Buổi sáng 07:00 - 13:00" },
+  { value: "afternoon", label: "Buổi chiều 13:00 - 19:00" },
+  { value: "full_day", label: "Cả ngày 07:00 - 19:00" },
+];
+
+const getWorkingShiftLabel = (value) =>
+  workingShiftOptions.find((item) => item.value === value)?.label || workingShiftOptions[2].label;
 
 const getInitials = (name = "CG") =>
   name
@@ -22,6 +31,7 @@ const splitTextList = (value) =>
 const toForm = (user, profile) => ({
   fullName: profile?.fullName || user?.name || "",
   phone: profile?.phone || user?.phone || "",
+  workingShift: profile?.workingShift || "full_day",
   university: profile?.university || "",
   major: profile?.major || "",
   skillsText: profile?.skills?.join(", ") || "",
@@ -49,7 +59,13 @@ const TagList = ({ label, items = [], emptyText }) => (
 );
 
 const CompanionProfilePage = () => {
-  const { user, updateCompanionProfile, updateProfile } = useAuth();
+  const {
+    user,
+    updateCompanionProfile,
+    updateProfile,
+    requestCompanionPhoneOtp,
+    verifyCompanionPhoneOtp,
+  } = useAuth();
   const profile = user?.companionProfile;
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => toForm(user, profile));
@@ -58,10 +74,15 @@ const CompanionProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneOtpMock, setPhoneOtpMock] = useState("");
+  const [phoneOtpError, setPhoneOtpError] = useState("");
+  const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
   const avatarInputRef = useRef(null);
 
   const displayName = profile?.fullName || user?.name || "Người đồng hành";
   const phone = profile?.phone || user?.phone || "";
+  const phoneVerified = Boolean(profile?.phoneVerifiedAt);
 
   const startEdit = () => {
     setForm(toForm(user, profile));
@@ -94,6 +115,7 @@ const CompanionProfilePage = () => {
       await updateCompanionProfile({
         fullName: form.fullName,
         phone: form.phone,
+        workingShift: form.workingShift,
         university: form.university,
         major: form.major,
         skills: splitTextList(form.skillsText),
@@ -125,6 +147,51 @@ const CompanionProfilePage = () => {
     } finally {
       setAvatarUploading(false);
       event.target.value = "";
+    }
+  };
+
+  const requestPhoneOtp = async () => {
+    const nextPhone = (editing ? form.phone : phone).trim();
+    setPhoneOtpError("");
+    setSuccessMessage("");
+    setPhoneOtpMock("");
+
+    if (!nextPhone) {
+      setPhoneOtpError("Vui lòng nhập số điện thoại trước khi xác minh.");
+      return;
+    }
+
+    setPhoneOtpLoading(true);
+    try {
+      const data = await requestCompanionPhoneOtp(nextPhone);
+      setPhoneOtpMock(data.mockOtp || "");
+      setSuccessMessage("Đã tạo OTP mock để xác minh số điện thoại.");
+    } catch (err) {
+      setPhoneOtpError(err.message);
+    } finally {
+      setPhoneOtpLoading(false);
+    }
+  };
+
+  const verifyPhoneOtp = async () => {
+    setPhoneOtpError("");
+    setSuccessMessage("");
+
+    if (!phoneOtp.trim()) {
+      setPhoneOtpError("Vui lòng nhập mã OTP.");
+      return;
+    }
+
+    setPhoneOtpLoading(true);
+    try {
+      await verifyCompanionPhoneOtp(phoneOtp.trim());
+      setPhoneOtp("");
+      setPhoneOtpMock("");
+      setSuccessMessage("Đã xác minh số điện thoại.");
+    } catch (err) {
+      setPhoneOtpError(err.message);
+    } finally {
+      setPhoneOtpLoading(false);
     }
   };
 
@@ -220,6 +287,41 @@ const CompanionProfilePage = () => {
         </Card>
 
         <Card className="border-emerald-100 bg-white/95 p-6 shadow-xl shadow-emerald-900/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-[#12312f]">Xác minh số điện thoại</h2>
+              <p className="mt-1 text-sm text-slate-500">Companion cần xác minh số điện thoại trước khi nhận booking mới.</p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-black ${phoneVerified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+              {phoneVerified ? "Đã xác minh" : "Chưa xác minh"}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <Button type="button" variant="secondary" className="min-h-10 px-4 text-sm" onClick={requestPhoneOtp} disabled={phoneOtpLoading}>
+              {phoneOtpLoading ? "Đang xử lý..." : "Gửi OTP mock"}
+            </Button>
+            {phoneOtpMock ? (
+              <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">
+                OTP mock: {phoneOtpMock}
+              </p>
+            ) : null}
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <Input
+                label="Mã OTP"
+                value={phoneOtp}
+                onChange={(event) => setPhoneOtp(event.target.value)}
+                placeholder="Nhập OTP"
+                className="min-h-10 rounded-xl"
+              />
+              <Button type="button" className="min-h-10 px-4 text-sm" onClick={verifyPhoneOtp} disabled={phoneOtpLoading}>
+                Xác minh
+              </Button>
+            </div>
+            {phoneOtpError ? <p className="text-sm font-semibold text-rose-600">{phoneOtpError}</p> : null}
+          </div>
+        </Card>
+
+        <Card className="border-emerald-100 bg-white/95 p-6 shadow-xl shadow-emerald-900/10">
           <div className="mb-5 rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-sky-50 p-4">
             <h2 className="text-xl font-black text-[#12312f]">Thông tin nghề nghiệp</h2>
             <p className="mt-1 text-sm text-slate-500">Thông tin này hiển thị với khách hàng khi chọn người đồng hành.</p>
@@ -239,6 +341,17 @@ const CompanionProfilePage = () => {
                   value={form.phone}
                   onChange={(event) => updateField("phone", event.target.value)}
                 />
+                <Select
+                  label="Ca làm việc"
+                  value={form.workingShift}
+                  onChange={(event) => updateField("workingShift", event.target.value)}
+                >
+                  {workingShiftOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
                 <Input
                   label="Trường đại học"
                   value={form.university}
@@ -282,6 +395,8 @@ const CompanionProfilePage = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <InfoBlock label="Họ tên đầy đủ" value={displayName} />
               <InfoBlock label="Số điện thoại" value={phone} />
+              <InfoBlock label="Xác minh điện thoại" value={phoneVerified ? "Đã xác minh" : "Chưa xác minh"} />
+              <InfoBlock label="Ca làm việc" value={getWorkingShiftLabel(profile?.workingShift)} />
               <InfoBlock label="Trường" value={profile?.university} />
               <InfoBlock label="Chuyên ngành" value={profile?.major} />
               <TagList label="Kỹ năng" items={profile?.skills || []} emptyText="Chưa có kỹ năng" />

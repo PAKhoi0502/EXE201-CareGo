@@ -94,7 +94,12 @@ export const getActiveBookingChats = async (req, res) => {
       $and: [
         await getParticipantFilter(req),
         {
-          $or: [
+           $or: [
+            {
+              status: "pending",
+              bookingMode: "instant",
+              offerExpiresAt: { $gt: now },
+            },
             { status: { $in: ["accepted", "in_progress"] } },
             {
               status: { $in: ["completed", "paid"] },

@@ -99,6 +99,12 @@ const ShiftPhoto = ({ label, url, onPreview }) => {
 
 const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
 const waitingPaymentStatuses = ["pending", "accepted", "in_progress"];
+const BOOKING_CHAT_AFTER_COMPLETION_MS = 3 * 60 * 60 * 1000;
+
+const getRemainingMinutes = (value, now) => {
+  if (!value) return 0;
+  return Math.max(0, Math.ceil((new Date(value).getTime() - now.getTime()) / 60000));
+};
 
 const CustomerBookingDetailPage = () => {
   const { id } = useParams();
@@ -114,6 +120,7 @@ const CustomerBookingDetailPage = () => {
   const [showHotline, setShowHotline] = useState(false);
 
   const booking = data?.booking;
+  const companionContact = data?.companionContact;
   const payosStatus = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
     return searchParams.get("payosStatus") || "";
@@ -148,6 +155,19 @@ const CustomerBookingDetailPage = () => {
   const payableAmount = Number(booking?.totalAmount || 0) + penaltyAmount;
   const canPay = booking?.status === "completed";
   const canReview = booking?.status === "paid";
+  const instantOfferActive = Boolean(
+    booking?.bookingMode === "instant" &&
+    booking?.status === "pending" &&
+    booking?.offerExpiresAt &&
+    new Date(booking.offerExpiresAt) > currentTime,
+  );
+  const completedChatActive = Boolean(
+    ["completed", "paid"].includes(booking?.status) &&
+    booking?.completedAt &&
+    new Date(booking.completedAt).getTime() + BOOKING_CHAT_AFTER_COMPLETION_MS > currentTime.getTime(),
+  );
+  const canOpenBookingChat = instantOfferActive || ["accepted", "in_progress"].includes(booking?.status) || completedChatActive;
+  const instantOfferRemainingMinutes = getRemainingMinutes(booking?.offerExpiresAt, currentTime);
   const isWaitingForPayment = waitingPaymentStatuses.includes(booking?.status);
   const paymentBadge = booking?.status === "paid"
     ? { label: "Đã thanh toán", className: "bg-emerald-50 text-emerald-700" }
@@ -166,17 +186,26 @@ const CustomerBookingDetailPage = () => {
         setLiveLocations((current) => appendLiveLocation(current, location));
       }
     };
+    const handleBookingChatState = (state) => {
+      if (String(state?.bookingId) === String(id)) {
+        reload();
+      }
+    };
 
     locationSocket.on("location:update", handleLocation);
+    locationSocket.on("booking-chat:state", handleBookingChatState);
 
     return () => {
       locationSocket.emit("booking:leave", { bookingId: id });
       locationSocket.off("location:update", handleLocation);
+      locationSocket.off("booking-chat:state", handleBookingChatState);
     };
-  }, [id]);
+  }, [id, reload]);
 
   useEffect(() => {
-    if (booking?.status !== "completed") return undefined;
+    if (booking?.status !== "completed" && !(booking?.bookingMode === "instant" && booking?.status === "pending")) {
+      return undefined;
+    }
 
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -185,7 +214,7 @@ const CustomerBookingDetailPage = () => {
     return () => {
       clearInterval(timer);
     };
-  }, [booking?.status]);
+  }, [booking?.bookingMode, booking?.status]);
 
   useEffect(() => {
     if (!isPayOSReturn && !isPayOSCancel) return undefined;
@@ -552,19 +581,43 @@ const CustomerBookingDetailPage = () => {
             <Card className="rounded-[32px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/10">
               <h2 className="text-2xl font-black">Hành động nhanh</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">Liên hệ khi cần hỗ trợ.</p>
+              {instantOfferActive ? (
+                <div className="mt-4 rounded-[18px] border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+                  Yêu cầu đặt ngay đang chờ phản hồi, còn khoảng {instantOfferRemainingMinutes} phút. Bạn có thể trao đổi qua box chat.
+                </div>
+              ) : null}
+              {booking.bookingMode === "instant" && booking.status === "pending" && !instantOfferActive ? (
+                <div className="mt-4 rounded-[18px] border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-600">
+                  Yêu cầu đặt ngay đã hết thời gian phản hồi. Bạn có thể hủy đơn và chọn người đồng hành khác.
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-3">
                 <Button
                   variant="secondary"
                   type="button"
                   onClick={() => setShowCompanionPhone((current) => !current)}
+                  disabled={!companionContact?.phone}
                 >
                   {showCompanionPhone
-                    ? booking.companionId?.phone || "Chưa cập nhật số điện thoại"
-                    : "Gọi người đồng hành"}
+                    ? companionContact?.phone || "Chưa cập nhật số điện thoại"
+                    : companionContact?.phone
+                      ? "Gọi người đồng hành"
+                      : "Số điện thoại mở sau khi nhận lịch"}
                 </Button>
                 <Button
                   variant="secondary"
                   type="button"
+                  disabled={!companionContact?.email}
+                  onClick={() => {
+                    if (companionContact?.email) window.location.href = `mailto:${companionContact.email}`;
+                  }}
+                >
+                  {companionContact?.email || "Email mở sau khi nhận lịch"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={!canOpenBookingChat}
                   onClick={() =>
                     window.dispatchEvent(
                       new CustomEvent("carego:open-booking-chat", {
@@ -573,7 +626,7 @@ const CustomerBookingDetailPage = () => {
                     )
                   }
                 >
-                  Nhắn tin
+                  {canOpenBookingChat ? "Nhắn tin qua CareGo" : "Box chat chưa khả dụng"}
                 </Button>
                 <Button
                   className="bg-[#12312f] text-white hover:bg-[#0b1f1d]"

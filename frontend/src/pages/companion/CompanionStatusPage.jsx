@@ -8,7 +8,11 @@ import { getUserHomePath, isApprovedCompanion } from "../../utils/authNavigation
 const statusCopy = {
   pending: {
     title: "Hồ sơ đang chờ duyệt",
-    description: "Admin đang kiểm tra hồ sơ người đồng hành của bạn. Khi được duyệt, bạn sẽ có thể nhận lịch chăm sóc và sử dụng các tính năng companion.",
+    description: "Admin đang kiểm tra hồ sơ người đồng hành của bạn. Khi được duyệt, hệ thống sẽ gửi tài khoản companion và mật khẩu tạm thời về email cá nhân của bạn.",
+  },
+  approved: {
+    title: "Hồ sơ đã được duyệt",
+    description: "Tài khoản companion đã được cấp. Vui lòng kiểm tra email cá nhân để lấy tên đăng nhập và mật khẩu tạm thời, sau đó đổi mật khẩu ở lần đăng nhập đầu tiên.",
   },
   rejected: {
     title: "Hồ sơ chưa được duyệt",
@@ -23,8 +27,10 @@ const statusCopy = {
 const CompanionStatusPage = () => {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
-  const vettingStatus = user?.companionProfile?.vettingStatus || "pending";
+  const application = user?.role === "customer" ? user?.companionApplication : user?.companionProfile;
+  const vettingStatus = application?.vettingStatus || "pending";
   const copy = statusCopy[vettingStatus] || statusCopy.pending;
+  const companionLoginEmail = application?.userId?.email || (user?.role === "companion" ? user?.email : "");
 
   useEffect(() => {
     if (!loading && isApprovedCompanion(user)) {
@@ -40,11 +46,24 @@ const CompanionStatusPage = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== "companion") {
+  if (user.mustChangePassword) {
+    return <Navigate to="/initial-password" replace />;
+  }
+
+  if (user.role !== "companion" && user.role !== "customer") {
     return <Navigate to={getUserHomePath(user)} replace />;
   }
 
-  const handleLogout = async () => {
+  if (!application) {
+    return <Navigate to={getUserHomePath(user)} replace />;
+  }
+
+  const handleHeaderAction = async () => {
+    if (user.role === "customer") {
+      navigate("/", { replace: true });
+      return;
+    }
+
     await logout();
     navigate("/login", { replace: true });
   };
@@ -54,8 +73,8 @@ const CompanionStatusPage = () => {
       <header className="border-b border-teal-900/10 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex h-20 w-[min(920px,92%)] items-center justify-between">
           <CareGoLogo subtitle="Người đồng hành" />
-          <Button type="button" variant="secondary" onClick={handleLogout}>
-            Đăng xuất
+          <Button type="button" variant="secondary" onClick={handleHeaderAction}>
+            {user.role === "customer" ? "Về trang chủ" : "Đăng xuất"}
           </Button>
         </div>
       </header>
@@ -68,19 +87,29 @@ const CompanionStatusPage = () => {
               <h1 className="mt-4 text-3xl font-black text-[#12312f]">{copy.title}</h1>
               <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">{copy.description}</p>
             </div>
-            <div className="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-800">
-              {user.email}
-            </div>
+            {companionLoginEmail ? (
+              <div className="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-800">
+                {companionLoginEmail}
+              </div>
+            ) : null}
           </div>
+
+          {user.role === "customer" ? (
+            <div className="mt-6 rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold leading-6 text-teal-800">
+              {companionLoginEmail
+                ? `Tài khoản companion đã cấp: ${companionLoginEmail}. Mật khẩu tạm thời đã được gửi về email cá nhân ${user.email}.`
+                : `Email cá nhân nhận tài khoản sau khi duyệt: ${user.email}.`}
+            </div>
+          ) : null}
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <p className="text-xs font-black uppercase text-slate-400">Tên hồ sơ</p>
-              <p className="mt-2 font-bold text-slate-900">{user.companionProfile?.fullName || user.name || "Chưa cập nhật"}</p>
+              <p className="mt-2 font-bold text-slate-900">{application?.fullName || user.name || "Chưa cập nhật"}</p>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <p className="text-xs font-black uppercase text-slate-400">Số điện thoại</p>
-              <p className="mt-2 font-bold text-slate-900">{user.companionProfile?.phone || user.phone || "Chưa cập nhật"}</p>
+              <p className="mt-2 font-bold text-slate-900">{application?.phone || user.phone || "Chưa cập nhật"}</p>
             </div>
           </div>
         </Card>

@@ -13,6 +13,7 @@ const normalizeUser = (data) => {
   return {
     ...data.user,
     companionProfile: data.user.companionProfile || data.companionProfile || null,
+    companionApplication: data.user.companionApplication || data.companionApplication || null,
   };
 };
 
@@ -52,14 +53,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const registerCompanion = useCallback(async (payload) => {
-    if (user) {
-      const data = await api.post("/companions/me/apply", payload);
-      const nextUser = normalizeUser(data);
-      setUser(nextUser);
-      return nextUser;
+    if (!user) {
+      throw new Error("Vui lòng đăng nhập bằng tài khoản customer trước khi đăng ký companion.");
     }
 
-    return api.post("/companions/register", payload);
+    const data = await api.post("/companions/me/apply", payload);
+    const nextUser = normalizeUser(data);
+    setUser(nextUser);
+    return nextUser;
   }, [user]);
 
   const updateProfile = async (payload) => {
@@ -75,6 +76,24 @@ export const AuthProvider = ({ children }) => {
     setUser(nextUser);
     return nextUser;
   };
+
+  const requestCompanionPhoneOtp = async (phone) => {
+    return api.post("/companions/me/phone-otp/request", { phone });
+  };
+
+  const verifyCompanionPhoneOtp = async (otp) => {
+    const data = await api.post("/companions/me/phone-otp/verify", { otp });
+    const nextUser = normalizeUser(data);
+    setUser(nextUser);
+    return nextUser;
+  };
+
+  const changeInitialPassword = useCallback(async (payload) => {
+    const data = await api.patch("/auth/current-user/initial-password", payload);
+    const nextUser = normalizeUser(data);
+    setUser(nextUser);
+    return nextUser;
+  }, []);
 
   const verifyEmail = async (payload) => {
     return api.post("/auth/verify-email", payload);
@@ -107,10 +126,17 @@ export const AuthProvider = ({ children }) => {
   }, [clearClientSession]);
 
   useEffect(() => {
-    if (!userId) return undefined;
+    if (!userId || user?.mustChangePassword) return undefined;
+
+    const markOnline = () => {
+      locationSocket.emit("user:online", { userId });
+    };
 
     connectLocationSocket();
-    locationSocket.emit("user:online", { userId });
+    if (locationSocket.connected) {
+      markOnline();
+    }
+    locationSocket.on("connect", markOnline);
 
     const heartbeat = setInterval(() => {
       locationSocket.emit("user:heartbeat", { userId });
@@ -125,6 +151,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       clearInterval(heartbeat);
       window.removeEventListener("beforeunload", markOffline);
+      locationSocket.off("connect", markOnline);
       locationSocket.emit("user:offline");
     };
   }, [user, userId]);
@@ -138,11 +165,14 @@ export const AuthProvider = ({ children }) => {
       registerCompanion,
       updateProfile,
       updateCompanionProfile,
+      requestCompanionPhoneOtp,
+      verifyCompanionPhoneOtp,
+      changeInitialPassword,
       verifyEmail,
       resendOtp,
       logout,
     }),
-    [user, loading, logout, registerCompanion],
+    [user, loading, logout, registerCompanion, changeInitialPassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

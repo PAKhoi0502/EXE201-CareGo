@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../../api/client.js";
 import AddressSearchMap from "../../components/AddressSearchMap.jsx";
-import { Button, Input, Select, Textarea } from "../../components/Ui.jsx";
+import { Button, Select, Textarea } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
@@ -73,12 +73,80 @@ const StatusPill = ({ children, tone = "green" }) => {
   return <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${tones[tone]}`}>{children}</span>;
 };
 
+const getCompanionUserId = (companion) => companion?.userId?._id || companion?.userId || "";
+
+const bookingStartHour = 7;
+const bookingEndHour = 19;
+const bookingLookaheadDays = 7;
+const maxBookingDurationHours = 6;
+
+const pad2 = (value) => String(value).padStart(2, "0");
+
+const toDateKey = (date) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+const buildStartTimeValue = (dateKey, hour) => `${dateKey}T${pad2(hour)}:00`;
+
+const getStartHourFromValue = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.getHours();
+};
+
+const buildInstantStartTimeValue = () => {
+  const start = new Date(Date.now() + 15 * 60 * 1000);
+  start.setSeconds(0, 0);
+  start.setMinutes(Math.ceil(start.getMinutes() / 5) * 5);
+  return start.toISOString();
+};
+
+const formatTimeValue = (value) =>
+  value
+    ? new Intl.DateTimeFormat("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+      }).format(new Date(value))
+    : "";
+
+const formatHourMinute = (value) =>
+  value
+    ? new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(new Date(value))
+    : "";
+
+const getMaxDurationForStart = (value) => {
+  const start = new Date(value);
+  if (Number.isNaN(start.getTime())) return 0;
+  const serviceEnd = new Date(start);
+  serviceEnd.setHours(bookingEndHour, 0, 0, 0);
+  return Math.max(0, Math.floor((serviceEnd.getTime() - start.getTime()) / (60 * 60 * 1000)));
+};
+
+const getDurationChoices = () => Array.from({ length: maxBookingDurationHours }, (_, index) => index + 1);
+
+const getSlotEndHour = (hour, durationHours) => hour + Number(durationHours || 0);
+
+const canFitDurationFromHour = (hour, durationHours) =>
+  Number(durationHours) > 0 && getSlotEndHour(hour, durationHours) <= bookingEndHour;
+
+const getDateOptions = () =>
+  Array.from({ length: bookingLookaheadDays }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() + index);
+    return {
+      value: toDateKey(date),
+      day: pad2(date.getDate()),
+      month: pad2(date.getMonth() + 1),
+      weekday: new Intl.DateTimeFormat("vi-VN", { weekday: "short" }).format(date),
+    };
+  });
+
 const NewBookingPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: elderData, loading: elderLoading } = useAsync(() => api.get("/elders/my"), []);
   const { data: serviceData, loading: serviceLoading } = useAsync(() => api.get("/services"), []);
-  const { data: companionData, loading: companionLoading } = useAsync(() => api.get("/companions"), []);
   const [onlineStatuses, setOnlineStatuses] = useState({});
   const [onlineLoading, setOnlineLoading] = useState(false);
   const [detailCompanion, setDetailCompanion] = useState(null);
@@ -94,28 +162,87 @@ const NewBookingPage = () => {
     address: "",
     addressLocation: null,
     note: "",
+    bookingMode: "scheduled",
   });
+  const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
   const [error, setError] = useState("");
+  const companionAvailabilityQuery = useMemo(() => {
+    if (!form.startTime || !form.durationHours) return "";
+    const params = new URLSearchParams({
+      startTime: form.startTime,
+      durationHours: String(Number(form.durationHours)),
+      bookingMode: form.bookingMode,
+    });
+    return `?${params.toString()}`;
+  }, [form.bookingMode, form.durationHours, form.startTime]);
+  const {
+    data: companionData,
+    loading: companionLoading,
+    error: companionError,
+  } = useAsync(
+    () => (companionAvailabilityQuery ? api.get(`/companions${companionAvailabilityQuery}`) : Promise.resolve({ companions: [] })),
+    [companionAvailabilityQuery],
+  );
 
   const elders = useMemo(() => elderData?.elders || [], [elderData?.elders]);
   const services = useMemo(() => serviceData?.services || [], [serviceData?.services]);
   const companions = useMemo(() => companionData?.companions || [], [companionData?.companions]);
   const currentUserId = user?.id || user?._id;
-  const onlineCompanions = useMemo(
-    () =>
-      companions.filter((item) => {
-        const companionUserId = item.userId?._id || item.userId;
-        return companionUserId !== currentUserId && onlineStatuses[companionUserId]?.isOnline;
-      }),
-    [companions, currentUserId, onlineStatuses],
+  const selectableCompanions = useMemo(
+    () => {
+      if (!companionAvailabilityQuery) return [];
+      return companions
+        .filter((item) => getCompanionUserId(item) !== currentUserId)
+        .filter((item) => form.bookingMode !== "instant" || onlineStatuses[getCompanionUserId(item)]?.isOnline)
+        .sort((first, second) => {
+          const firstOnline = onlineStatuses[getCompanionUserId(first)]?.isOnline ? 1 : 0;
+          const secondOnline = onlineStatuses[getCompanionUserId(second)]?.isOnline ? 1 : 0;
+          return secondOnline - firstOnline;
+        });
+    },
+    [companionAvailabilityQuery, companions, currentUserId, form.bookingMode, onlineStatuses],
   );
+  const getCompanionOnlineStatus = (companion) => onlineStatuses[getCompanionUserId(companion)] || null;
   const selectedService = useMemo(() => services.find((item) => item._id === form.serviceId), [services, form.serviceId]);
   const selectedElder = useMemo(() => elders.find((item) => item._id === form.elderProfileId), [elders, form.elderProfileId]);
   const selectedCompanion = useMemo(
-    () => companions.find((item) => item.userId?._id === form.companionId),
+    () => companions.find((item) => getCompanionUserId(item) === form.companionId),
     [companions, form.companionId],
   );
   const total = (selectedService?.pricePerHour || 0) * Number(form.durationHours || 0);
+  const detailCompanionOnlineStatus = detailCompanion ? getCompanionOnlineStatus(detailCompanion) : null;
+  const dateOptions = useMemo(() => getDateOptions(), []);
+  const durationChoices = useMemo(() => getDurationChoices(), []);
+  const selectedStartHour = getStartHourFromValue(form.startTime);
+  const startHourOptions = useMemo(() => {
+    const now = new Date();
+    const selectedDuration = Number(form.durationHours || 0);
+    return Array.from({ length: bookingEndHour - bookingStartHour }, (_, index) => {
+      const hour = bookingStartHour + index;
+      const endHour = getSlotEndHour(hour, selectedDuration);
+      const value = buildStartTimeValue(selectedDateKey, hour);
+      return {
+        hour,
+        endHour,
+        value,
+        label: `${pad2(hour)}:00 - ${pad2(endHour)}:00`,
+        disabled: new Date(value) <= now,
+      };
+    }).filter((slot) => canFitDurationFromHour(slot.hour, selectedDuration));
+  }, [form.durationHours, selectedDateKey]);
+  const scheduledSlotGroups = useMemo(
+    () =>
+      [
+        { key: "morning", label: "Buổi sáng 07:00 - 13:00", slots: startHourOptions.filter((slot) => slot.hour < 13) },
+        { key: "afternoon", label: "Buổi chiều 13:00 - 19:00", slots: startHourOptions.filter((slot) => slot.hour >= 13) },
+      ].filter((group) => group.slots.length > 0),
+    [startHourOptions],
+  );
+  const maxDuration = form.startTime ? getMaxDurationForStart(form.startTime) : 0;
+  const selectedEndHour = selectedStartHour === null ? null : selectedStartHour + Number(form.durationHours || 0);
+  const instantEndTime = form.bookingMode === "instant" && form.startTime && form.durationHours
+    ? new Date(new Date(form.startTime).getTime() + Number(form.durationHours) * 60 * 60 * 1000)
+    : null;
 
   useEffect(() => {
     let active = true;
@@ -145,23 +272,6 @@ const NewBookingPage = () => {
       clearInterval(timer);
     };
   }, []);
-
-  useEffect(() => {
-    if (!form.companionId) return undefined;
-    const status = onlineStatuses[form.companionId];
-    if (status && !status.isOnline) {
-      let active = true;
-      Promise.resolve().then(() => {
-        if (active) {
-          setForm((current) => ({ ...current, companionId: "" }));
-        }
-      });
-      return () => {
-        active = false;
-      };
-    }
-    return undefined;
-  }, [form.companionId, onlineStatuses]);
 
   useEffect(() => {
     if (!detailCompanion) return;
@@ -195,12 +305,71 @@ const NewBookingPage = () => {
     };
   }, [detailCompanion]);
 
+  const chooseDate = (dateKey) => {
+    setSelectedDateKey(dateKey);
+    setForm((current) => ({
+      ...current,
+      startTime: "",
+      companionId: "",
+    }));
+    setDetailCompanion(null);
+  };
+
+  const chooseBookingMode = (bookingMode) => {
+    const instantStartTime = bookingMode === "instant" ? buildInstantStartTimeValue() : "";
+    const instantMaxDuration = instantStartTime ? getMaxDurationForStart(instantStartTime) : 0;
+    setForm((current) => ({
+      ...current,
+      bookingMode,
+      startTime: instantStartTime,
+      durationHours: bookingMode === "instant"
+        ? instantMaxDuration > 0
+          ? Math.min(Number(current.durationHours || 1), Math.min(maxBookingDurationHours, instantMaxDuration))
+          : ""
+        : current.durationHours || 2,
+      companionId: "",
+    }));
+    setDetailCompanion(null);
+    setError("");
+  };
+
+  const chooseStartTime = (value, hour) => {
+    setForm((current) => ({
+      ...current,
+      startTime: value,
+      durationHours: Math.max(1, Math.min(Number(current.durationHours || 1), bookingEndHour - hour)),
+      companionId: "",
+    }));
+  };
+
+  const chooseDuration = (durationHours) => {
+    const nextDuration = Number(durationHours);
+    setForm((current) => ({
+      ...current,
+      startTime: selectedStartHour !== null && !canFitDurationFromHour(selectedStartHour, nextDuration) ? "" : current.startTime,
+      durationHours: nextDuration,
+      companionId: "",
+    }));
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     setError("");
     if (!form.addressLocation?.lat || !form.addressLocation?.lng) {
       setError("Vui lòng tìm địa chỉ trên bản đồ hoặc bấm vào bản đồ để ghim vị trí trước khi đặt lịch.");
       return;
+    }
+    if (form.bookingMode === "instant") {
+      const leadMinutes = (new Date(form.startTime).getTime() - Date.now()) / 60000;
+      if (leadMinutes < 5 || leadMinutes > 30) {
+        setForm((current) => ({
+          ...current,
+          startTime: buildInstantStartTimeValue(),
+          companionId: "",
+        }));
+        setError("Thời gian đặt ngay đã được cập nhật. Vui lòng chọn lại người đồng hành.");
+        return;
+      }
     }
 
     try {
@@ -300,23 +469,135 @@ const NewBookingPage = () => {
                   </option>
                 ))}
               </Select>
-              <Input
-                label="Thời gian bắt đầu"
-                type="datetime-local"
-                value={form.startTime}
-                onChange={(event) => setForm({ ...form, startTime: event.target.value })}
-                required
-                className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
-              />
-              <Input
-                label="Số giờ"
-                type="number"
-                min="1"
-                value={form.durationHours}
-                onChange={(event) => setForm({ ...form, durationHours: event.target.value })}
-                required
-                className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
-              />
+              <div className="grid gap-4 md:col-span-2">
+                <div>
+                  <span className="mb-2 block text-sm font-bold text-slate-700">Hình thức đặt lịch</span>
+                  <div className="grid grid-cols-2 rounded-[18px] border border-teal-100 bg-teal-50/60 p-1">
+                    <button
+                      type="button"
+                      onClick={() => chooseBookingMode("scheduled")}
+                      className={`min-h-11 rounded-[14px] px-4 text-sm font-black transition ${
+                        form.bookingMode === "scheduled" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500"
+                      }`}
+                    >
+                      Đặt theo lịch
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => chooseBookingMode("instant")}
+                      className={`min-h-11 rounded-[14px] px-4 text-sm font-black transition ${
+                        form.bookingMode === "instant" ? "bg-teal-700 text-white shadow-sm" : "text-slate-500"
+                      }`}
+                    >
+                      Đặt ngay
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <span className="mb-2 block text-sm font-bold text-slate-700">Thời lượng</span>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                    {durationChoices.map((duration) => {
+                      const active = Number(form.durationHours) === duration;
+                      const disabled = form.bookingMode === "instant" && (maxDuration === 0 || duration > maxDuration);
+                      return (
+                        <button
+                          key={duration}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => chooseDuration(duration)}
+                          className={`min-h-11 rounded-[16px] border px-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                            active
+                              ? "border-teal-700 bg-teal-700 text-white shadow-lg shadow-teal-900/15"
+                              : "border-teal-100 bg-[#fbfffe] text-slate-700 hover:border-teal-500"
+                          }`}
+                        >
+                          {duration} giờ
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {form.bookingMode === "scheduled" ? (
+                  <>
+                    <div>
+                      <span className="mb-2 block text-sm font-bold text-slate-700">Chọn ngày trong 7 ngày tới</span>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                        {dateOptions.map((day) => {
+                          const active = selectedDateKey === day.value;
+                          return (
+                            <button
+                              key={day.value}
+                              type="button"
+                              onClick={() => chooseDate(day.value)}
+                              className={`rounded-[18px] border px-3 py-3 text-left transition ${
+                                active
+                                  ? "border-teal-700 bg-teal-700 text-white shadow-lg shadow-teal-900/15"
+                                  : "border-teal-100 bg-[#fbfffe] text-slate-700 hover:border-teal-500"
+                              }`}
+                            >
+                              <span className="block text-xs font-bold uppercase opacity-75">{day.weekday}</span>
+                              <span className="mt-1 block text-xl font-black">{day.day}</span>
+                              <span className="block text-xs opacity-75">Tháng {day.month}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="mb-2 block text-sm font-bold text-slate-700">Chọn khung giờ</span>
+                      <div className="grid gap-3">
+                        {scheduledSlotGroups.map((group) => (
+                          <div key={group.key}>
+                            <span className="mb-2 block text-xs font-black uppercase text-slate-400">{group.label}</span>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                              {group.slots.map((slot) => {
+                                const active = form.startTime === slot.value;
+                                return (
+                                  <button
+                                    key={slot.value}
+                                    type="button"
+                                    disabled={slot.disabled}
+                                    onClick={() => chooseStartTime(slot.value, slot.hour)}
+                                    className={`rounded-[18px] border px-3 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                                      active
+                                        ? "border-teal-700 bg-teal-700 text-white shadow-lg shadow-teal-900/15"
+                                        : "border-teal-100 bg-[#fbfffe] text-slate-700 hover:border-teal-500"
+                                    }`}
+                                  >
+                                    {slot.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-4">
+                    <small className="block text-xs font-black uppercase text-emerald-700">Dự kiến bắt đầu</small>
+                    <strong className="mt-1 block text-xl font-black text-[#12312f]">
+                      {maxDuration > 0 ? formatTimeValue(form.startTime) : "Ngoài giờ phục vụ"}
+                    </strong>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Chỉ người đồng hành đang online, đúng ca và không trùng lịch được hiển thị. Yêu cầu có hiệu lực trong 5 phút.
+                    </p>
+                  </div>
+                )}
+                <div className="rounded-[18px] border border-teal-50 bg-teal-50/60 p-4">
+                  <small className="block text-xs font-bold uppercase text-slate-400">Khung giờ đã chọn</small>
+                  <strong className="mt-1 block text-lg font-black text-teal-700">
+                    {selectedStartHour === null || !form.durationHours
+                      ? form.bookingMode === "instant" && maxDuration === 0
+                        ? "Ngoài giờ phục vụ"
+                        : "Chưa chọn giờ"
+                      : form.bookingMode === "instant"
+                        ? `${formatHourMinute(form.startTime)} - ${formatHourMinute(instantEndTime)}`
+                        : `${pad2(selectedStartHour)}:00 - ${pad2(selectedEndHour)}:00`}
+                  </strong>
+                </div>
+              </div>
               <div className="rounded-[18px] border border-teal-50 bg-teal-50/60 p-4">
                 <small className="block text-xs font-bold uppercase text-slate-400">Tạm tính</small>
                 <strong className="mt-1 block text-2xl font-black text-teal-700">{money(total)}</strong>
@@ -347,76 +628,88 @@ const NewBookingPage = () => {
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-2xl font-black">Chọn người đồng hành</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Sau khi chọn người đồng hành, nhấn xác nhận để tạo đơn.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  {form.bookingMode === "instant"
+                    ? "Chọn người đang online để gửi yêu cầu phản hồi trong 5 phút."
+                    : "Sau khi chọn người đồng hành, nhấn xác nhận để tạo đơn."}
+                </p>
               </div>
               <StatusPill>Gợi ý phù hợp</StatusPill>
             </div>
 
             {companionLoading ? <p className="text-sm text-slate-500">Đang tải người đồng hành...</p> : null}
+            {companionError ? <p className="text-sm font-semibold text-rose-600">{companionError}</p> : null}
             {!companionLoading && onlineLoading ? (
               <p className="text-sm text-slate-500">Đang cập nhật trạng thái online...</p>
             ) : null}
-            {!companionLoading && !onlineLoading && onlineCompanions.length === 0 ? (
+            {!companionLoading && !onlineLoading && selectableCompanions.length === 0 ? (
               <p className="text-sm text-slate-500">
-                Hiện chưa có người đồng hành online. Vui lòng quay lại sau ít phút.
+                {form.bookingMode === "instant"
+                  ? maxDuration === 0
+                    ? "Hiện đã ngoài thời gian có thể bắt đầu và hoàn thành ca trước 19:00."
+                    : "Hiện chưa có người đồng hành online phù hợp để nhận ngay."
+                  : form.startTime
+                    ? "Hiện chưa có người đồng hành phù hợp trong khung giờ này."
+                    : "Chọn ngày và giờ để hệ thống lọc người đồng hành phù hợp."}
               </p>
             ) : null}
-            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-              {onlineCompanions.map((item) => {
-                const companionUserId = item.userId?._id;
+            <div className="grid max-h-[36rem] gap-3 overflow-y-auto pr-1 md:grid-cols-2 2xl:grid-cols-3">
+              {selectableCompanions.map((item) => {
+                const companionUserId = getCompanionUserId(item);
+                const onlineStatus = getCompanionOnlineStatus(item);
                 const active = form.companionId === companionUserId;
                 const ratingAverage = Number(item.ratingAverage || 0);
                 const ratingCount = Number(item.ratingCount || 0);
                 return (
-                  <div
+                  <article
                     key={item._id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setForm((current) => ({ ...current, companionId: companionUserId }))}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setForm((current) => ({ ...current, companionId: companionUserId }));
-                      }
-                    }}
-                    className={`rounded-[24px] border bg-[#fbfffe] p-5 text-left transition hover:-translate-y-1 hover:border-teal-600 hover:bg-gradient-to-b hover:from-white hover:to-teal-50 hover:shadow-lg hover:shadow-teal-900/10 ${active ? "border-teal-700 bg-gradient-to-b from-white to-teal-50 shadow-lg shadow-teal-900/10" : "border-teal-50"
+                    className={`relative flex flex-col overflow-hidden rounded-[18px] border bg-[#fbfffe] transition ${active ? "border-teal-700 bg-teal-50/70 shadow-sm shadow-teal-900/10" : "border-teal-100"
                       }`}
                   >
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[19px] bg-gradient-to-br from-teal-100 to-sky-100 text-base font-black text-teal-700">
-                        {initials(item.fullName)}
+                    <button
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setForm((current) => ({ ...current, companionId: companionUserId }))}
+                      className="min-w-0 flex-1 p-4 text-left transition hover:bg-teal-50/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-gradient-to-br from-teal-100 to-sky-100 text-sm font-black text-teal-700">
+                          {initials(item.fullName)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="break-words text-base font-black leading-snug text-[#12312f]">{item.fullName}</h3>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-black">{item.fullName}</h3>
-                        <small className="text-slate-500">{item.major || "Người đồng hành"}</small>
-                      </div>
-                    </div>
-                    <p className="mb-3 text-sm font-black text-amber-500">
-                      {ratingCount > 0
-                        ? `${ratingAverage.toFixed(1)}/5 (${ratingCount} đánh giá)`
-                        : "Chưa có đánh giá"}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {(item.skills || []).slice(0, 4).map((skill) => (
-                        <span key={skill} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-teal-700">
-                          {skill}
+                      <div className="mt-3 flex min-h-6 flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-600">
+                          {ratingCount > 0 ? `${ratingAverage.toFixed(1)}/5` : "Chưa có đánh giá"}
                         </span>
-                      ))}
-                    </div>
-                    <div className="mt-4">
+                        {ratingCount > 0 ? (
+                          <span className="text-xs font-semibold text-slate-500">{ratingCount} đánh giá</span>
+                        ) : null}
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-black ${
+                            onlineStatus?.isOnline ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {onlineStatus?.isOnline ? "Online" : "Offline"}
+                        </span>
+                      </div>
+                    </button>
+                    <div className={`flex items-center gap-2 border-t border-teal-100 px-3 py-2 ${active ? "justify-between" : "justify-end"}`}>
+                      {active ? (
+                        <span className="shrink-0 rounded-full bg-teal-700 px-3 py-1 text-xs font-black text-white">Đã chọn</span>
+                      ) : null}
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-9 px-3 text-xs"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setDetailCompanion(item);
-                        }}
+                        className="min-h-9 shrink-0 rounded-full px-4 text-xs"
+                        onClick={() => setDetailCompanion(item)}
                       >
-                        Xem chi tiết
+                        Chi tiết
                       </Button>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
             </div>
@@ -469,10 +762,14 @@ const NewBookingPage = () => {
                 <span>Phí dịch vụ</span>
                 <strong className="text-[#12312f]">{money(total)}</strong>
               </div>
-              <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
-                <span>Địa điểm</span>
-                <strong className="text-[#12312f]">{form.addressLocation ? "Đã ghim" : "Chưa ghim"}</strong>
-              </div>
+                <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
+                  <span>Địa điểm</span>
+                  <strong className="text-[#12312f]">{form.addressLocation ? "Đã ghim" : "Chưa ghim"}</strong>
+                </div>
+                <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
+                  <span>Hình thức</span>
+                  <strong className="text-[#12312f]">{form.bookingMode === "instant" ? "Đặt ngay" : "Theo lịch"}</strong>
+                </div>
               <div className="flex justify-between gap-3 text-2xl font-black">
                 <span>Tổng</span>
                 <span>{money(total)}</span>
@@ -481,8 +778,11 @@ const NewBookingPage = () => {
 
             {error ? <p className="mb-4 rounded-[18px] border border-rose-100 bg-rose-50 p-3 text-sm font-semibold text-rose-600">{error}</p> : null}
 
-            <Button className="min-h-12 w-full rounded-[18px] text-base" disabled={!form.elderProfileId || !form.serviceId || !form.companionId}>
-              Xác nhận đặt lịch
+            <Button
+              className="min-h-12 w-full rounded-[18px] text-base"
+              disabled={!form.elderProfileId || !form.serviceId || !form.startTime || !form.durationHours || !form.companionId}
+            >
+              {form.bookingMode === "instant" ? "Gửi yêu cầu đặt ngay" : "Xác nhận đặt lịch"}
             </Button>
           </div>
         </aside>
@@ -513,7 +813,13 @@ const NewBookingPage = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap gap-2">
                     <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black">Hồ sơ đã xác thực</span>
-                    <span className="rounded-full bg-emerald-300/20 px-3 py-1 text-xs font-black text-emerald-50">Đang online</span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-black ${
+                        detailCompanionOnlineStatus?.isOnline ? "bg-emerald-300/20 text-emerald-50" : "bg-white/15 text-white/75"
+                      }`}
+                    >
+                      {detailCompanionOnlineStatus?.isOnline ? "Online" : "Offline"}
+                    </span>
                   </div>
                   <h2 className="mt-3 text-3xl font-black">{detailCompanion.fullName}</h2>
                   <p className="mt-2 text-sm font-semibold text-white/75">
@@ -545,8 +851,7 @@ const NewBookingPage = () => {
                         ["Chuyên ngành", detailCompanion.major || "Chưa cập nhật"],
                         ["Trường học", detailCompanion.university || "Chưa cập nhật"],
                         ["Khu vực hoạt động", detailCompanion.serviceArea || detailCompanion.area || "Chưa cập nhật"],
-                        ["Số điện thoại", detailCompanion.phone || detailCompanion.userId?.phone || "Chưa cập nhật"],
-                        ["Email", detailCompanion.userId?.email || "Chưa cập nhật"],
+                        ["Liên hệ", "Mở sau khi người đồng hành nhận lịch"],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                           <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
