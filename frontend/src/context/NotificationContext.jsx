@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "./AuthContext.jsx";
-import { locationSocket } from "../socket/locationSocket.js";
+import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
 
 const NotificationContext = createContext(null);
 const NOTIFICATION_LIMIT = 20;
@@ -25,7 +25,7 @@ export const NotificationProvider = ({ children }) => {
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async ({ silent = false } = {}) => {
     if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
@@ -33,7 +33,9 @@ export const NotificationProvider = ({ children }) => {
       return;
     }
 
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     setError("");
     try {
       const data = await api.get(`/notifications?limit=${NOTIFICATION_LIMIT}`);
@@ -42,7 +44,9 @@ export const NotificationProvider = ({ children }) => {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [userId]);
 
@@ -65,11 +69,31 @@ export const NotificationProvider = ({ children }) => {
       setToast(notification);
     };
 
+    const reconcileNotifications = () => {
+      reload({ silent: true });
+    };
+
+    const reconcileWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        reconcileNotifications();
+      }
+    };
+
     locationSocket.on("notification:new", handleNewNotification);
+    locationSocket.on("connect", reconcileNotifications);
+    window.addEventListener("focus", reconcileNotifications);
+    document.addEventListener("visibilitychange", reconcileWhenVisible);
+    connectLocationSocket();
+    const reconciliationTimer = window.setInterval(reconcileNotifications, 15000);
+
     return () => {
       locationSocket.off("notification:new", handleNewNotification);
+      locationSocket.off("connect", reconcileNotifications);
+      window.removeEventListener("focus", reconcileNotifications);
+      document.removeEventListener("visibilitychange", reconcileWhenVisible);
+      window.clearInterval(reconciliationTimer);
     };
-  }, [userId]);
+  }, [reload, userId]);
 
   useEffect(() => {
     if (!toast) return undefined;

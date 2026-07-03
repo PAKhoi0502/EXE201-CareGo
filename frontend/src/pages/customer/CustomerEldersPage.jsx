@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api/client.js";
 import { useAsync } from "../../hooks/useAsync.js";
+import ConsentChecklist from "../../components/legal/ConsentChecklist.jsx";
 
 const emptyForm = {
   fullName: "",
@@ -12,6 +13,7 @@ const emptyForm = {
   emergencyName: "",
   emergencyPhone: "",
   emergencyRelationship: "",
+  legalAcceptances: [],
 };
 
 const genderLabels = {
@@ -30,6 +32,7 @@ const toForm = (elder) => ({
   emergencyName: elder.emergencyContact?.name || "",
   emergencyPhone: elder.emergencyContact?.phone || "",
   emergencyRelationship: elder.emergencyContact?.relationship || "",
+  legalAcceptances: [],
 });
 
 const toPayload = (form) => ({
@@ -113,6 +116,10 @@ const CustomerEldersPage = () => {
     event.preventDefault();
     setSubmitError("");
     setDeleteError("");
+    if (!editingId && (!form.legalAcceptances.length || form.legalAcceptances.some((item) => !item.accepted))) {
+      setSubmitError("Vui lòng xác nhận quyền cung cấp dữ liệu người thân và chính sách dữ liệu cá nhân.");
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -120,7 +127,7 @@ const CustomerEldersPage = () => {
       if (editingId) {
         await api.put(`/elders/${editingId}`, payload);
       } else {
-        await api.post("/elders", payload);
+        await api.post("/elders", { ...payload, legalAcceptances: form.legalAcceptances });
       }
       resetForm();
       await reload();
@@ -315,6 +322,13 @@ const CustomerEldersPage = () => {
                 </Field>
               </div>
             </section>
+
+            {!editingId ? (
+              <ConsentChecklist
+                flow="ELDER_PROFILE_CREATE"
+                onChange={(legalAcceptances) => setForm((current) => ({ ...current, legalAcceptances }))}
+              />
+            ) : null}
 
             {submitError ? (
               <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">

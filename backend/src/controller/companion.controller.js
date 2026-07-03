@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import crypto from "node:crypto";
+import mongoose from "mongoose";
 import Booking from "../models/booking.models.js";
 import CompanionProfile from "../models/companion-profile.models.js";
 import Review from "../models/review.models.js";
@@ -7,6 +8,7 @@ import User from "../models/user.models.js";
 import { sendCompanionAccountEmail } from "../utils/email.js";
 import { disconnectUserSockets, getUserOnlineStatuses } from "../socket/location.socket.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
+import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
 import {
   getBookingEndTime,
   isTimeOverlapped,
@@ -437,6 +439,62 @@ export const getCompanionReviews = async (req, res) => {
   }
 };
 
+export const getMyCompanionReviews = async (req, res) => {
+  try {
+    const companionId = new mongoose.Types.ObjectId(String(getRequestUserId(req)));
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 20);
+    const skip = (page - 1) * limit;
+
+    const [reviews, total, ratingRows] = await Promise.all([
+      Review.find({ companionId })
+        .populate("customerId", "name avatar")
+        .populate({
+          path: "bookingId",
+          select: "startTime serviceId",
+          populate: { path: "serviceId", select: "name code" },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Review.countDocuments({ companionId }),
+      Review.aggregate([
+        { $match: { companionId } },
+        {
+          $group: {
+            _id: "$companionId",
+            ratingTotal: { $sum: "$rating" },
+            ratingCount: { $sum: 1 },
+            ratingAverage: { $avg: "$rating" },
+          },
+        },
+      ]),
+    ]);
+    const ratingStats = ratingRows[0] || {};
+
+    return res.status(200).json({
+      reviews,
+      summary: {
+        ratingAverage: ratingStats.ratingCount
+          ? Math.round(Number(ratingStats.ratingAverage) * 10) / 10
+          : 0,
+        ratingCount: Number(ratingStats.ratingCount || 0),
+        ratingTotal: Number(ratingStats.ratingTotal || 0),
+      },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+  }
+};
+
 export const applyForCompanion = async (req, res) => {
   try {
     const userId = getRequestUserId(req);
@@ -480,6 +538,15 @@ export const applyForCompanion = async (req, res) => {
       return res.status(400).json(buildApprovalDocumentError(missingDocuments));
     }
 
+    const consentValidation = validateLegalAcceptances({
+      acceptances: req.body.legalAcceptances,
+      flow: "COMPANION_APPLICATION",
+      req,
+    });
+    if (consentValidation.error) {
+      return res.status(400).json({ message: consentValidation.error, code: "LEGAL_ACCEPTANCE_REQUIRED" });
+    }
+
     const companionProfile = await CompanionProfile.create({
       applicantCustomerId: userId,
       fullName: cleanFullName,
@@ -494,6 +561,18 @@ export const applyForCompanion = async (req, res) => {
       workingShift: normalizeWorkingShift(workingShift),
       vettingStatus: "pending",
     });
+
+    try {
+      await saveConsentReceipts({
+        userId,
+        acceptances: consentValidation.acceptances,
+        contextType: "companionProfile",
+        contextId: companionProfile._id,
+      });
+    } catch (consentError) {
+      await CompanionProfile.deleteOne({ _id: companionProfile._id });
+      throw consentError;
+    }
 
     const user = await User.findById(userId).select("-password -refreshToken -__V");
     const companionApplication = companionProfile.toObject();

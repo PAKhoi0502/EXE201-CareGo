@@ -49,6 +49,7 @@ const NotificationBell = () => {
     markAsRead,
     markAllAsRead,
     clearToast,
+    reload,
   } = useNotifications();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -92,6 +93,14 @@ const NotificationBell = () => {
     }
   };
 
+  const toggleNotifications = () => {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    if (nextOpen) {
+      reload({ silent: true });
+    }
+  };
+
   return (
     <>
       <div ref={wrapperRef} className="relative">
@@ -99,7 +108,7 @@ const NotificationBell = () => {
           type="button"
           aria-label="Thông báo"
           aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
+          onClick={toggleNotifications}
           className="relative grid h-12 w-12 place-items-center rounded-full border border-teal-100 bg-white text-teal-700 shadow-lg shadow-teal-900/5 transition hover:border-teal-300 hover:bg-teal-50"
         >
           <BellIcon />

@@ -39,6 +39,7 @@ const CustomerServicesPage = lazy(() => import("./pages/customer/CustomerService
 const NewBookingPage = lazy(() => import("./pages/customer/NewBookingPage.jsx"));
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const SupportPage = lazy(() => import("./pages/support/SupportPage.jsx"));
+const LegalDocumentPage = lazy(() => import("./pages/legal/LegalDocumentPage.jsx"));
 
 const LoadingFallback = () => <div className="p-6 text-sm text-slate-500">Đang tải...</div>;
 
@@ -101,6 +102,7 @@ const App = () => (
       <Route path="/" element={<HomeRoute />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogDetailPage />} />
+      <Route path="/legal/:slug" element={<LegalDocumentPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/initial-password" element={<InitialPasswordPage />} />

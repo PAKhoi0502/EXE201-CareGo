@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { Button, Input } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AuthShell from "./AuthShell.jsx";
+import ConsentChecklist from "../../components/legal/ConsentChecklist.jsx";
 
 const RegisterPage = () => {
   const { registerCustomer } = useAuth();
@@ -13,6 +14,7 @@ const RegisterPage = () => {
     phone: "",
     password: "",
     confirmPassword: "",
+    legalAcceptances: [],
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -26,6 +28,10 @@ const RegisterPage = () => {
       setError("Mật khẩu xác nhận không khớp");
       return;
     }
+    if (!form.legalAcceptances.length || form.legalAcceptances.some((item) => !item.accepted)) {
+      setError("Vui lòng đọc và đồng ý với đầy đủ điều khoản bắt buộc.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -34,6 +40,7 @@ const RegisterPage = () => {
         email: form.email,
         phone: form.phone,
         password: form.password,
+        legalAcceptances: form.legalAcceptances,
       });
       navigate("/verify-email", {
         state: { email: form.email, password: form.password, role: "customer" },
@@ -100,6 +107,10 @@ const RegisterPage = () => {
         <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold leading-6 text-teal-800">
           Sau khi đăng ký, CareGo sẽ gửi mã OTP về email để xác thực tài khoản trước khi đặt lịch.
         </div>
+        <ConsentChecklist
+          flow="CUSTOMER_SIGNUP"
+          onChange={(legalAcceptances) => setForm((current) => ({ ...current, legalAcceptances }))}
+        />
         {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
         <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
           {submitting ? "Đang gửi OTP..." : "Đăng ký"}

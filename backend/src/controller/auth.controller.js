@@ -9,6 +9,7 @@ import User from "../models/user.models.js";
 import { sendOtpEmail, sendPasswordResetEmail } from "../utils/email.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
 import { createCustomerWelcomeNotification } from "../utils/notifications.js";
+import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -94,6 +95,14 @@ export const signupController = async (req, res) => {
         message: "Vui lòng nhập đầy đủ họ tên, email và mật khẩu.",
       });
     }
+    const consentValidation = validateLegalAcceptances({
+      acceptances: req.body.legalAcceptances,
+      flow: "CUSTOMER_SIGNUP",
+      req,
+    });
+    if (consentValidation.error) {
+      return res.status(400).json({ message: consentValidation.error, code: "LEGAL_ACCEPTANCE_REQUIRED" });
+    }
     // kiểm tra email đã tòn tại trong db chưa
     const normalizedEmail = email.toLowerCase().trim();
     const existingUser = await User.findOne({ email: normalizedEmail });
@@ -115,6 +124,7 @@ export const signupController = async (req, res) => {
         phone: phone || "",
         password: hashedPassword,
         role: "customer",
+        legalAcceptances: consentValidation.acceptances,
         emailOtpHash: otpPayload.emailOtpHash,
         emailOtpExpires: otpPayload.emailOtpExpires,
         expiresAt: new Date(Date.now() + PENDING_REGISTER_EXPIRES_IN_MS),
@@ -236,6 +246,13 @@ export const verifyEmailOtpController = async (req, res) => {
         return res.status(400).json({ message: "Mã OTP không đúng." });
       }
 
+      if (!pending.legalAcceptances?.length) {
+        return res.status(409).json({
+          message: "Điều khoản đăng ký đã thay đổi. Vui lòng quay lại đăng ký và xác nhận phiên bản hiện tại.",
+          code: "LEGAL_ACCEPTANCE_REQUIRED",
+        });
+      }
+
       const createdUser = await User.create({
         name: pending.name,
         email: pending.email,
@@ -245,6 +262,16 @@ export const verifyEmailOtpController = async (req, res) => {
         role: pending.role,
         isEmailVerified: true,
       });
+
+      try {
+        await saveConsentReceipts({
+          userId: createdUser._id,
+          acceptances: pending.legalAcceptances.map((acceptance) => acceptance.toObject?.() || acceptance),
+        });
+      } catch (consentError) {
+        await User.deleteOne({ _id: createdUser._id });
+        throw consentError;
+      }
 
       if (pending.role === "companion" && pending.companionProfile) {
         await CompanionProfile.create({

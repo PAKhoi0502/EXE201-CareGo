@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { uploadImage } from "../../api/client.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, uploadImage } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Button, Card, Input, PageHeader, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import { dateTime } from "../../utils/format.js";
@@ -78,11 +78,35 @@ const CompanionProfilePage = () => {
   const [phoneOtpMock, setPhoneOtpMock] = useState("");
   const [phoneOtpError, setPhoneOtpError] = useState("");
   const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState({ ratingAverage: 0, ratingCount: 0 });
+  const [reviewPagination, setReviewPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
   const avatarInputRef = useRef(null);
 
   const displayName = profile?.fullName || user?.name || "Người đồng hành";
   const phone = profile?.phone || user?.phone || "";
   const phoneVerified = Boolean(profile?.phoneVerifiedAt);
+
+  const loadReviewPage = useCallback(async (page = 1, append = false) => {
+    setReviewsLoading(true);
+    setReviewsError("");
+    try {
+      const data = await api.get(`/companions/me/reviews?page=${page}&limit=10`);
+      setReviews((current) => append ? [...current, ...(data.reviews || [])] : data.reviews || []);
+      setReviewSummary(data.summary || { ratingAverage: 0, ratingCount: 0 });
+      setReviewPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
+    } catch (error) {
+      setReviewsError(error.message);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    Promise.resolve().then(() => loadReviewPage());
+  }, [loadReviewPage]);
 
   const startEdit = () => {
     setForm(toForm(user, profile));
@@ -405,6 +429,106 @@ const CompanionProfilePage = () => {
           )}
         </Card>
       </div>
+
+      <Card className="border-amber-100 bg-white/95 p-6 shadow-xl shadow-amber-900/10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-amber-600">Phản hồi sau dịch vụ</p>
+            <h2 className="mt-1 text-2xl font-black text-[#12312f]">Đánh giá từ khách hàng</h2>
+            <p className="mt-2 text-sm text-slate-500">Theo dõi nhận xét khách hàng đã gửi sau những booking được thanh toán.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:min-w-72">
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-center">
+              <p className="text-2xl font-black text-amber-700">{Number(reviewSummary.ratingAverage || 0).toFixed(1)} / 5</p>
+              <p className="mt-1 text-xs font-bold text-amber-700/70">Điểm trung bình</p>
+            </div>
+            <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-center">
+              <p className="text-2xl font-black text-teal-700">{reviewSummary.ratingCount || 0}</p>
+              <p className="mt-1 text-xs font-bold text-teal-700/70">Lượt đánh giá</p>
+            </div>
+          </div>
+        </div>
+
+        {reviewsError ? (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-semibold text-rose-600">
+            <span>{reviewsError}</span>
+            <Button type="button" variant="secondary" onClick={() => loadReviewPage()} disabled={reviewsLoading}>
+              Thử lại
+            </Button>
+          </div>
+        ) : null}
+
+        {!reviewsError && reviewsLoading && reviews.length === 0 ? (
+          <div className="mt-5 rounded-2xl border border-dashed border-amber-200 p-6 text-center text-sm font-bold text-slate-400">
+            Đang tải đánh giá...
+          </div>
+        ) : null}
+
+        {!reviewsError && !reviewsLoading && reviews.length === 0 ? (
+          <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+            <p className="font-black text-slate-700">Chưa có đánh giá</p>
+            <p className="mt-1 text-sm text-slate-500">Đánh giá sẽ xuất hiện sau khi khách hàng thanh toán và gửi phản hồi.</p>
+          </div>
+        ) : null}
+
+        {reviews.length > 0 ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {reviews.map((review) => (
+              <article key={review._id} className="rounded-[22px] border border-slate-100 bg-[#fbfffe] p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-100 to-sky-100 text-sm font-black text-teal-700">
+                      {getInitials(review.customerId?.name || "Khách hàng")}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-black text-slate-900">{review.customerId?.name || "Khách hàng"}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-400">
+                        {review.createdAt ? dateTime(review.createdAt) : "Chưa có thời gian"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700">
+                    {review.rating} / 5
+                  </span>
+                </div>
+
+                {review.bookingId?.serviceId?.name ? (
+                  <p className="mt-4 text-xs font-black uppercase tracking-wide text-teal-700">
+                    {review.bookingId.serviceId.name}
+                  </p>
+                ) : null}
+
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {review.comment || "Khách hàng không để lại nhận xét."}
+                </p>
+
+                {review.tags?.length ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {review.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-100">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : null}
+
+        {reviewPagination.page < reviewPagination.totalPages ? (
+          <div className="mt-5 flex justify-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => loadReviewPage(reviewPagination.page + 1, true)}
+              disabled={reviewsLoading}
+            >
+              {reviewsLoading ? "Đang tải..." : `Xem thêm (${reviews.length}/${reviewPagination.total})`}
+            </Button>
+          </div>
+        ) : null}
+      </Card>
     </div>
   );
 };

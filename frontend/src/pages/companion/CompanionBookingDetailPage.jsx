@@ -39,6 +39,12 @@ const statusCopy = {
     desc: "Tiền ca làm đã được ghi nhận vào lịch sử thu nhập của người đồng hành.",
     state: "Đã thanh toán",
   },
+  cancelled: {
+    badge: "Booking đã hủy",
+    title: "Ca làm không còn hiệu lực",
+    desc: "Booking đã bị hủy hoặc từ chối. Bạn không thể mở chỉ đường hay tiếp tục thao tác ca làm này.",
+    state: "Đã hủy",
+  },
 };
 
 const flowSteps = [
@@ -143,6 +149,7 @@ const CompanionBookingDetailPage = () => {
   const isChecklistDone = !hasChecklist || checklist.every((item) => item.done);
   const canEditRealtimeNote = booking?.status === "in_progress" && isChecklistDone;
   const canTrackLiveLocation = ["accepted", "in_progress"].includes(booking?.status);
+  const canOpenDirections = canTrackLiveLocation && Boolean(serviceLocation || booking?.address?.trim());
   const isInstantPending = booking?.bookingMode === "instant" && booking?.status === "pending";
   const instantOfferRemainingMinutes = isInstantPending && booking?.offerExpiresAt
     ? Math.max(0, Math.ceil((new Date(booking.offerExpiresAt).getTime() - currentTime.getTime()) / 60000))
@@ -695,7 +702,7 @@ const CompanionBookingDetailPage = () => {
                 >
                   Box chat
                 </Button>
-                {booking.status === "pending" ? (
+                {!canOpenDirections ? (
                   <button
                     type="button"
                     disabled
@@ -1084,9 +1091,15 @@ const CompanionBookingDetailPage = () => {
                 <div className="mt-4">
                   <LiveLocationMap location={serviceLocation} locations={[]} height="420px" />
                 </div>
-                <a href={directionUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full border border-teal-200 bg-white px-4 text-sm font-black text-teal-800 transition hover:bg-teal-50">
-                  Mở chỉ đường đến địa chỉ này
-                </a>
+                {canOpenDirections ? (
+                  <a href={directionUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full border border-teal-200 bg-white px-4 text-sm font-black text-teal-800 transition hover:bg-teal-50">
+                    Mở chỉ đường đến địa chỉ này
+                  </a>
+                ) : (
+                  <button type="button" disabled className="mt-4 inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-4 text-sm font-black text-slate-400">
+                    Mở chỉ đường đến địa chỉ này
+                  </button>
+                )}
               </>
             ) : (
               <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">

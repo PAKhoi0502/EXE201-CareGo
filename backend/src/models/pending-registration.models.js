@@ -31,6 +31,22 @@ const PendingRegistrationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+    legalAcceptances: {
+      type: [
+        {
+          _id: false,
+          documentType: String,
+          documentVersion: String,
+          documentHash: String,
+          acceptedAt: Date,
+          source: String,
+          audience: String,
+          ipHash: String,
+          userAgent: String,
+        },
+      ],
+      default: [],
+    },
     emailOtpHash: {
       type: String,
       required: true,

@@ -6,6 +6,7 @@ import {
   adminUpdateCompanionStatus,
   applyForCompanion,
   getCompanionReviews,
+  getMyCompanionReviews,
   getCompanionOnlineStatuses,
   getCompanionById,
   getCompanions,
@@ -24,6 +25,7 @@ router.post("/me/apply", verifyToken, allowRoles("customer"), applyForCompanion)
 router.patch("/me", verifyToken, allowRoles("companion"), updateMyCompanionProfile);
 router.post("/me/phone-otp/request", verifyToken, allowRoles("companion"), requestMyCompanionPhoneOtp);
 router.post("/me/phone-otp/verify", verifyToken, allowRoles("companion"), verifyMyCompanionPhoneOtp);
+router.get("/me/reviews", verifyToken, allowRoles("companion"), getMyCompanionReviews);
 router.get("/admin/all", verifyToken, allowRoles("admin"), adminGetCompanions);
 router.get(
   "/:id/reviews",

@@ -16,6 +16,7 @@ import {
   parseBookingAvailabilityWindow,
 } from "../utils/companion-availability.js";
 import { seedBlogData } from "./seed-blogs.js";
+import { seedCustomerUsers } from "./seed-customers.js";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 dotenv.config();
@@ -194,6 +195,54 @@ const usersSeed = [
     phone: "0909999999",
     role: "companion",
   },
+  {
+    key: "companionLanAnh",
+    name: "Nguyễn Lan Anh",
+    email: "nguyenlananh567890@carego.cfd",
+    recoveryEmail: "nguyenlananh@gmail.com",
+    phone: "0862471358",
+    role: "companion",
+  },
+  {
+    key: "companionQuynhTrang",
+    name: "Lê Quỳnh Trang",
+    email: "lequynhtrang678901@carego.cfd",
+    recoveryEmail: "lequynhtrang@gmail.com",
+    phone: "0883517246",
+    role: "companion",
+  },
+  {
+    key: "companionDucManh",
+    name: "Phạm Đức Mạnh",
+    email: "phamducmanh789012@carego.cfd",
+    recoveryEmail: "phamducmanh@gmail.com",
+    phone: "0894628157",
+    role: "companion",
+  },
+  {
+    key: "companionPhuongNam",
+    name: "Võ Phương Nam",
+    email: "vophuongnam890123@carego.cfd",
+    recoveryEmail: "vophuongnam@gmail.com",
+    phone: "0865739261",
+    role: "companion",
+  },
+  {
+    key: "companionBaoTran",
+    name: "Đặng Bảo Trân",
+    email: "dangbaotran901234@carego.cfd",
+    recoveryEmail: "dangbaotran@gmail.com",
+    phone: "0886841372",
+    role: "companion",
+  },
+  {
+    key: "companionHaiYen",
+    name: "Bùi Hải Yến",
+    email: "buihaiyen012345@carego.cfd",
+    recoveryEmail: "buihaiyen@gmail.com",
+    phone: "0897952483",
+    role: "companion",
+  },
 ];
 
 const elderProfilesSeed = [
@@ -289,9 +338,6 @@ const companionProfilesSeed = [
     },
     vettingStatus: "approved",
     serviceAreas: ["TP. Thủ Đức", "Quận 9"],
-    ratingAverage: 4.9,
-    ratingCount: 15,
-    completedBookings: 22,
   },
   {
     userKey: "companionThanh",
@@ -313,9 +359,6 @@ const companionProfilesSeed = [
     },
     vettingStatus: "approved",
     serviceAreas: ["Quận Bình Thạnh", "Quận 1"],
-    ratingAverage: 4.7,
-    ratingCount: 11,
-    completedBookings: 16,
   },
   {
     userKey: "companionTuan",
@@ -337,9 +380,6 @@ const companionProfilesSeed = [
     },
     vettingStatus: "approved",
     serviceAreas: ["Quận 7", "Nhà Bè"],
-    ratingAverage: 4.5,
-    ratingCount: 9,
-    completedBookings: 13,
   },
   {
     userKey: "companionHoangThanh",
@@ -361,9 +401,132 @@ const companionProfilesSeed = [
     },
     vettingStatus: "approved",
     serviceAreas: ["Quận 3", "Quận Phú Nhuận"],
-    ratingAverage: 4.6,
-    ratingCount: 7,
-    completedBookings: 9,
+  },
+  {
+    userKey: "companionLanAnh",
+    fullName: "Nguyễn Lan Anh",
+    phone: "0862471358",
+    phoneVerifiedAt: new Date(),
+    workingShift: "morning",
+    gender: "female",
+    dateOfBirth: new Date("2002-03-18"),
+    university: "Đại học Y Dược TP. HCM",
+    major: "Điều dưỡng",
+    skills: ["Chăm sóc tại nhà", "Nhắc thuốc", "Theo dõi sức khỏe"],
+    documents: {
+      citizenId: "079202000008",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
+      studentCardUrl: "",
+      backgroundCheckUrl: "",
+    },
+    vettingStatus: "approved",
+    serviceAreas: ["Quận 5", "Quận 10"],
+  },
+  {
+    userKey: "companionQuynhTrang",
+    fullName: "Lê Quỳnh Trang",
+    phone: "0883517246",
+    phoneVerifiedAt: new Date(),
+    workingShift: "afternoon",
+    gender: "female",
+    dateOfBirth: new Date("2003-07-12"),
+    university: "Đại học Văn Lang",
+    major: "Tâm lý học",
+    skills: ["Trò chuyện", "Chăm sóc tinh thần", "Đồng hành đi dạo"],
+    documents: {
+      citizenId: "079203000009",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
+      studentCardUrl: "",
+      backgroundCheckUrl: "",
+    },
+    vettingStatus: "approved",
+    serviceAreas: ["Quận 3", "Quận Phú Nhuận"],
+  },
+  {
+    userKey: "companionDucManh",
+    fullName: "Phạm Đức Mạnh",
+    phone: "0894628157",
+    phoneVerifiedAt: new Date(),
+    workingShift: "full_day",
+    gender: "male",
+    dateOfBirth: new Date("2001-09-24"),
+    university: "Đại học Nguyễn Tất Thành",
+    major: "Điều dưỡng",
+    skills: ["Sơ cứu cơ bản", "Hỗ trợ đi khám", "Theo dõi GPS"],
+    documents: {
+      citizenId: "079201000010",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
+      studentCardUrl: "",
+      backgroundCheckUrl: "",
+    },
+    vettingStatus: "approved",
+    serviceAreas: ["Quận 4", "Quận 7"],
+  },
+  {
+    userKey: "companionPhuongNam",
+    fullName: "Võ Phương Nam",
+    phone: "0865739261",
+    phoneVerifiedAt: new Date(),
+    workingShift: "afternoon",
+    gender: "male",
+    dateOfBirth: new Date("2002-12-05"),
+    university: "Đại học FPT",
+    major: "Công nghệ thông tin",
+    skills: ["Theo dõi GPS", "Hỗ trợ di chuyển", "Giao tiếp gia đình"],
+    documents: {
+      citizenId: "079202000011",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
+      studentCardUrl: "",
+      backgroundCheckUrl: "",
+    },
+    vettingStatus: "approved",
+    serviceAreas: ["TP. Thủ Đức", "Quận Bình Thạnh"],
+  },
+  {
+    userKey: "companionBaoTran",
+    fullName: "Đặng Bảo Trân",
+    phone: "0886841372",
+    phoneVerifiedAt: new Date(),
+    workingShift: "morning",
+    gender: "female",
+    dateOfBirth: new Date("2003-04-29"),
+    university: "Đại học Khoa học Xã hội và Nhân văn TP. HCM",
+    major: "Tâm lý học",
+    skills: ["Trò chuyện", "Đọc sách", "Nhắc lịch sinh hoạt"],
+    documents: {
+      citizenId: "079203000012",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
+      studentCardUrl: "",
+      backgroundCheckUrl: "",
+    },
+    vettingStatus: "approved",
+    serviceAreas: ["Quận 1", "Quận 3"],
+  },
+  {
+    userKey: "companionHaiYen",
+    fullName: "Bùi Hải Yến",
+    phone: "0897952483",
+    phoneVerifiedAt: new Date(),
+    workingShift: "full_day",
+    gender: "female",
+    dateOfBirth: new Date("2002-10-16"),
+    university: "Đại học Y Dược TP. HCM",
+    major: "Y tế công cộng",
+    skills: ["Theo dõi sức khỏe", "Nhắc thuốc", "Hỗ trợ thủ tục bệnh viện"],
+    documents: {
+      citizenId: "079202000013",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
+      studentCardUrl: "",
+      backgroundCheckUrl: "",
+    },
+    vettingStatus: "approved",
+    serviceAreas: ["Quận 6", "Quận 11"],
   },
 ];
 
@@ -487,6 +650,127 @@ const bookingSeed = [
     status: "cancelled",
   },
 ];
+
+const paidBookingSeed = [
+  { companionKey: "companionKhoi", dayOffset: -7, startHour: 8, durationHours: 1 },
+  { companionKey: "companionThanh", dayOffset: -7, startHour: 10, durationHours: 2 },
+  { companionKey: "companionTuan", dayOffset: -6, startHour: 14, durationHours: 1 },
+  { companionKey: "companionHoangThanh", dayOffset: -6, startHour: 15, durationHours: 2 },
+  { companionKey: "companionLanAnh", dayOffset: -5, startHour: 8, durationHours: 2 },
+  { companionKey: "companionQuynhTrang", dayOffset: -5, startHour: 14, durationHours: 1 },
+  { companionKey: "companionDucManh", dayOffset: -4, startHour: 9, durationHours: 1 },
+  { companionKey: "companionPhuongNam", dayOffset: -4, startHour: 15, durationHours: 2 },
+  { companionKey: "companionBaoTran", dayOffset: -3, startHour: 8, durationHours: 2 },
+  { companionKey: "companionHaiYen", dayOffset: -3, startHour: 14, durationHours: 1 },
+  { companionKey: "companionKhoi", dayOffset: -2, startHour: 10, durationHours: 1 },
+  { companionKey: "companionThanh", dayOffset: -2, startHour: 8, durationHours: 2 },
+  { companionKey: "companionTuan", dayOffset: -1, startHour: 14, durationHours: 2 },
+  { companionKey: "companionHoangThanh", dayOffset: -1, startHour: 9, durationHours: 1 },
+  { companionKey: "companionLanAnh", dayOffset: 0, startHour: 7, durationHours: 1 },
+];
+
+const paidBookingReviews = [
+  {
+    rating: 5,
+    comment: "Bạn hỗ trợ rất chu đáo, đến đúng giờ và cập nhật tình hình đầy đủ cho gia đình.",
+    tags: ["Đúng giờ", "Tận tâm"],
+  },
+  {
+    rating: 4,
+    comment: "Quá trình hỗ trợ tốt, giao tiếp rõ ràng và xử lý công việc cẩn thận.",
+    tags: ["Cẩn thận", "Giao tiếp tốt"],
+  },
+  {
+    rating: 5,
+    comment: "Gia đình rất yên tâm, bạn nhiệt tình và quan tâm đến sức khỏe của người lớn tuổi.",
+    tags: ["Nhiệt tình", "Quan tâm"],
+  },
+  {
+    rating: 4,
+    comment: "Bạn hoàn thành đầy đủ các việc đã trao đổi và phản hồi gia đình khá nhanh.",
+    tags: ["Đáng tin cậy", "Phản hồi nhanh"],
+  },
+  {
+    rating: 5,
+    comment: "Hỗ trợ nhẹ nhàng, kiên nhẫn và nhắc thuốc đúng lịch.",
+    tags: ["Kiên nhẫn", "Tận tâm"],
+  },
+  {
+    rating: 4,
+    comment: "Người đồng hành thân thiện, trò chuyện vui vẻ và chăm sóc đúng yêu cầu.",
+    tags: ["Thân thiện", "Chu đáo"],
+  },
+  {
+    rating: 5,
+    comment: "Bạn xử lý tình huống tốt, hỗ trợ di chuyển an toàn và đúng giờ.",
+    tags: ["An toàn", "Đúng giờ"],
+  },
+  {
+    rating: 3,
+    comment: "Công việc được hoàn thành nhưng phần cập nhật cho gia đình đôi lúc còn chậm.",
+    tags: ["Hoàn thành công việc"],
+  },
+  {
+    rating: 5,
+    comment: "Bạn rất gần gũi, biết lắng nghe và giúp người lớn tuổi cảm thấy thoải mái.",
+    tags: ["Biết lắng nghe", "Thân thiện"],
+  },
+  {
+    rating: 4,
+    comment: "Hỗ trợ thủ tục nhanh, ghi chú lời dặn rõ ràng và bàn giao đầy đủ.",
+    tags: ["Rõ ràng", "Cẩn thận"],
+  },
+];
+
+const paidBookingCustomers = [
+  {
+    customerKey: "customerMinhAn",
+    elderKey: "elderA",
+    address: "Vinhomes Grand Park, TP. Thủ Đức, TP. HCM",
+    addressLocation: {
+      lat: 10.8411,
+      lng: 106.8431,
+      displayName: "Vinhomes Grand Park",
+    },
+  },
+  {
+    customerKey: "customerBao",
+    elderKey: "elderB",
+    address: "Chung cư Sunrise City, Quận 7, TP. HCM",
+    addressLocation: {
+      lat: 10.7403,
+      lng: 106.7016,
+      displayName: "Sunrise City Quận 7",
+    },
+  },
+  {
+    customerKey: "customerVan",
+    elderKey: "elderVan",
+    address: "Chung cư Masteri An Phú, TP. Thủ Đức, TP. HCM",
+    addressLocation: {
+      lat: 10.8025,
+      lng: 106.7409,
+      displayName: "Masteri An Phú",
+    },
+  },
+];
+
+bookingSeed.push(
+  ...paidBookingSeed.map((item, index) => {
+    const customer = paidBookingCustomers[index % paidBookingCustomers.length];
+    return {
+      seedKey: `demo-booking-completed-${String(index + 1).padStart(2, "0")}`,
+      ...customer,
+      ...item,
+      serviceCode: String((index % 3) + 1),
+      note: `Booking đã thanh toán bổ sung ${String(index + 1).padStart(2, "0")}`,
+      status: "paid",
+      completedDayOffset: item.dayOffset,
+      completedHour: item.startHour + item.durationHours,
+      review: paidBookingReviews[index],
+    };
+  }),
+);
 
 const upsertServices = async () => {
   const services = {};
@@ -636,7 +920,7 @@ const upsertPayment = async ({ booking, status }) => {
         paidAmount: status === "paid" ? baseAmount : 0,
         method: "prototype",
         status: status === "paid" ? "paid" : "pending",
-        paidAt: status === "paid" ? new Date() : null,
+        paidAt: status === "paid" ? booking.completedAt || new Date() : null,
       },
     },
     { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
@@ -722,6 +1006,10 @@ const seedBookings = async ({ users, elders, services }) => {
       await upsertPayment({ booking, status: item.status });
     }
 
+    if (item.review && item.status !== "paid") {
+      throw new Error(`Review seed requires a paid booking: ${item.seedKey}`);
+    }
+
     if (item.review) {
       await Review.findOneAndUpdate(
         { bookingId: booking._id },
@@ -743,12 +1031,65 @@ const seedBookings = async ({ users, elders, services }) => {
   return bookings;
 };
 
+const syncCompanionStats = async (users) => {
+  const stats = {};
+
+  for (const { userKey } of companionProfilesSeed) {
+    const companionId = users[userKey]._id;
+    const [ratingRows, completedBookings] = await Promise.all([
+      Review.aggregate([
+        { $match: { companionId } },
+        {
+          $group: {
+            _id: "$companionId",
+            ratingTotal: { $sum: "$rating" },
+            ratingCount: { $sum: 1 },
+          },
+        },
+      ]),
+      Booking.countDocuments({
+        companionId,
+        status: { $in: ["completed", "paid"] },
+      }),
+    ]);
+    const ratingTotal = Number(ratingRows[0]?.ratingTotal || 0);
+    const ratingCount = Number(ratingRows[0]?.ratingCount || 0);
+    const ratingAverage = ratingCount > 0
+      ? Math.round((ratingTotal / ratingCount) * 10) / 10
+      : 0;
+
+    await CompanionProfile.updateOne(
+      { userId: companionId },
+      {
+        $set: {
+          ratingAverage,
+          ratingCount,
+          ratingTotal,
+          completedBookings,
+        },
+      },
+      { runValidators: true },
+    );
+
+    stats[userKey] = {
+      ratingAverage,
+      ratingCount,
+      ratingTotal,
+      completedBookings,
+    };
+  }
+
+  return stats;
+};
+
 export const seedDemoData = async () => {
   const services = await upsertServices();
   const users = await seedUsers();
+  const customerCount = await seedCustomerUsers();
   await seedCompanionProfiles(users);
   const elders = await seedElderProfiles(users);
   const bookings = await seedBookings({ users, elders, services });
+  const companionStats = await syncCompanionStats(users);
   await seedBlogData();
 
   console.log("Database:", mongoose.connection.name);
@@ -756,9 +1097,11 @@ export const seedDemoData = async () => {
   console.log("Seed password:", process.env.SEED_PASSWORD ? "from SEED_PASSWORD" : password);
   console.log("Accounts:", usersSeed.map((user) => `${user.role}:${user.email}`).join(", "));
   console.log("Services:", Object.keys(services).length);
+  console.log("Additional customers:", customerCount);
   console.log("Bookings:", bookings.length);
+  console.log("Companion reviews:", Object.values(companionStats).reduce((total, item) => total + item.ratingCount, 0));
 
-  return { services, users, elders, bookings };
+  return { services, users, elders, bookings, customerCount, companionStats };
 };
 
 const run = async () => {

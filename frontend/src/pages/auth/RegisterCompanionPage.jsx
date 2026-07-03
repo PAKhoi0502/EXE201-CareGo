@@ -4,6 +4,7 @@ import { Button, Input, Select } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getUserHomePath } from "../../utils/authNavigation.js";
 import AuthShell from "./AuthShell.jsx";
+import ConsentChecklist from "../../components/legal/ConsentChecklist.jsx";
 
 const CccdCameraCapture = ({ label, value, onChange }) => {
   const videoRef = useRef(null);
@@ -132,6 +133,7 @@ const RegisterCompanionPage = () => {
     serviceAreasText: "",
     citizenIdFrontUrl: "",
     citizenIdBackUrl: "",
+    legalAcceptances: [],
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -183,6 +185,11 @@ const RegisterCompanionPage = () => {
       return;
     }
 
+    if (!form.legalAcceptances.length || form.legalAcceptances.some((item) => !item.accepted)) {
+      setError("Vui lòng đọc và đồng ý với đầy đủ điều khoản dành cho người đồng hành.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       await registerCompanion({
@@ -193,6 +200,7 @@ const RegisterCompanionPage = () => {
           citizenIdFrontUrl: companionForm.citizenIdFrontUrl,
           citizenIdBackUrl: companionForm.citizenIdBackUrl,
         },
+        legalAcceptances: companionForm.legalAcceptances,
       });
       navigate("/companion-status", { replace: true });
     } catch (err) {
@@ -282,6 +290,10 @@ const RegisterCompanionPage = () => {
               label="CCCD mặt sau"
               value={form.citizenIdBackUrl}
               onChange={(value) => setForm((current) => ({ ...current, citizenIdBackUrl: value }))}
+            />
+            <ConsentChecklist
+              flow="COMPANION_APPLICATION"
+              onChange={(legalAcceptances) => setForm((current) => ({ ...current, legalAcceptances }))}
             />
           </div>
         )}
