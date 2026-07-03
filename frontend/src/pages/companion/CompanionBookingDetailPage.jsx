@@ -49,7 +49,7 @@ const flowSteps = [
   ["Hoàn thành", "completed"],
 ];
 
-const isDevDemoMode = import.meta.env.DEV;
+const isDevDemoMode = import.meta.env.DEV || import.meta.env.VITE_CAREGO_DEMO_MODE === "true";
 const MAX_LIVE_LOCATION_POINTS = 100;
 
 const appendLiveLocation = (locations, location) =>
