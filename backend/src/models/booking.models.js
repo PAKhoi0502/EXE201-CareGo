@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const BookingSchema = new mongoose.Schema(
   {
+    seedKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+      select: false,
+    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
@@ -43,6 +49,17 @@ const BookingSchema = new mongoose.Schema(
     note: {
       type: String,
       default: "",
+    },
+    bookingMode: {
+      type: String,
+      enum: ["scheduled", "instant"],
+      default: "scheduled",
+      index: true,
+    },
+    offerExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
     status: {
       type: String,

@@ -11,6 +11,10 @@ import Review from "../models/review.models.js";
 import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
 import User from "../models/user.models.js";
+import {
+  isWithinCompanionWorkingShift,
+  parseBookingAvailabilityWindow,
+} from "../utils/companion-availability.js";
 import { seedBlogData } from "./seed-blogs.js";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
@@ -19,6 +23,8 @@ const shouldConfirm = process.argv.includes("--yes");
 const password = process.env.SEED_PASSWORD || "CareGo@123";
 const rawPlatformFeeRate = Number(process.env.CAREGO_PLATFORM_FEE_RATE || 0.2);
 const platformFeeRate = rawPlatformFeeRate > 1 ? rawPlatformFeeRate / 100 : rawPlatformFeeRate;
+const demoDocumentImage =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 const servicesSeed = [
 {
@@ -71,6 +77,7 @@ const usersSeed = [
     key: "admin",
     name: "CareGo Admin",
     email: process.env.ADMIN_EMAIL || "admin@carego.cfd",
+    recoveryEmail: process.env.ADMIN_RECOVERY_EMAIL || process.env.ADMIN_EMAIL || "admin@carego.cfd",
     phone: "0900000000",
     role: "admin",
   },
@@ -154,28 +161,36 @@ const usersSeed = [
   {
     key: "companionKhoi",
     name: "Phạm Anh Khôi",
-    email: "phamanhkhoi@carego.cfd",
+    email: "phamanhkhoi123456@carego.cfd",
+    legacyEmails: ["phamanhkhoi@carego.cfd"],
+    recoveryEmail: "phamanhkhoi.demo@gmail.com",
     phone: "0906666666",
     role: "companion",
   },
   {
     key: "companionThanh",
     name: "Nguyễn Quang Thanh",
-    email: "nguyenquangthanh@carego.cfd",
+    email: "nguyenquangthanh234567@carego.cfd",
+    legacyEmails: ["nguyenquangthanh@carego.cfd"],
+    recoveryEmail: "nguyenquangthanh.demo@gmail.com",
     phone: "0907777777",
     role: "companion",
   },
   {
     key: "companionTuan",
     name: "Phạm Minh Tuấn",
-    email: "phamminhtuan@carego.cfd",
+    email: "phamminhtuan345678@carego.cfd",
+    legacyEmails: ["phamminhtuan@carego.cfd"],
+    recoveryEmail: "phamminhtuan.demo@gmail.com",
     phone: "0908888888",
     role: "companion",
   },
   {
     key: "companionHoangThanh",
     name: "Trần Ngọc Hoàng Thành",
-    email: "tranngochoangthanh@carego.cfd",
+    email: "tranngochoangthanh456789@carego.cfd",
+    legacyEmails: ["tranngochoangthanh@carego.cfd"],
+    recoveryEmail: "tranngochoangthanh.demo@gmail.com",
     phone: "0909999999",
     role: "companion",
   },
@@ -258,6 +273,8 @@ const companionProfilesSeed = [
     userKey: "companionKhoi",
     fullName: "Phạm Anh Khôi",
     phone: "0906666666",
+    phoneVerifiedAt: new Date(),
+    workingShift: "full_day",
     gender: "male",
     dateOfBirth: new Date("2003-01-15"),
     university: "Đại học FPT",
@@ -265,8 +282,8 @@ const companionProfilesSeed = [
     skills: ["Theo dõi GPS", "Hỗ trợ đi khám", "Giao tiếp gia đình"],
     documents: {
       citizenId: "079203000004",
-      citizenIdFrontUrl: "",
-      citizenIdBackUrl: "",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
       studentCardUrl: "",
       backgroundCheckUrl: "",
     },
@@ -280,6 +297,8 @@ const companionProfilesSeed = [
     userKey: "companionThanh",
     fullName: "Nguyễn Quang Thanh",
     phone: "0907777777",
+    phoneVerifiedAt: new Date(),
+    workingShift: "morning",
     gender: "male",
     dateOfBirth: new Date("2002-05-20"),
     university: "Đại học Y Dược TP. HCM",
@@ -287,8 +306,8 @@ const companionProfilesSeed = [
     skills: ["Sơ cứu cơ bản", "Nhắc thuốc", "Hỗ trợ thủ tục bệnh viện"],
     documents: {
       citizenId: "079202000005",
-      citizenIdFrontUrl: "",
-      citizenIdBackUrl: "",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
       studentCardUrl: "",
       backgroundCheckUrl: "",
     },
@@ -302,6 +321,8 @@ const companionProfilesSeed = [
     userKey: "companionTuan",
     fullName: "Phạm Minh Tuấn",
     phone: "0908888888",
+    phoneVerifiedAt: new Date(),
+    workingShift: "afternoon",
     gender: "male",
     dateOfBirth: new Date("2001-11-08"),
     university: "Đại học Nguyễn Tất Thành",
@@ -309,8 +330,8 @@ const companionProfilesSeed = [
     skills: ["Chăm sóc tại nhà", "Theo dõi sức khỏe", "Đồng hành đi dạo"],
     documents: {
       citizenId: "079201000006",
-      citizenIdFrontUrl: "",
-      citizenIdBackUrl: "",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
       studentCardUrl: "",
       backgroundCheckUrl: "",
     },
@@ -324,6 +345,8 @@ const companionProfilesSeed = [
     userKey: "companionHoangThanh",
     fullName: "Trần Ngọc Hoàng Thành",
     phone: "0909999999",
+    phoneVerifiedAt: new Date(),
+    workingShift: "full_day",
     gender: "male",
     dateOfBirth: new Date("2003-08-25"),
     university: "Đại học Văn Lang",
@@ -331,8 +354,8 @@ const companionProfilesSeed = [
     skills: ["Trò chuyện", "Chăm sóc tinh thần", "Đọc sách cùng người cao tuổi"],
     documents: {
       citizenId: "079203000007",
-      citizenIdFrontUrl: "",
-      citizenIdBackUrl: "",
+      citizenIdFrontUrl: demoDocumentImage,
+      citizenIdBackUrl: demoDocumentImage,
       studentCardUrl: "",
       backgroundCheckUrl: "",
     },
@@ -346,11 +369,13 @@ const companionProfilesSeed = [
 
 const bookingSeed = [
   {
+    seedKey: "demo-booking-hospital-pending",
     customerKey: "customerMinhAn",
     elderKey: "elderA",
     companionKey: "companionKhoi",
     serviceCode: "1",
-    startsInHours: 30,
+    dayOffset: 1,
+    startHour: 9,
     durationHours: 2,
     address: "Bệnh viện Đại học Y Dược TP. HCM",
     addressLocation: {
@@ -362,11 +387,13 @@ const bookingSeed = [
     status: "pending",
   },
   {
+    seedKey: "demo-booking-home-morning-accepted",
     customerKey: "customerMinhAn",
     elderKey: "elderA",
     companionKey: "companionThanh",
     serviceCode: "2",
-    startsInHours: 54,
+    dayOffset: 2,
+    startHour: 9,
     durationHours: 3,
     address: "Vinhomes Grand Park, TP. Thủ Đức, TP. HCM",
     addressLocation: {
@@ -374,15 +401,18 @@ const bookingSeed = [
       lng: 106.8431,
       displayName: "Vinhomes Grand Park",
     },
-    note: "Nhắc thuốc và trò chuyện buổi chiều.",
+    note: "Nhắc thuốc và trò chuyện buổi sáng.",
+    legacyNotes: ["Nhắc thuốc và trò chuyện buổi chiều."],
     status: "accepted",
   },
   {
+    seedKey: "demo-booking-walk-afternoon-accepted",
     customerKey: "customerBao",
     elderKey: "elderB",
     companionKey: "companionTuan",
     serviceCode: "3",
-    startsInHours: -1,
+    dayOffset: 1,
+    startHour: 14,
     durationHours: 2,
     address: "Công viên ven sông, Quận 7, TP. HCM",
     addressLocation: {
@@ -391,14 +421,16 @@ const bookingSeed = [
       displayName: "Công viên ven sông Quận 7",
     },
     note: "Đi dạo nhẹ, tránh nắng gắt.",
-    status: "in_progress",
+    status: "accepted",
   },
   {
+    seedKey: "demo-booking-home-completed",
     customerKey: "customerBao",
     elderKey: "elderB",
     companionKey: "companionHoangThanh",
     serviceCode: "2",
-    startsInHours: -96,
+    dayOffset: -4,
+    startHour: 9,
     durationHours: 2,
     address: "Chung cư Sunrise City, Quận 7, TP. HCM",
     addressLocation: {
@@ -408,14 +440,17 @@ const bookingSeed = [
     },
     note: "Theo dõi huyết áp và nhắc thuốc.",
     status: "completed",
-    completedOffsetHours: -94,
+    completedDayOffset: -4,
+    completedHour: 11,
   },
   {
+    seedKey: "demo-booking-hospital-paid",
     customerKey: "customerVan",
     elderKey: "elderVan",
     companionKey: "companionKhoi",
     serviceCode: "1",
-    startsInHours: -168,
+    dayOffset: -7,
+    startHour: 9,
     durationHours: 3,
     address: "Phòng khám CarePlus Quận 7",
     addressLocation: {
@@ -425,7 +460,8 @@ const bookingSeed = [
     },
     note: "Tái khám định kỳ.",
     status: "paid",
-    completedOffsetHours: -165,
+    completedDayOffset: -7,
+    completedHour: 12,
     review: {
       rating: 5,
       comment: "Người đồng hành đến đúng giờ, hỗ trợ rất kỹ và cập nhật đầy đủ.",
@@ -433,11 +469,13 @@ const bookingSeed = [
     },
   },
   {
+    seedKey: "demo-booking-walk-cancelled",
     customerKey: "customerBao",
     elderKey: "elderB",
     companionKey: "companionThanh",
     serviceCode: "3",
-    startsInHours: -48,
+    dayOffset: -2,
+    startHour: 10,
     durationHours: 1,
     address: "Crescent Mall, Quận 7, TP. HCM",
     addressLocation: {
@@ -470,18 +508,31 @@ const seedUsers = async () => {
   const users = {};
 
   for (const userData of usersSeed) {
-    const email = userData.email.toLowerCase();
+    const email = String(userData.email).trim().toLowerCase();
+    const legacyEmails = (userData.legacyEmails || []).map((value) => String(value).trim().toLowerCase());
+    const existingUser = await User.findOne({ email }) ||
+      (legacyEmails.length ? await User.findOne({ email: { $in: legacyEmails } }) : null);
     const user = await User.findOneAndUpdate(
-      { email },
+      existingUser ? { _id: existingUser._id } : { email },
       {
         $set: {
           name: userData.name,
           email,
+          recoveryEmail: String(userData.recoveryEmail || email).trim().toLowerCase(),
           phone: userData.phone,
           password: hashedPassword,
           role: userData.role,
           isActive: true,
           isEmailVerified: true,
+          mustChangePassword: false,
+          temporaryPasswordExpiresAt: null,
+        },
+        $unset: {
+          pendingPasswordHash: "",
+          passwordChangeOtpHash: "",
+          passwordChangeOtpExpires: "",
+          resetPasswordToken: "",
+          resetPasswordExpries: "",
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
@@ -498,7 +549,10 @@ const seedCompanionProfiles = async (users) => {
     const userId = users[userKey]._id;
     await CompanionProfile.findOneAndUpdate(
       { userId },
-      { $set: { ...payload, userId } },
+      {
+        $set: { ...payload, userId },
+        $unset: { applicantCustomerId: "" },
+      },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );
   }
@@ -590,8 +644,15 @@ const upsertPayment = async ({ booking, status }) => {
 };
 
 const seedBookings = async ({ users, elders, services }) => {
-  const now = Date.now();
+  const now = new Date();
   const bookings = [];
+
+  const atLocalHour = (dayOffset, hour) => {
+    const value = new Date(now);
+    value.setHours(hour, 0, 0, 0);
+    value.setDate(value.getDate() + dayOffset);
+    return value;
+  };
 
   for (const item of bookingSeed) {
     const customerId = users[item.customerKey]._id;
@@ -600,15 +661,30 @@ const seedBookings = async ({ users, elders, services }) => {
     const service = services[item.serviceCode];
     const serviceId = service._id;
     const totalAmount = service.pricePerHour * item.durationHours;
-    const completedAt = item.completedOffsetHours
-      ? new Date(now + item.completedOffsetHours * 60 * 60 * 1000)
+    const startTime = atLocalHour(item.dayOffset, item.startHour);
+    const completedAt = Number.isInteger(item.completedDayOffset) && Number.isInteger(item.completedHour)
+      ? atLocalHour(item.completedDayOffset, item.completedHour)
       : null;
+    const availabilityWindow = parseBookingAvailabilityWindow({
+      startTime,
+      durationHours: item.durationHours,
+      now: startTime,
+      requireFuture: false,
+    });
+    if (availabilityWindow.error) {
+      throw new Error(`Invalid booking seed for ${item.companionKey}: ${availabilityWindow.error}`);
+    }
+    const companionProfile = companionProfilesSeed.find((profile) => profile.userKey === item.companionKey);
+    if (!isWithinCompanionWorkingShift(companionProfile?.workingShift, startTime, item.durationHours)) {
+      throw new Error(`Booking seed for ${item.companionKey} is outside the configured working shift`);
+    }
     const payload = {
+      seedKey: item.seedKey,
       customerId,
       elderProfileId,
       serviceId,
       companionId,
-      startTime: new Date(now + item.startsInHours * 60 * 60 * 1000),
+      startTime,
       durationHours: item.durationHours,
       address: item.address,
       addressLocation: item.addressLocation,
@@ -621,8 +697,21 @@ const seedBookings = async ({ users, elders, services }) => {
       totalAmount,
       platformFee: Math.round(totalAmount * platformFeeRate),
     };
+    const legacyCandidates = await Booking.find({
+      customerId,
+      elderProfileId,
+      serviceId,
+      companionId,
+      seedKey: { $exists: false },
+    }).select("_id note");
+    const expectedNotes = [item.note, ...(item.legacyNotes || [])];
+    const legacyBooking = legacyCandidates.find((booking) => expectedNotes.includes(booking.note))
+      || (legacyCandidates.length === 1 ? legacyCandidates[0] : null);
+    if (legacyCandidates.length > 1 && !legacyBooking) {
+      throw new Error(`Cannot identify legacy booking for seed key ${item.seedKey}`);
+    }
     const booking = await Booking.findOneAndUpdate(
-      { customerId, elderProfileId, serviceId, companionId, note: item.note },
+      legacyBooking ? { _id: legacyBooking._id } : { seedKey: item.seedKey },
       { $set: payload },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );

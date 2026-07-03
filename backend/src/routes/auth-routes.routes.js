@@ -1,6 +1,7 @@
 import express from "express";
 import {
   changeCurrentUserPassword,
+  changeInitialPassword,
   forgetpasswordController,
   getCurrentUser,
   loginController,
@@ -77,6 +78,7 @@ router.post("/logout", logoutController);
 router.post("/refresh-token", refreshTokenController);
 router.get("/current-user", verifyToken, getCurrentUser);
 router.patch("/current-user", verifyToken, updateCurrentUser);
+router.patch("/current-user/initial-password", verifyToken, changeCurrentUserPasswordRateLimit, changeInitialPassword);
 router.post("/current-user/password/request-otp", verifyToken, currentUserPasswordOtpRateLimit, requestCurrentUserPasswordOtp);
 router.patch("/current-user/password", verifyToken, changeCurrentUserPasswordRateLimit, changeCurrentUserPassword);
 router.post("/forget-password", forgotPasswordRateLimit, forgetpasswordController);

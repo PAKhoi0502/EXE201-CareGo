@@ -219,7 +219,7 @@ export const setupLocationSocket = (io) => {
   locationIo = io;
 
   io.on("connection", (socket) => {
-    socket.join(userRoomName(socket.user.userId));
+    setUserOnline(socket, socket.user.userId);
 
     socket.on("user:online", async () => {
       const activeUser = await revalidateSocketUser(socket);

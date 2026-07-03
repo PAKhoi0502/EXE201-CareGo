@@ -9,19 +9,21 @@ import {
   getCompanionOnlineStatuses,
   getCompanionById,
   getCompanions,
-  registerCompanion,
+  requestMyCompanionPhoneOtp,
   updateMyCompanionProfile,
+  verifyMyCompanionPhoneOtp,
 } from "../controller/companion.controller.js";
-import { verifyToken } from "../middlleware/auth.middleware.js";
+import { optionalVerifyToken, verifyToken } from "../middlleware/auth.middleware.js";
 import { allowRoles } from "../middlleware/role.middleware.js";
 
 const router = express.Router();
 
-router.get("/", getCompanions);
-router.post("/register", registerCompanion);
+router.get("/", optionalVerifyToken, getCompanions);
 router.get("/online-statuses", verifyToken, getCompanionOnlineStatuses);
 router.post("/me/apply", verifyToken, allowRoles("customer"), applyForCompanion);
 router.patch("/me", verifyToken, allowRoles("companion"), updateMyCompanionProfile);
+router.post("/me/phone-otp/request", verifyToken, allowRoles("companion"), requestMyCompanionPhoneOtp);
+router.post("/me/phone-otp/verify", verifyToken, allowRoles("companion"), verifyMyCompanionPhoneOtp);
 router.get("/admin/all", verifyToken, allowRoles("admin"), adminGetCompanions);
 router.get(
   "/:id/reviews",
@@ -29,7 +31,7 @@ router.get(
   allowRoles("customer", "admin"),
   getCompanionReviews,
 );
-router.get("/:id", getCompanionById);
+router.get("/:id", optionalVerifyToken, getCompanionById);
 router.post("/", verifyToken, allowRoles("admin"), adminCreateCompanion);
 router.put("/:id", verifyToken, allowRoles("admin"), adminUpdateCompanion);
 router.patch(

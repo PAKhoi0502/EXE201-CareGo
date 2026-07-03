@@ -110,11 +110,17 @@ export const createBookingCreatedNotification = (booking) =>
     recipientId: getCustomerId(booking),
     recipientRole: "customer",
     type: "BOOKING_CREATED",
-    title: "Đặt lịch thành công",
-    message: "Yêu cầu đặt lịch của bạn đã được ghi nhận. CareGo sẽ thông báo khi người đồng hành phản hồi.",
+    title: booking?.bookingMode === "instant" ? "Đã gửi yêu cầu đặt ngay" : "Đặt lịch thành công",
+    message: booking?.bookingMode === "instant"
+      ? "Người đồng hành có 5 phút để phản hồi. Bạn có thể trao đổi trước bằng box chat CareGo."
+      : "Yêu cầu đặt lịch của bạn đã được ghi nhận. CareGo sẽ thông báo khi người đồng hành phản hồi.",
     link: bookingLink(booking),
     bookingId: getBookingId(booking),
-    metadata: { status: booking?.status || "pending" },
+    metadata: {
+      status: booking?.status || "pending",
+      bookingMode: booking?.bookingMode || "scheduled",
+      offerExpiresAt: booking?.offerExpiresAt || null,
+    },
     dedupeKey: `booking:${getBookingId(booking)}:created:customer`,
   });
 
@@ -127,10 +133,12 @@ export const createCompanionBookingCreatedNotification = (booking, details = {})
     recipientId: getCompanionId(booking),
     recipientRole: "companion",
     type: "COMPANION_BOOKING_CREATED",
-    title: "Có lịch chăm sóc mới",
-    message: detailText
-      ? `Khách hàng vừa đặt ${detailText}. Vui lòng kiểm tra và phản hồi lịch chăm sóc.`
-      : "Khách hàng vừa đặt lịch chăm sóc với bạn. Vui lòng kiểm tra và phản hồi lịch.",
+    title: booking?.bookingMode === "instant" ? "Yêu cầu đặt ngay cần phản hồi" : "Có lịch chăm sóc mới",
+    message: booking?.bookingMode === "instant"
+      ? `${detailText ? `Khách hàng cần ${detailText}. ` : ""}Vui lòng phản hồi trong 5 phút hoặc trao đổi qua box chat.`
+      : detailText
+        ? `Khách hàng vừa đặt ${detailText}. Vui lòng kiểm tra và phản hồi lịch chăm sóc.`
+        : "Khách hàng vừa đặt lịch chăm sóc với bạn. Vui lòng kiểm tra và phản hồi lịch.",
     link: companionBookingLink(booking),
     bookingId: getBookingId(booking),
     metadata: {
@@ -138,6 +146,8 @@ export const createCompanionBookingCreatedNotification = (booking, details = {})
       serviceId: toIdString(booking?.serviceId),
       elderProfileId: toIdString(booking?.elderProfileId),
       startTime: booking?.startTime || null,
+      bookingMode: booking?.bookingMode || "scheduled",
+      offerExpiresAt: booking?.offerExpiresAt || null,
     },
     dedupeKey: `booking:${getBookingId(booking)}:created:companion`,
   });

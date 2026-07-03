@@ -16,6 +16,7 @@ import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
 import User from "../models/user.models.js";
 import { emitBookingChatState } from "../socket/booking-chat.socket.js";
+import { getUserOnlineStatuses } from "../socket/location.socket.js";
 import { sendCompanionBookingCreatedEmail } from "../utils/email.js";
 import {
   createBookingAcceptedNotification,
@@ -30,12 +31,20 @@ import {
   createReviewReminderNotification,
   createShiftNoteUpdatedNotification,
 } from "../utils/notifications.js";
+import {
+  getBookingEndTime,
+  getRequestedEndTime,
+  isTimeOverlapped,
+  isWithinCompanionWorkingShift,
+  parseBookingAvailabilityWindow,
+  parseInstantBookingAvailabilityWindow,
+} from "../utils/companion-availability.js";
 
 const populateBooking = [
   { path: "customerId", select: "name email phone" },
   { path: "elderProfileId" },
   { path: "serviceId" },
-  { path: "companionId", select: "name email phone avatar" },
+  { path: "companionId", select: "name avatar" },
 ];
 
 const toIdString = (value) => {
@@ -46,7 +55,6 @@ const toIdString = (value) => {
   return (value._id || value).toString();
 };
 
-const ACTIVE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
 const CONFIRMED_BOOKING_STATUSES = ["accepted", "in_progress"];
 const BOOKING_STATUS_TRANSITIONS = {
   pending: ["accepted", "cancelled"],
@@ -85,6 +93,11 @@ const getPositiveEnvNumber = (names, fallback) => {
   return fallback;
 };
 
+const INSTANT_BOOKING_OFFER_TTL_MS = getPositiveEnvNumber(
+  ["CAREGO_INSTANT_BOOKING_OFFER_MINUTES", "INSTANT_BOOKING_OFFER_MINUTES"],
+  5,
+) * 60 * 1000;
+
 const SHIFT_GPS_MAX_DISTANCE_METERS = getPositiveEnvNumber(
   ["CAREGO_SHIFT_GPS_MAX_DISTANCE_METERS", "SHIFT_GPS_MAX_DISTANCE_METERS"],
   500,
@@ -114,21 +127,15 @@ const getPlatformFeeRate = () => {
   return rate > 1 ? rate / 100 : rate;
 };
 
-const getBookingEndTime = (booking) =>
-  new Date(new Date(booking.startTime).getTime() + Number(booking.durationHours || 0) * 60 * 60 * 1000);
-
-const isTimeOverlapped = (firstStart, firstEnd, secondStart, secondEnd) =>
-  firstStart < secondEnd && secondStart < firstEnd;
-
 const findCompanionTimeConflict = async ({
   companionId,
   startTime,
   durationHours,
-  statuses = ACTIVE_BOOKING_STATUSES,
+  statuses = CONFIRMED_BOOKING_STATUSES,
   excludeBookingId,
 }) => {
   const requestedStart = new Date(startTime);
-  const requestedEnd = new Date(requestedStart.getTime() + Number(durationHours) * 60 * 60 * 1000);
+  const requestedEnd = getRequestedEndTime(requestedStart, durationHours);
   const query = {
     companionId,
     status: { $in: statuses },
@@ -688,7 +695,7 @@ const updateCompanionRatingStats = async ({ companionId, ratingValue }) => {
 };
 
 export const createBooking = async (req, res) => {
-  let bookingLock = null;
+  const bookingLocks = [];
 
   try {
     const {
@@ -700,8 +707,14 @@ export const createBooking = async (req, res) => {
       address,
       addressLocation,
       note,
+      bookingMode,
     } = req.body;
     const cleanAddress = String(address || "").trim();
+    const normalizedBookingMode = bookingMode === undefined ? "scheduled" : String(bookingMode).trim();
+
+    if (!["scheduled", "instant"].includes(normalizedBookingMode)) {
+      return res.status(400).json({ message: "Hình thức đặt lịch không hợp lệ." });
+    }
 
     if (!elderProfileId || !serviceId || !companionId || !startTime || !durationHours || !cleanAddress) {
       return res.status(400).json({
@@ -709,13 +722,24 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    const parsedStartTime = new Date(startTime);
-    const parsedDurationHours = Number(durationHours);
+    const now = new Date();
+    const availabilityWindow = normalizedBookingMode === "instant"
+      ? parseInstantBookingAvailabilityWindow({ startTime, durationHours, now })
+      : parseBookingAvailabilityWindow({
+          startTime,
+          durationHours,
+          now,
+          requireFuture: true,
+        });
+    if (availabilityWindow.error) {
+      return res.status(400).json({ message: availabilityWindow.error });
+    }
+    const parsedStartTime = availabilityWindow.start;
+    const parsedDurationHours = availabilityWindow.durationHours;
     if (Number.isNaN(parsedStartTime.getTime()) || Number.isNaN(parsedDurationHours) || parsedDurationHours < 1) {
       return res.status(400).json({ message: "Thời gian đặt lịch hoặc thời lượng không hợp lệ" });
     }
 
-    const now = new Date();
     if (parsedStartTime <= now) {
       return res.status(400).json({ message: "Thời gian bắt đầu sai, quý khách vui lòng chọn lại." });
     }
@@ -747,6 +771,23 @@ export const createBooking = async (req, res) => {
       });
     }
 
+    if (normalizedBookingMode === "instant") {
+      bookingLocks.push(await acquireCompanionBookingLock(`instant-customer:${req.user.userId}`));
+      const activeInstantBooking = await Booking.findOne({
+        customerId: req.user.userId,
+        bookingMode: "instant",
+        status: "pending",
+        offerExpiresAt: { $gt: now },
+      }).select("_id offerExpiresAt");
+      if (activeInstantBooking) {
+        return res.status(409).json({
+          message: "Bạn đang có một yêu cầu đặt ngay chờ phản hồi. Vui lòng chờ hoặc hủy yêu cầu hiện tại.",
+          bookingId: activeInstantBooking._id,
+          offerExpiresAt: activeInstantBooking.offerExpiresAt,
+        });
+      }
+    }
+
     const elder = await ElderProfile.findOne({
       _id: elderProfileId,
       customerId: req.user.userId,
@@ -765,7 +806,7 @@ export const createBooking = async (req, res) => {
       role: "companion",
       isActive: true,
       isEmailVerified: true,
-    }).select("_id name email");
+    }).select("_id name email recoveryEmail");
     if (!companionUser) {
       return res.status(404).json({ message: "Không tìm thấy tài khoản người đồng hành đang hoạt động." });
     }
@@ -773,12 +814,29 @@ export const createBooking = async (req, res) => {
     const companionProfile = await CompanionProfile.findOne({
       userId: companionId,
       vettingStatus: "approved",
-    });
+    }).select("+applicantCustomerId");
     if (!companionProfile) {
       return res.status(404).json({ message: "Không tìm thấy người đồng hành đã được phê duyệt." });
     }
 
-    bookingLock = await acquireCompanionBookingLock(companionId);
+    if (toIdString(companionProfile.applicantCustomerId) === req.user.userId) {
+      return res.status(409).json({ message: "Bạn không thể đặt lịch cho chính hồ sơ người đồng hành của mình." });
+    }
+
+    if (!companionProfile.phoneVerifiedAt) {
+      return res.status(409).json({ message: "Người đồng hành cần xác minh số điện thoại trước khi nhận booking." });
+    }
+    if (!isWithinCompanionWorkingShift(companionProfile.workingShift, parsedStartTime, parsedDurationHours)) {
+      return res.status(409).json({ message: "Người đồng hành không làm việc trong khung giờ bạn đã chọn." });
+    }
+    if (
+      normalizedBookingMode === "instant" &&
+      !getUserOnlineStatuses()[String(companionId)]?.isOnline
+    ) {
+      return res.status(409).json({ message: "Người đồng hành vừa offline. Vui lòng chọn người đang online khác." });
+    }
+
+    bookingLocks.push(await acquireCompanionBookingLock(companionId));
 
     const conflictingBooking = await findCompanionTimeConflict({
       companionId,
@@ -789,6 +847,19 @@ export const createBooking = async (req, res) => {
       return res.status(409).json({
         message: "Người đồng hành này đã có lịch trong khung giờ bạn chọn. Vui lòng chọn giờ khác hoặc người đồng hành khác.",
       });
+    }
+    if (normalizedBookingMode === "instant") {
+      const activeInstantOffer = await Booking.findOne({
+        companionId,
+        bookingMode: "instant",
+        status: "pending",
+        offerExpiresAt: { $gt: now },
+      }).select("_id");
+      if (activeInstantOffer) {
+        return res.status(409).json({
+          message: "Người đồng hành đang phản hồi một yêu cầu đặt ngay khác. Vui lòng chọn người khác.",
+        });
+      }
     }
 
     const totalAmount = service.pricePerHour * parsedDurationHours;
@@ -804,6 +875,10 @@ export const createBooking = async (req, res) => {
       address: cleanAddress,
       addressLocation: normalizedAddressLocation,
       note,
+      bookingMode: normalizedBookingMode,
+      offerExpiresAt: normalizedBookingMode === "instant"
+        ? new Date(now.getTime() + INSTANT_BOOKING_OFFER_TTL_MS)
+        : null,
       totalAmount,
       platformFee,
     });
@@ -817,7 +892,7 @@ export const createBooking = async (req, res) => {
       createBookingCreatedNotification(booking),
       createCompanionBookingCreatedNotification(booking, { elder, service }),
       sendCompanionBookingCreatedEmail({
-        to: companionUser.email,
+        to: companionUser.recoveryEmail || companionUser.email,
         name: companionUser.name,
         booking,
         elder,
@@ -827,7 +902,14 @@ export const createBooking = async (req, res) => {
       }),
     ]);
 
-    return res.status(201).json({ message: "Tạo lịch chăm sóc thành công.", booking });
+    emitBookingChatState(booking);
+
+    return res.status(201).json({
+      message: normalizedBookingMode === "instant"
+        ? "Đã gửi yêu cầu đặt ngay. Người đồng hành có 5 phút để phản hồi."
+        : "Tạo lịch chăm sóc thành công.",
+      booking,
+    });
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({
@@ -835,7 +917,7 @@ export const createBooking = async (req, res) => {
       error: error.message,
     });
   } finally {
-    await releaseCompanionBookingLock(bookingLock);
+    await Promise.all(bookingLocks.map((lock) => releaseCompanionBookingLock(lock)));
   }
 };
 
@@ -890,14 +972,20 @@ export const getBookingById = async (req, res) => {
     const shiftLog = await ShiftLog.findOne({ bookingId: booking._id });
     const payment = await Payment.findOne({ bookingId: booking._id });
     const review = await Review.findOne({ bookingId: booking._id });
+    const canViewCompanionContact = isCustomerSide && ["accepted", "in_progress", "completed", "paid"].includes(booking.status);
+    const companionContact = canViewCompanionContact
+      ? await User.findById(toIdString(booking.companionId)).select("name email phone")
+      : null;
 
-    return res.status(200).json({ booking, shiftLog, payment, review, perspective });
+    return res.status(200).json({ booking, shiftLog, payment, review, perspective, companionContact });
   } catch (error) {
     return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
 };
 
 export const updateBookingStatus = async (req, res) => {
+  let bookingLock = null;
+
   try {
     const { status } = req.body;
     const allowed = ["accepted", "in_progress", "completed", "cancelled"];
@@ -924,6 +1012,31 @@ export const updateBookingStatus = async (req, res) => {
 
     if (!BOOKING_STATUS_TRANSITIONS[booking.status]?.includes(status)) {
       return res.status(409).json({ message: "Không thể chuyển lịch chăm sóc sang trạng thái này." });
+    }
+
+    if (
+      status === "accepted" &&
+      booking.bookingMode === "instant" &&
+      (!booking.offerExpiresAt || booking.offerExpiresAt <= new Date())
+    ) {
+      return res.status(409).json({ message: "Yêu cầu đặt ngay đã hết thời gian phản hồi." });
+    }
+
+    if (["accepted", "in_progress"].includes(status)) {
+      bookingLock = await acquireCompanionBookingLock(booking.companionId);
+    }
+
+    if (status === "accepted") {
+      const companionProfile = await CompanionProfile.findOne({
+        userId: booking.companionId,
+        vettingStatus: "approved",
+      }).select("phoneVerifiedAt workingShift");
+      if (!companionProfile?.phoneVerifiedAt) {
+        return res.status(409).json({ message: "Người đồng hành cần xác minh số điện thoại trước khi nhận booking." });
+      }
+      if (!isWithinCompanionWorkingShift(companionProfile.workingShift, booking.startTime, booking.durationHours)) {
+        return res.status(409).json({ message: "Booking này nằm ngoài ca làm việc hiện tại của người đồng hành." });
+      }
     }
 
     if (["accepted", "in_progress"].includes(status)) {
@@ -956,6 +1069,11 @@ export const updateBookingStatus = async (req, res) => {
 
     const previousStatus = booking.status;
     const statusUpdates = { status };
+    const statusFilter = { _id: booking._id, status: previousStatus };
+
+    if (status === "accepted" && booking.bookingMode === "instant") {
+      statusFilter.offerExpiresAt = { $gt: new Date() };
+    }
 
     if (status === "completed") {
       const completedAt = booking.completedAt || new Date();
@@ -964,11 +1082,14 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     const updatedBooking = await Booking.findOneAndUpdate(
-      { _id: booking._id, status: previousStatus },
+      statusFilter,
       { $set: statusUpdates },
       { new: true, runValidators: true },
     );
     if (!updatedBooking) {
+      if (status === "accepted" && booking.bookingMode === "instant") {
+        return res.status(409).json({ message: "Yêu cầu đặt ngay đã hết thời gian phản hồi." });
+      }
       return res.status(409).json({ message: "Trạng thái lịch chăm sóc đã thay đổi. Vui lòng thử lại." });
     }
 
@@ -992,7 +1113,13 @@ export const updateBookingStatus = async (req, res) => {
 
     return res.status(200).json({ message: "Cập nhật trạng thái lịch chăm sóc thành công.", booking: updatedBooking });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+      error: error.message,
+    });
+  } finally {
+    await releaseCompanionBookingLock(bookingLock);
   }
 };
 

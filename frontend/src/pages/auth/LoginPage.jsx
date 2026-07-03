@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { Button, Input } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getUserHomePath } from "../../utils/authNavigation.js";
@@ -8,8 +8,9 @@ import AuthShell from "./AuthShell.jsx";
 const VERIFY_EMAIL_STORAGE_KEY = "carego_verify_email";
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { user: currentUser, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -20,7 +21,10 @@ const LoginPage = () => {
     setError("");
     try {
       const user = await login(form);
-      navigate(getUserHomePath(user));
+      const redirectTo = user.mustChangePassword
+        ? getUserHomePath(user)
+        : location.state?.from?.pathname || getUserHomePath(user);
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       if (err.code === "EMAIL_NOT_VERIFIED") {
         const email = err.email || form.email.trim();
@@ -38,6 +42,10 @@ const LoginPage = () => {
       setSubmitting(false);
     }
   };
+
+  if (currentUser) {
+    return <Navigate to={getUserHomePath(currentUser)} replace />;
+  }
 
   return (
     <AuthShell
@@ -69,12 +77,12 @@ const LoginPage = () => {
         </div> */}
 
         <Input
-          label="Email"
+          label="Email hoặc tài khoản CareGo"
           type="email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           className="min-h-14 rounded-2xl border-teal-100 bg-white px-4 focus:border-teal-500"
-          placeholder="nhập email của bạn"
+          placeholder="email cá nhân hoặc tài khoản @carego.cfd"
         />
         <Input
           label="Mật khẩu"

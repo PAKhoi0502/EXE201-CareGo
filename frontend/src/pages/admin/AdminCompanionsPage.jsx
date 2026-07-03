@@ -11,6 +11,7 @@ const emptyForm = {
   email: "",
   password: "",
   phone: "",
+  workingShift: "full_day",
   university: "",
   major: "",
   skillsText: "",
@@ -30,6 +31,30 @@ const getReviewerName = (companion) => {
   return reviewer.name || reviewer.email || "-";
 };
 
+const getCompanionUserId = (companion) =>
+  companion?.userId?._id || (typeof companion?.userId === "string" ? companion.userId : "");
+
+const getCompanionAccountEmail = (companion) =>
+  companion?.userId?.email || (typeof companion?.userId === "string" ? companion.userId : "");
+
+const getApplicantEmail = (companion) => companion?.applicantCustomerId?.email || "";
+
+const getWorkingShiftLabel = (value) => {
+  if (value === "morning") return "Sáng 07:00 - 13:00";
+  if (value === "afternoon") return "Chiều 13:00 - 19:00";
+  return "Cả ngày 07:00 - 19:00";
+};
+
+const PhoneVerifiedBadge = ({ verified }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      verified ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-700 ring-amber-200"
+    }`}
+  >
+    {verified ? "Phone đã xác minh" : "Phone chưa xác minh"}
+  </span>
+);
+
 const GpsBadge = ({ status }) => (
   <span
     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${status?.isGpsOn ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-600 ring-slate-200"
@@ -39,14 +64,24 @@ const GpsBadge = ({ status }) => (
   </span>
 );
 
-const AccountLockBadge = ({ active }) => (
-  <span
-    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${active ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-rose-50 text-rose-700 ring-rose-200"
-      }`}
-  >
-    {active ? "Tài khoản mở" : "Tài khoản bị khóa"}
-  </span>
-);
+const AccountLockBadge = ({ user }) => {
+  if (!user) {
+    return (
+      <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+        Chưa cấp tài khoản
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${user.isActive ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-rose-50 text-rose-700 ring-rose-200"
+        }`}
+    >
+      {user.isActive ? "Tài khoản mở" : "Tài khoản bị khóa"}
+    </span>
+  );
+};
 
 const OnlineBadge = ({ status }) => (
   <span
@@ -99,8 +134,8 @@ const AdminCompanionsPage = () => {
   const [gpsStatuses, setGpsStatuses] = useState({});
   const [onlineStatuses, setOnlineStatuses] = useState({});
   const companions = useMemo(() => data?.companions || [], [data?.companions]);
-  const getGpsStatus = (companion) => gpsStatuses[companion.userId?._id || companion.userId] || null;
-  const getOnlineStatus = (companion) => onlineStatuses[companion.userId?._id || companion.userId] || null;
+  const getGpsStatus = (companion) => gpsStatuses[getCompanionUserId(companion)] || null;
+  const getOnlineStatus = (companion) => onlineStatuses[getCompanionUserId(companion)] || null;
 
   useEffect(() => {
     const loadRealtimeStatuses = async () => {
@@ -129,7 +164,7 @@ const AdminCompanionsPage = () => {
 
   const filteredCompanions = companions.filter((item) => {
     const text =
-      `${item.fullName} ${item.userId?.email} ${item.phone} ${item.university} ${item.major} ${(item.skills || []).join(" ")}`.toLowerCase();
+      `${item.fullName} ${getCompanionAccountEmail(item)} ${getApplicantEmail(item)} ${item.phone} ${item.university} ${item.major} ${(item.skills || []).join(" ")}`.toLowerCase();
     const matchesQuery = text.includes(query.toLowerCase());
     const matchesStatus = statusFilter === "all" || item.vettingStatus === statusFilter;
     const matchesArea = areaFilter === "all" || item.serviceAreas?.includes(areaFilter);
@@ -172,12 +207,17 @@ const AdminCompanionsPage = () => {
       payload.rejectionReason = rejectionReason.trim();
     }
 
-    const response = await api.patch(`/companions/${id}/status`, payload);
-    await reload();
-    if (response?.companion) {
-      setSelectedCompanion((current) =>
-        current?._id === id ? { ...current, ...response.companion } : current,
-      );
+    setSubmitError("");
+    try {
+      const response = await api.patch(`/companions/${id}/status`, payload);
+      await reload();
+      if (response?.companion) {
+        setSelectedCompanion((current) =>
+          current?._id === id ? { ...current, ...response.companion } : current,
+        );
+      }
+    } catch (err) {
+      setSubmitError(err.message);
     }
   };
 
@@ -207,6 +247,7 @@ const AdminCompanionsPage = () => {
       </div>
 
       {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
+      {submitError ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{submitError}</p> : null}
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -285,10 +326,16 @@ const AdminCompanionsPage = () => {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-800">{item.fullName}</p>
-                        <p className="text-[11px] text-slate-400">{item.userId?.email}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {getCompanionAccountEmail(item) || "Chưa cấp tài khoản companion"}
+                        </p>
+                        {getApplicantEmail(item) ? (
+                          <p className="text-[11px] text-slate-400">Email cá nhân: {getApplicantEmail(item)}</p>
+                        ) : null}
                         <p className="text-[11px] text-slate-400">{item.phone || "Chua co SDT"}</p>
                         <div className="mt-2 flex flex-wrap gap-1">
-                          <AccountLockBadge active={item.userId?.isActive} />
+                          <AccountLockBadge user={item.userId} />
+                          <PhoneVerifiedBadge verified={Boolean(item.phoneVerifiedAt)} />
                         </div>
                       </div>
                     </div>
@@ -299,6 +346,7 @@ const AdminCompanionsPage = () => {
                   <td className="p-4">
                     <p className="font-semibold text-slate-700">{item.university || "Chua cap nhat truong"}</p>
                     <p className="mt-1 text-slate-400">{item.major || "Chua cap nhat nganh"}</p>
+                    <p className="mt-1 font-semibold text-teal-700">{getWorkingShiftLabel(item.workingShift)}</p>
                     <div className="mt-2 space-y-1">
                       <p className="font-semibold text-emerald-600">L1: CCCD / Thẻ SV</p>
                       <p className={item.vettingStatus === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
@@ -388,6 +436,11 @@ const AdminCompanionsPage = () => {
                 <Input label="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 <Input label="Số điện thoại" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
+              <Select label="Ca làm việc" value={form.workingShift} onChange={(e) => setForm({ ...form, workingShift: e.target.value })}>
+                <option value="morning">Buổi sáng 07:00 - 13:00</option>
+                <option value="afternoon">Buổi chiều 13:00 - 19:00</option>
+                <option value="full_day">Cả ngày 07:00 - 19:00</option>
+              </Select>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input label="Trường" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
                 <Input label="Ngành" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
@@ -415,8 +468,13 @@ const AdminCompanionsPage = () => {
         >
           <div className="space-y-5">
             <DetailGrid>
-              <DetailItem label="Email" value={selectedCompanion.userId?.email} />
+              <DetailItem label="Tai khoan companion" value={getCompanionAccountEmail(selectedCompanion) || "Chua cap tai khoan"} />
+              <DetailItem label="Email ca nhan" value={getApplicantEmail(selectedCompanion) || selectedCompanion.userId?.email || "-"} />
               <DetailItem label="So dien thoai" value={selectedCompanion.phone} />
+              <DetailItem label="Xac minh phone">
+                <PhoneVerifiedBadge verified={Boolean(selectedCompanion.phoneVerifiedAt)} />
+              </DetailItem>
+              <DetailItem label="Ca lam viec" value={getWorkingShiftLabel(selectedCompanion.workingShift)} />
               <DetailItem label="Truong" value={selectedCompanion.university} />
               <DetailItem label="Chuyen nganh" value={selectedCompanion.major} />
               <DetailItem label="Gioi tinh" value={selectedCompanion.gender} />
@@ -425,7 +483,7 @@ const AdminCompanionsPage = () => {
               <DetailItem label="Xu ly luc" value={dateTime(selectedCompanion.reviewedAt)} />
               <DetailItem label="So ca hoan thanh" value={`${selectedCompanion.completedBookings || 0} ca`} />
               <DetailItem label="Trang thai tai khoan">
-                <AccountLockBadge active={selectedCompanion.userId?.isActive} />
+                <AccountLockBadge user={selectedCompanion.userId} />
               </DetailItem>
               <DetailItem label="Online / Offline">
                 <OnlineBadge status={getOnlineStatus(selectedCompanion)} />

@@ -237,7 +237,7 @@ const LandingNavbar = () => {
               Đăng nhập
             </LandingButton>
           )}
-          <LandingButton to={bookingPath}>Đặt lịch</LandingButton>
+          <LandingButton to={bookingPath} className={user ? "max-sm:!hidden" : ""}>Đặt lịch</LandingButton>
         </div>
       </div>
     </header>

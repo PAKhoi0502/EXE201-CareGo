@@ -8,9 +8,10 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 dotenv.config();
 
 const seedAdmin = async () => {
-  const email = process.env.ADMIN_EMAIL;
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
   const name = process.env.ADMIN_NAME || "CareGo Admin";
+  const recoveryEmail = String(process.env.ADMIN_RECOVERY_EMAIL || email || "").trim().toLowerCase();
 
   if (!email || !password) {
     throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required");
@@ -27,6 +28,9 @@ const seedAdmin = async () => {
     existingAdmin.role = "admin";
     existingAdmin.isActive = true;
     existingAdmin.isEmailVerified = true;
+    existingAdmin.recoveryEmail = recoveryEmail;
+    existingAdmin.mustChangePassword = false;
+    existingAdmin.temporaryPasswordExpiresAt = null;
     await existingAdmin.save();
     console.log("Admin already exists, role updated:", email);
     return;
@@ -36,9 +40,12 @@ const seedAdmin = async () => {
   await User.create({
     name,
     email,
+    recoveryEmail,
     password: hashedPassword,
     role: "admin",
     isEmailVerified: true,
+    mustChangePassword: false,
+    temporaryPasswordExpiresAt: null,
   });
 
   console.log("Admin created:", email);

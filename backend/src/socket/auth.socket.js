@@ -7,9 +7,12 @@ const getActiveSocketUser = async (userId) => {
     throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
   }
 
-  const user = await User.findById(userId).select("_id role isActive isEmailVerified");
+  const user = await User.findById(userId).select("_id role isActive isEmailVerified mustChangePassword");
   if (!user || !user.isActive || !user.isEmailVerified) {
     throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
+  }
+  if (user.mustChangePassword) {
+    throw new Error("Vui lòng đổi mật khẩu tạm thời trước khi tiếp tục.");
   }
 
   let companionProfile = null;
