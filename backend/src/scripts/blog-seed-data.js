@@ -251,4 +251,142 @@ export const blogSeedPosts = [
       },
     ],
   },
+  {
+    slug: "carego-ban-dong-hanh-tai-benh-vien",
+    viewCount: 14,
+    category: "Đi khám",
+    readTime: "6 phút đọc",
+    date: "03/07/2026",
+    title:
+      "CareGo - Bạn đồng hành tại bệnh viện: Giải pháp xếp hàng khám bệnh chuyên nghiệp dành cho gia đình hiện đại",
+    imageUrl: "/Blog 4.jpg",
+    excerpt:
+      "CareGo mang đến giải pháp người đồng hành tại bệnh viện, giúp gia đình an tâm hơn khi cha mẹ cần đi khám, xếp hàng, làm thủ tục và ghi nhận thông tin y tế.",
+    highlight:
+      "Người đồng hành tại bệnh viện giúp giảm áp lực thời gian cho con cái, đồng thời hỗ trợ người cao tuổi an toàn hơn trong quá trình đi khám.",
+    content: [
+      {
+        heading: "Một giải pháp cụ thể cho gia đình hiện đại",
+        body:
+          "Trong bài blog trước, chúng ta đã khám phá cách CareGo kết nối người cao tuổi với các bạn sinh viên ưu tú cho những buổi dạo công viên hay trò chuyện tại nhà. Hôm nay, CareGo xin giới thiệu một giải pháp cụ thể hơn, giải quyết một trong những nỗi ám ảnh lớn nhất của gia đình hiện đại: đưa cha mẹ đi khám bệnh và xếp hàng chờ đợi tại bệnh viện.",
+      },
+      {
+        heading: "Rào cản bệnh viện: nỗi lo canh cánh của con cái",
+        body:
+          "Thủ tục hành chính tại bệnh viện luôn là một bài toán phức tạp, đòi hỏi sự kiên nhẫn và thời gian. Với con cái, việc nghỉ làm để đưa cha mẹ đi khám là một thách thức lớn, đặc biệt khi họ đang trong giai đoạn thăng tiến.\n\nNỗi lo lắng của con cái không chỉ là thời gian, mà còn là:\n\n- Sức khỏe của cha mẹ: Người cao tuổi phải xếp hàng lâu, đối mặt với sự đông đúc, mệt mỏi.\n- Mất tập trung tại nơi làm việc: Lo lắng về việc cha mẹ tự đi, lo sợ lạc hoặc gặp sự cố.\n- Thông tin y tế: Không có mặt để nghe giải thích từ bác sĩ.",
+      },
+      {
+        heading: "Giải pháp vàng: người đồng hành tại bệnh viện của CareGo",
+        body:
+          "CareGo cung cấp tính năng \"Bạn đồng hành tại bệnh viện\", kết nối bạn với những người đồng hành chuyên trách là sinh viên ngành Y, Dược, Điều dưỡng, Tâm lý. Họ không thay thế bác sĩ, nhưng là những người hỗ trợ gia đình trong các bước thủ tục y tế ban đầu.",
+      },
+      {
+        heading: "Công việc cụ thể của người đồng hành",
+        body:
+          "- Lấy số và xếp hàng: Bạn đồng hành sẽ có mặt sớm, lấy số thứ tự và thay cha mẹ xếp hàng.\n- Hướng dẫn và hỗ trợ: Khi đến lượt, họ sẽ dìu cha mẹ đến đúng phòng khám, hỗ trợ thực hiện các xét nghiệm.\n- Ghi nhận thông tin: Nghe và ghi chép lại các hướng dẫn cơ bản của bác sĩ.\n- Chăm sóc tinh thần: Luôn ở bên cạnh bầu bạn, giảm bớt sự lo lắng cho người cao tuổi.",
+      },
+      {
+        heading: "CareGo giúp gia đình an tâm hơn",
+        body:
+          "Với CareGo, gia đình có thể theo dõi quá trình hỗ trợ, nhận cập nhật từ người đồng hành và nắm được những thông tin quan trọng sau buổi khám. Điều này giúp con cái giảm bớt áp lực phải có mặt trong mọi thủ tục, nhưng vẫn không bỏ lỡ những điều cần biết về sức khỏe của cha mẹ.",
+      },
+    ],
+  },
+  {
+    slug: "carego-giai-phap-cham-soc-nguoi-cao-tuoi-theo-gio-thoi-4-0",
+    viewCount: 22,
+    category: "Chăm sóc người cao tuổi",
+    readTime: "8 phút đọc",
+    date: "03/07/2026",
+    title:
+      "CareGo: Sự an tâm của con, niềm vui của cha mẹ - Giải pháp chăm sóc người cao tuổi theo giờ thời 4.0",
+    imageUrl: "/Blog 5.png",
+    excerpt:
+      "CareGo giúp con cái bận rộn chăm sóc cha mẹ chu đáo hơn thông qua mô hình người đồng hành theo giờ, linh hoạt, minh bạch và giàu tính nhân văn.",
+    highlight:
+      "Với CareGo, sự bận rộn không còn là rào cản ngăn cách tình yêu thương; trách nhiệm làm con được san sẻ một cách khoa học và chuyên nghiệp.",
+    content: [
+      {
+        heading: "Nỗi trăn trở của những người con bận rộn",
+        body:
+          "Trong nhịp sống hiện đại hối hả, chúng ta - những người con luôn nỗ lực không ngừng cho sự nghiệp - thường phải đối mặt với một nỗi lo canh cánh: Làm thế nào để chăm sóc cha mẹ già chu đáo khi quỹ thời gian hành chính quá ít ỏi? Nỗi trăn trở ấy càng lớn hơn khi thủ tục bệnh viện phức tạp, hay đơn giản là khi cha mẹ cần một người bầu bạn, đi dạo nhưng chúng ta lại không thể túc trực 24/7.\n\nSự giằng xé giữa việc hoàn thành trách nhiệm công việc và làm tròn đạo hiếu đôi khi khiến những người con rơi vào trạng thái kiệt sức. Việc thuê người giúp việc toàn thời gian hay gửi cha mẹ vào viện dưỡng lão thường đi kèm với chi phí đắt đỏ, hoặc không phù hợp với văn hóa gia đình truyền thống, nơi người già luôn muốn gắn bó với ngôi nhà quen thuộc của mình.",
+      },
+      {
+        heading: "CareGo ra đời để san sẻ áp lực chăm sóc",
+        body:
+          "Hiểu được nỗi lòng đó, CareGo ra đời như một giải pháp tiên phong tại Việt Nam. Nền tảng của chúng tôi kết nối người cao tuổi với đội ngũ \"Người đồng hành chuyên trách\" (Companions) - là các bạn sinh viên ưu tú, đặc biệt đến từ các khối ngành Y, Dược, Điều dưỡng và Tâm lý.\n\nVới tôn chỉ \"Cần chăm sóc là có ngay\", CareGo không chỉ cung cấp dịch vụ chăm sóc sức khỏe ban đầu mà còn là cầu nối tình thân, mang lại sự hỗ trợ tinh thần vô giá theo mô hình theo giờ cực kỳ linh hoạt.",
+      },
+      {
+        heading: "Tại sao lại là sinh viên khối ngành sức khỏe và tâm lý?",
+        body:
+          "CareGo hiểu rằng người cao tuổi không chỉ cần một người trông nom đơn thuần. Họ cần một người biết lắng nghe, thấu hiểu và có kiến thức nền tảng vững vàng.\n\n- Kiến thức y tế cơ bản (phi lâm sàng): Các bạn sinh viên khối ngành sức khỏe có khả năng hỗ trợ nhắc lịch uống thuốc chuẩn xác, theo dõi các chỉ số cơ bản như huyết áp, nhịp tim và phản ứng nhạy bén với những thay đổi nhỏ về sức khỏe của người già.\n- Sự thấu cảm và năng lượng tích cực: Sinh viên ngành Tâm lý mang đến sự kiên nhẫn, khả năng lắng nghe và xoa dịu những nỗi cô đơn thường trực ở tuổi xế chiều. Sự chênh lệch thế hệ không tạo ra khoảng cách, mà ngược lại, mang đến không khí tươi trẻ, mô phỏng lại tình cảm ông bà - cháu chắt vô cùng ấm áp.",
+      },
+      {
+        heading: "Những dịch vụ cốt lõi CareGo mang lại",
+        body:
+          "Thay vì phải xin nghỉ phép cả ngày chỉ để đưa cha mẹ đi tái khám, giờ đây bạn có thể chia sẻ gánh nặng đó với CareGo thông qua các tính năng linh hoạt:\n\n- Đồng hành đi viện (Hospital Companion): Trợ giúp lấy số thứ tự, xếp hàng thay cha mẹ, dìu dắt di chuyển qua các khoa phòng, và ghi chú cẩn thận những lời dặn dò của bác sĩ vào nhật ký sức khỏe điện tử trên ứng dụng.\n- Bầu bạn và hỗ trợ tại nhà: Cùng cha mẹ đọc báo, trò chuyện, nhắc nhở uống thuốc đúng giờ theo đơn đã có sẵn.\n- Hỗ trợ hoạt động ngoài trời: Tháp tùng người lớn tuổi đi dạo công viên, đi siêu thị, hoặc tham gia các câu lạc bộ hưu trí một cách an toàn nhất.",
+      },
+      {
+        heading: "Ứng dụng công nghệ xóa tan mọi lo âu",
+        body:
+          "Giao sự an toàn của cha mẹ cho một người mới quen chưa bao giờ là điều dễ dàng. Vì vậy, CareGo đặt yếu tố minh bạch và an toàn lên hàng đầu, tối ưu hóa qua nền tảng ứng dụng thông minh:\n\n- Theo dõi GPS theo thời gian thực: Con cái dù đang ngồi họp trên công ty vẫn có thể xem được chính xác vị trí của cha mẹ và người đồng hành trên bản đồ.\n- Hồ sơ minh bạch 100%: Toàn bộ sinh viên đều được xác minh danh tính, căn cước công dân và thẻ sinh viên rõ ràng trước khi nhận việc.\n- Hệ thống ghi âm và cập nhật hình ảnh: Xóa bỏ nỗi lo về thái độ phục vụ hay các vấn đề tiền bạc ngoài luồng. Mọi chuyến đi đều được ghi âm sau khi có sự đồng thuận và hình ảnh cha mẹ được cập nhật liên tục qua app.",
+      },
+      {
+        heading: "Giá trị kép cho xã hội",
+        body:
+          "Sự ra đời của CareGo không chỉ giải quyết nỗi đau của các gia đình hiện đại mà còn tạo ra những tác động xã hội sâu sắc. Một mặt, những người con bận rộn lấy lại được sự cân bằng, có thời gian tập trung phát triển sự nghiệp. Mặt khác, hàng ngàn sinh viên ngành y tế có cơ hội được làm việc trong môi trường thực tế, rèn luyện y đức, kỹ năng giao tiếp và có thêm nguồn thu nhập chính đáng.",
+      },
+      {
+        heading: "CareGo - san sẻ trách nhiệm bằng sự tận tâm",
+        body:
+          "Với CareGo, sự bận rộn sẽ không còn là rào cản ngăn cách tình yêu thương. Trách nhiệm làm con giờ đây được san sẻ một cách khoa học, chuyên nghiệp và đầy tính nhân văn.",
+      },
+    ],
+  },
+  {
+    slug: "ban-ron-van-yeu-thuong-carego-mang-lai-su-an-tam-cho-gia-dinh-hien-dai",
+    viewCount: 18,
+    category: "Gia đình hiện đại",
+    readTime: "7 phút đọc",
+    date: "03/07/2026",
+    title:
+      "Bận rộn vẫn yêu thương: Cách CareGo mang lại sự an tâm tuyệt đối cho gia đình hiện đại",
+    imageUrl: "/Blog 6.png",
+    excerpt:
+      "CareGo giúp những người con bận rộn chăm sóc cha mẹ chu đáo hơn bằng giải pháp người đồng hành theo giờ, minh bạch, an toàn và giàu tính kết nối.",
+    highlight:
+      "Yêu thương không cần sự hy sinh, chỉ cần sự lựa chọn thông minh để cha mẹ luôn được quan tâm và con cái luôn an tâm.",
+    content: [
+      {
+        heading: "Nỗi lo của gia đình trong thế kỷ bận rộn",
+        body:
+          "Chúng ta sống trong một thế kỷ bận rộn. Áp lực công việc, sự nghiệp thăng tiến và những nghĩa vụ xã hội đôi khi khiến chúng ta cảm thấy kiệt sức, đặc biệt là khi nỗi lo về cha mẹ già luôn canh cánh trong lòng.\n\nBạn muốn có mặt bên cha mẹ mỗi ngày, nhưng quỹ thời gian hành chính hẹp hòi khiến bạn phải lựa chọn giữa công việc và gia đình. Bạn cảm thấy tội lỗi? Bạn lo lắng cho sự an toàn của cha mẹ? Hãy để CareGo giúp bạn tìm lại sự cân bằng và mang lại nụ cười cho cha mẹ.",
+      },
+      {
+        heading: "Khám phá giải pháp người đồng hành thông minh của CareGo",
+        body:
+          "CareGo không chỉ là một ứng dụng kết nối, mà là một giải pháp chăm sóc theo giờ tiên phong tại Việt Nam. Chúng tôi tiên phong kết nối người cao tuổi với đội ngũ người đồng hành chuyên trách, là những bạn sinh viên ưu tú, đặc biệt từ các khối ngành sức khỏe như Y, Dược, Điều dưỡng và Tâm lý.\n\nĐây là điểm khác biệt cốt lõi, mang lại sự chăm sóc không chỉ về thể chất theo hướng phi lâm sàng mà còn về tinh thần cho cha mẹ bạn.",
+      },
+      {
+        heading: "Yêu thương không cần sự hy sinh",
+        body:
+          "Với CareGo, bạn có thể hoàn toàn yên tâm làm việc mà không còn phải hy sinh tình yêu thương dành cho cha mẹ:\n\n- An tâm tuyệt đối với GPS realtime: Chỉ bằng một cái chạm trên điện thoại, bạn có thể theo dõi vị trí của cả cha mẹ và người chăm sóc theo thời gian thực.\n- Cam kết an toàn và minh bạch: Mọi thông tin của người đồng hành đều được xác thực như CCCD và hồ sơ sinh viên. CareGo áp dụng quy trình ghi âm minh bạch trong suốt ca làm việc và cập nhật hình ảnh liên tục, đảm bảo cha mẹ bạn luôn được an toàn và tôn trọng.",
+      },
+      {
+        heading: "Mang lại nụ cười và sự kết nối cho cha mẹ",
+        body:
+          "Cha mẹ bạn cần sự hiện diện, không chỉ là những món quà. Người đồng hành CareGo sẽ thay bạn:\n\n- Trò chuyện chân thành: Đọc báo, chia sẻ những khoảnh khắc đời thường, giải tỏa nỗi cô đơn.\n- Hỗ trợ hoạt động xã hội: Đưa đi dạo công viên, đi viện như xếp hàng, làm thủ tục, hoặc tham gia các hoạt động câu lạc bộ, hội nhóm.\n- Nhắc lịch uống thuốc: Đảm bảo cha mẹ uống thuốc đúng giờ theo đơn đã có trước.",
+      },
+      {
+        heading: "Tác động xã hội: lợi ích kép cho gia đình và sinh viên",
+        body:
+          "Chọn CareGo, bạn đang tạo cơ hội việc làm ý nghĩa cho các bạn sinh viên, đặc biệt là sinh viên ngành sức khỏe. Họ có cơ hội tiếp cận thực tế, rèn luyện kỹ năng và có thêm thu nhập trong giờ hành chính mà không ảnh hưởng đến việc học.\n\nĐây là một mô hình mũi tên trúng hai đích thực sự ý nghĩa, góp phần xây dựng một cộng đồng chăm sóc bền vững.",
+      },
+      {
+        heading: "Lựa chọn thông minh cho yêu thương hiện đại",
+        body:
+          "Yêu thương không cần sự hy sinh, chỉ cần sự lựa chọn thông minh. Hãy để sự bận rộn của bạn trở thành động lực để tìm kiếm những giải pháp yêu thương thông minh hơn.\n\nTrải nghiệm CareGo ngay hôm nay và mang lại sự an tâm cho chính bạn, nụ cười cho cha mẹ. CareGo: Cần chăm sóc là có ngay.",
+      },
+    ],
+  },
 ];
