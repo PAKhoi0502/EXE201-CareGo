@@ -3,6 +3,7 @@ import test from "node:test";
 import AuditLog from "../models/audit-log.models.js";
 import {
   buildAuditLogEntry,
+  getHttpAuditDetails,
   getHttpAuditAction,
   hashAuditIp,
   resolveAuditResource,
@@ -57,13 +58,51 @@ test("builds an audit entry without request payload data", () => {
   assert.equal(Object.hasOwn(entry, "body"), false);
 });
 
-test("ignores roles outside admin and companion", () => {
+test("builds a customer audit entry for selected customer actions", () => {
   const entry = buildAuditLogEntry({
     actor: { userId: "507f1f77bcf86cd799439011", role: "customer" },
+    source: "http",
+    action: "customer.booking.create",
+    route: "/api/bookings",
+  });
+  assert.equal(entry.actorRole, "customer");
+  assert.equal(entry.action, "customer.booking.create");
+});
+
+test("ignores roles outside audited actors", () => {
+  const entry = buildAuditLogEntry({
+    actor: { userId: "507f1f77bcf86cd799439011", role: "staff" },
     source: "http",
     action: "http.read",
   });
   assert.equal(entry, null);
+});
+
+test("audits only selected customer HTTP routes", () => {
+  const actor = { userId: "507f1f77bcf86cd799439011", role: "customer" };
+  assert.deepEqual(getHttpAuditDetails(actor, "POST", "/api/bookings"), {
+    action: "customer.booking.create",
+    resourceType: "bookings",
+    resourceId: "",
+  });
+  assert.deepEqual(getHttpAuditDetails(actor, "PUT", "/api/elders/507f1f77bcf86cd799439012?draft=true"), {
+    action: "customer.elder.update",
+    resourceType: "elders",
+    resourceId: "507f1f77bcf86cd799439012",
+  });
+  assert.equal(getHttpAuditDetails(actor, "GET", "/api/services"), null);
+  assert.equal(getHttpAuditDetails(actor, "GET", "/api/bookings/my?as=customer"), null);
+});
+
+test("continues to audit every admin and companion HTTP route", () => {
+  assert.deepEqual(
+    getHttpAuditDetails({ userId: "507f1f77bcf86cd799439011", role: "admin" }, "DELETE", "/api/admin/users/507f1f77bcf86cd799439012"),
+    { action: "http.delete" },
+  );
+  assert.deepEqual(
+    getHttpAuditDetails({ userId: "507f1f77bcf86cd799439011", role: "companion" }, "GET", "/api/bookings/my"),
+    { action: "http.read" },
+  );
 });
 
 test("hashes the same IP consistently without returning the raw value", () => {

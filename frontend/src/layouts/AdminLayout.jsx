@@ -1,6 +1,18 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import CareGoLogo from "../components/CareGoLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
+
+const ADMIN_ALERT_LIMIT = 3;
+const ADMIN_ALERT_TTL_MS = 10000;
+
+const adminAlertToneClasses = {
+  urgent: "border-rose-200 bg-rose-50 text-rose-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-800",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  info: "border-sky-200 bg-white/95 text-slate-700",
+};
 
 const adminLinks = [
   { label: "Tổng quan", to: "/admin" },
@@ -17,11 +29,68 @@ const adminLinks = [
 
 export default function AdminLayout() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const [adminAlerts, setAdminAlerts] = useState([]);
+  const alertTimers = useRef(new Map());
+
+  const dismissAdminAlert = useCallback((alertId) => {
+    const timer = alertTimers.current.get(alertId);
+    if (timer) window.clearTimeout(timer);
+    alertTimers.current.delete(alertId);
+    setAdminAlerts((current) => current.filter((item) => item.id !== alertId));
+  }, []);
+
+  useEffect(() => {
+    if (user?.role !== "admin") return undefined;
+
+    const handleAdminAlert = ({ alert }) => {
+      if (!alert) return;
+      const alertId = alert.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const nextAlert = {
+        id: alertId,
+        type: alert.type || "admin_alert",
+        title: alert.title || "Có cập nhật mới",
+        message: alert.message || "Có sự kiện mới cần admin kiểm tra.",
+        tone: alert.tone || "info",
+        link: alert.link || "",
+        createdAt: alert.createdAt || new Date().toISOString(),
+      };
+
+      setAdminAlerts((current) => [
+        nextAlert,
+        ...current.filter((item) => item.id !== alertId),
+      ].slice(0, ADMIN_ALERT_LIMIT));
+
+      const currentTimer = alertTimers.current.get(alertId);
+      if (currentTimer) window.clearTimeout(currentTimer);
+      alertTimers.current.set(
+        alertId,
+        window.setTimeout(() => dismissAdminAlert(alertId), ADMIN_ALERT_TTL_MS),
+      );
+    };
+
+    locationSocket.on("admin:alert", handleAdminAlert);
+    connectLocationSocket();
+
+    return () => {
+      locationSocket.off("admin:alert", handleAdminAlert);
+    };
+  }, [dismissAdminAlert, user?.role]);
+
+  useEffect(() => () => {
+    alertTimers.current.forEach((timer) => window.clearTimeout(timer));
+    alertTimers.current.clear();
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const openAdminAlert = (alert) => {
+    if (!alert.link) return;
+    dismissAdminAlert(alert.id);
+    navigate(alert.link);
   };
 
   return (
@@ -61,6 +130,38 @@ export default function AdminLayout() {
         </nav>
 
         <div className="mt-auto p-4">
+          {adminAlerts.length > 0 ? (
+            <div className="mb-3 space-y-2" aria-live="polite">
+              {adminAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`rounded-2xl border p-3 shadow-sm shadow-teal-900/5 ${adminAlertToneClasses[alert.tone] || adminAlertToneClasses.info}`}
+                >
+                  <p className="text-xs font-black uppercase tracking-wide">{alert.title}</p>
+                  <p className="mt-1 text-xs font-semibold leading-5">{alert.message}</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    {alert.link ? (
+                      <button
+                        type="button"
+                        onClick={() => openAdminAlert(alert)}
+                        className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-black text-slate-700 ring-1 ring-current/10 transition hover:bg-white"
+                      >
+                        Xem
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => dismissAdminAlert(alert.id)}
+                      className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-black text-current ring-1 ring-current/10 transition hover:bg-white"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           <button
             type="button"
             onClick={handleLogout}

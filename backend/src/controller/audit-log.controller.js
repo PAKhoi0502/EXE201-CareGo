@@ -23,7 +23,7 @@ export const getAdminAuditLogs = async (req, res) => {
     const dateFilter = { createdAt: { $gte: from, $lte: to } };
     const filter = { ...dateFilter };
 
-    if (["admin", "companion"].includes(req.query.role)) {
+    if (["admin", "companion", "customer"].includes(req.query.role)) {
       filter.actorRole = req.query.role;
     }
     if (["http", "socket"].includes(req.query.source)) {
@@ -60,6 +60,7 @@ export const getAdminAuditLogs = async (req, res) => {
             total: { $sum: 1 },
             admin: { $sum: { $cond: [{ $eq: ["$actorRole", "admin"] }, 1, 0] } },
             companion: { $sum: { $cond: [{ $eq: ["$actorRole", "companion"] }, 1, 0] } },
+            customer: { $sum: { $cond: [{ $eq: ["$actorRole", "customer"] }, 1, 0] } },
             http: { $sum: { $cond: [{ $eq: ["$source", "http"] }, 1, 0] } },
             socket: { $sum: { $cond: [{ $eq: ["$source", "socket"] }, 1, 0] } },
             failures: { $sum: { $cond: [{ $eq: ["$outcome", "failure"] }, 1, 0] } },
@@ -72,6 +73,7 @@ export const getAdminAuditLogs = async (req, res) => {
       total: 0,
       admin: 0,
       companion: 0,
+      customer: 0,
       http: 0,
       socket: 0,
       failures: 0,

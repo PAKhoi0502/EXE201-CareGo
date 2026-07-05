@@ -39,6 +39,21 @@ const actionLabels = {
   "auth.login": "Đăng nhập",
   "auth.logout": "Đăng xuất",
   "auth.refresh": "Làm mới phiên đăng nhập",
+  "auth.signup.verify": "Xác thực đăng ký",
+  "auth.email.verify": "Xác thực email",
+  "customer.profile.update": "Cập nhật hồ sơ customer",
+  "customer.password.otp_request": "Yêu cầu OTP đổi mật khẩu",
+  "customer.password.change": "Đổi mật khẩu",
+  "customer.companion.apply": "Đăng ký làm companion",
+  "customer.elder.create": "Tạo hồ sơ người thân",
+  "customer.elder.update": "Cập nhật hồ sơ người thân",
+  "customer.elder.delete": "Xóa hồ sơ người thân",
+  "customer.booking.create": "Tạo booking",
+  "customer.booking.cancel": "Hủy booking",
+  "customer.booking.pay": "Thanh toán booking",
+  "customer.review.create": "Gửi đánh giá",
+  "customer.payment.sync": "Đồng bộ thanh toán",
+  "customer.support.create": "Tạo yêu cầu hỗ trợ",
   "socket.connect": "Kết nối realtime",
   "socket.disconnect": "Ngắt kết nối realtime",
   "gps.start": "Bật GPS",
@@ -47,9 +62,15 @@ const actionLabels = {
 
 const getActionLabel = (action) => actionLabels[action] || action || "Không xác định";
 
+const roleMeta = {
+  admin: { label: "Admin", className: "bg-violet-50 text-violet-700" },
+  companion: { label: "Companion", className: "bg-cyan-50 text-cyan-700" },
+  customer: { label: "Customer", className: "bg-blue-50 text-blue-700" },
+};
+
 const RoleBadge = ({ role }) => (
-  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${role === "admin" ? "bg-violet-50 text-violet-700" : "bg-cyan-50 text-cyan-700"}`}>
-    {role === "admin" ? "Admin" : "Companion"}
+  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${roleMeta[role]?.className || "bg-slate-100 text-slate-600"}`}>
+    {roleMeta[role]?.label || role || "Không rõ"}
   </span>
 );
 
@@ -108,7 +129,7 @@ const AdminAuditLogsPage = () => {
           <p className="text-xs font-black uppercase tracking-wide text-teal-700">Theo dõi hệ thống</p>
           <h1 className="mt-1 text-3xl font-black text-slate-950">Nhật ký hoạt động</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            Ghi nhận thao tác HTTP và sự kiện realtime quan trọng của admin, companion. Dữ liệu tự động được xóa sau {data?.retentionDays || 7} ngày.
+            Ghi nhận thao tác HTTP và sự kiện realtime quan trọng của admin, companion; customer chỉ ghi các sự kiện nghiệp vụ nhạy cảm. Dữ liệu tự động được xóa sau {data?.retentionDays || 7} ngày.
           </p>
         </div>
         <Button type="button" variant="secondary" onClick={reload} disabled={loading}>
@@ -116,11 +137,12 @@ const AdminAuditLogsPage = () => {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         {[
           ["Tổng hoạt động", summary.total || 0, "text-slate-900"],
           ["Admin", summary.admin || 0, "text-violet-700"],
           ["Companion", summary.companion || 0, "text-cyan-700"],
+          ["Customer", summary.customer || 0, "text-blue-700"],
           ["Realtime", summary.socket || 0, "text-teal-700"],
           ["Thất bại", summary.failures || 0, "text-rose-700"],
         ].map(([label, value, tone]) => (
@@ -138,6 +160,7 @@ const AdminAuditLogsPage = () => {
             <option value="all">Tất cả</option>
             <option value="admin">Admin</option>
             <option value="companion">Companion</option>
+            <option value="customer">Customer</option>
           </Select>
           <Select label="Nguồn" value={filters.source} onChange={(event) => updateFilter("source", event.target.value)}>
             <option value="all">Tất cả</option>

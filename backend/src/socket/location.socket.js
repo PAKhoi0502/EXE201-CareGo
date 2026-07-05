@@ -34,6 +34,7 @@ let locationIo = null;
 const userRoomName = (userId) => `user:${userId}`;
 
 const recordSocketAudit = (socket, action, details = {}) => {
+  if (!["admin", "companion"].includes(socket.user?.role)) return;
   recordAuditLogLater({
     actor: socket.user,
     source: "socket",

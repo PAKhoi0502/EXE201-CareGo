@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import AuditLog from "../models/audit-log.models.js";
 
 export const AUDIT_LOG_RETENTION_DAYS = 7;
-export const AUDITED_ROLES = new Set(["admin", "companion"]);
+export const AUDITED_ROLES = new Set(["admin", "companion", "customer"]);
+const FULL_HTTP_AUDIT_ROLES = new Set(["admin", "companion"]);
 
 const objectIdPattern = /^[a-f\d]{24}$/i;
 
@@ -36,6 +37,46 @@ export const getHttpAuditAction = (method) => {
     DELETE: "http.delete",
   };
   return actions[String(method || "").toUpperCase()] || "http.request";
+};
+
+const customerHttpAuditRules = [
+  { method: "PATCH", pattern: /^\/api\/auth\/current-user\/?$/i, action: "customer.profile.update", resourceType: "users", actorResourceId: true },
+  { method: "POST", pattern: /^\/api\/auth\/current-user\/password\/request-otp\/?$/i, action: "customer.password.otp_request", resourceType: "users", actorResourceId: true },
+  { method: "PATCH", pattern: /^\/api\/auth\/current-user\/password\/?$/i, action: "customer.password.change", resourceType: "users", actorResourceId: true },
+  { method: "PATCH", pattern: /^\/api\/auth\/current-user\/initial-password\/?$/i, action: "customer.password.change", resourceType: "users", actorResourceId: true },
+  { method: "POST", pattern: /^\/api\/companions\/me\/apply\/?$/i, action: "customer.companion.apply", resourceType: "companion-applications", actorResourceId: true },
+  { method: "POST", pattern: /^\/api\/elders\/?$/i, action: "customer.elder.create", resourceType: "elders" },
+  { method: "PUT", pattern: /^\/api\/elders\/([a-f\d]{24})\/?$/i, action: "customer.elder.update", resourceType: "elders" },
+  { method: "DELETE", pattern: /^\/api\/elders\/([a-f\d]{24})\/?$/i, action: "customer.elder.delete", resourceType: "elders" },
+  { method: "POST", pattern: /^\/api\/bookings\/?$/i, action: "customer.booking.create", resourceType: "bookings" },
+  { method: "PATCH", pattern: /^\/api\/bookings\/([a-f\d]{24})\/cancel\/?$/i, action: "customer.booking.cancel", resourceType: "bookings" },
+  { method: "POST", pattern: /^\/api\/bookings\/([a-f\d]{24})\/pay\/?$/i, action: "customer.booking.pay", resourceType: "bookings" },
+  { method: "POST", pattern: /^\/api\/bookings\/([a-f\d]{24})\/review\/?$/i, action: "customer.review.create", resourceType: "reviews" },
+  { method: "POST", pattern: /^\/api\/payments\/payos\/sync\/?$/i, action: "customer.payment.sync", resourceType: "payments" },
+  { method: "POST", pattern: /^\/api\/support\/conversations\/?$/i, action: "customer.support.create", resourceType: "support-conversations" },
+];
+
+export const getHttpAuditDetails = (actor, method, route) => {
+  if (!actor?.userId) return null;
+  if (FULL_HTTP_AUDIT_ROLES.has(actor.role)) {
+    return { action: getHttpAuditAction(method) };
+  }
+  if (actor.role !== "customer") return null;
+
+  const normalizedMethod = String(method || "").toUpperCase();
+  const normalizedRoute = normalizePath(route);
+  for (const rule of customerHttpAuditRules) {
+    if (rule.method !== normalizedMethod) continue;
+    const match = normalizedRoute.match(rule.pattern);
+    if (!match) continue;
+    return {
+      action: rule.action,
+      resourceType: rule.resourceType,
+      resourceId: rule.actorResourceId ? String(actor.userId) : match[1] || "",
+    };
+  }
+
+  return null;
 };
 
 export const buildAuditLogEntry = ({

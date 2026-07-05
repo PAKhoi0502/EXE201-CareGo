@@ -6,6 +6,7 @@ import SupportConversation, {
 import SupportMessage, { SUPPORT_MESSAGE_MAX_LENGTH } from "../models/support-message.models.js";
 import User from "../models/user.models.js";
 import { emitSupportConversation, emitSupportMessage } from "../socket/support.socket.js";
+import { emitAdminSupportConversationAlert } from "../utils/admin-alerts.js";
 
 const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 const isAdmin = (req) => req.user?.role === "admin";
@@ -281,6 +282,7 @@ export const createSupportConversation = async (req, res) => {
     );
 
     emitSupportConversation("support:new-conversation", populatedConversation);
+    emitAdminSupportConversationAlert(populatedConversation);
     return res.status(201).json({ conversation: populatedConversation, message: populatedMessage });
   } catch (error) {
     const requestError = getRequestErrorResponse(error);

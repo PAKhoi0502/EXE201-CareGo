@@ -6,6 +6,7 @@ import {
   createPaymentSuccessNotification,
   createReviewReminderNotification,
 } from "../utils/notifications.js";
+import { emitAdminPaymentSuccessAlert } from "../utils/admin-alerts.js";
 
 const getPayOSPaymentQuery = ({ orderCode, paymentLinkId }) => {
   const filters = [];
@@ -27,6 +28,7 @@ const getPaymentPaidAt = (paymentLink) => {
 };
 
 const updatePaidPayment = async ({ payment, booking, rawWebhook, paidAt }) => {
+  const shouldEmitPaymentAlert = payment.status !== "paid" || booking.status !== "paid";
   payment.rawWebhook = rawWebhook;
 
   if (payment.status !== "paid") {
@@ -40,11 +42,13 @@ const updatePaidPayment = async ({ payment, booking, rawWebhook, paidAt }) => {
     await booking.save();
   }
 
-  await Promise.all([
+  const notificationTasks = [
     createPaymentSuccessNotification({ booking, payment }),
     createCompanionPaymentSuccessNotification({ booking, payment }),
     createReviewReminderNotification(booking),
-  ]);
+  ];
+  if (shouldEmitPaymentAlert) notificationTasks.push(emitAdminPaymentSuccessAlert({ booking, payment }));
+  await Promise.all(notificationTasks);
 };
 
 const syncPaymentStatusFromPayOSLink = async ({ payment, booking, paymentLink }) => {

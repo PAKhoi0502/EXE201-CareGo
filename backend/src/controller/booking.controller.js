@@ -32,6 +32,11 @@ import {
   createShiftNoteUpdatedNotification,
 } from "../utils/notifications.js";
 import {
+  emitAdminBookingCreatedAlert,
+  emitAdminPaymentOverdueRestrictionAlert,
+  emitAdminPaymentSuccessAlert,
+} from "../utils/admin-alerts.js";
+import {
   getBookingEndTime,
   getRequestedEndTime,
   isTimeOverlapped,
@@ -484,6 +489,7 @@ const refreshReusablePendingPayOSPayment = async ({ payment, booking, paidAmount
       createPaymentSuccessNotification({ booking, payment }),
       createCompanionPaymentSuccessNotification({ booking, payment }),
       createReviewReminderNotification(booking),
+      emitAdminPaymentSuccessAlert({ booking, payment }),
     ]);
 
     return null;
@@ -762,6 +768,7 @@ export const createBooking = async (req, res) => {
       .sort({ paymentDueAt: 1 });
 
     if (overdueBooking) {
+      emitAdminPaymentOverdueRestrictionAlert({ customer: req.user, booking: overdueBooking });
       return res.status(409).json({
         message: "Bạn có lịch chăm sóc quá hạn thanh toán. Vui lòng thanh toán lịch quá hạn trước khi đặt lịch mới.",
         bookingId: overdueBooking._id,
@@ -891,6 +898,7 @@ export const createBooking = async (req, res) => {
     await Promise.all([
       createBookingCreatedNotification(booking),
       createCompanionBookingCreatedNotification(booking, { elder, service }),
+      emitAdminBookingCreatedAlert(booking, { elder, service }),
       sendCompanionBookingCreatedEmail({
         to: companionUser.recoveryEmail || companionUser.email,
         name: companionUser.name,

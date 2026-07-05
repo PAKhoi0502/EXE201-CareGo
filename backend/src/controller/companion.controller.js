@@ -9,6 +9,7 @@ import { sendCompanionAccountEmail } from "../utils/email.js";
 import { disconnectUserSockets, getUserOnlineStatuses } from "../socket/location.socket.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
 import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
+import { emitAdminCompanionApplicationAlert, emitAdminCompanionReapprovalAlert } from "../utils/admin-alerts.js";
 import {
   getCompanionApplicationProfileError,
   getRequiredCompanionDocumentFields,
@@ -637,6 +638,7 @@ export const applyForCompanion = async (req, res) => {
     const user = await User.findById(userId).select("-password -refreshToken -__V");
     const companionApplication = companionProfile.toObject();
     delete companionApplication.applicantCustomerId;
+    emitAdminCompanionApplicationAlert(companionProfile, currentUser);
 
     return res.status(201).json({
       message: "Hồ sơ người đồng hành đã được gửi và đang chờ quản trị viên phê duyệt.",
@@ -903,6 +905,7 @@ export const updateMyCompanionProfile = async (req, res) => {
 
     if (currentProfile.vettingStatus === "approved" && profile.vettingStatus !== "approved") {
       disconnectUserSockets(userId, "companion profile requires approval again");
+      emitAdminCompanionReapprovalAlert(profile, user);
     }
 
     return res.status(200).json({

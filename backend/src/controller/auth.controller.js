@@ -11,6 +11,7 @@ import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
 import { createCustomerWelcomeNotification } from "../utils/notifications.js";
 import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
 import { recordAuditLogLater } from "../utils/audit-log.js";
+import { emitAdminCustomerCreatedAlert } from "../utils/admin-alerts.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -29,6 +30,8 @@ const recordAuthAudit = (req, user, action, outcome, statusCode) => {
     "auth.login": "login",
     "auth.logout": "logout",
     "auth.refresh": "refresh-token",
+    "auth.signup.verify": "verify-email",
+    "auth.email.verify": "verify-email",
   };
   recordAuditLogLater({
     actor: {
@@ -317,7 +320,10 @@ export const verifyEmailOtpController = async (req, res) => {
 
       if (createdUser.role === "customer") {
         await createCustomerWelcomeNotification(createdUser);
+        emitAdminCustomerCreatedAlert(createdUser);
       }
+
+      recordAuthAudit(req, createdUser, "auth.signup.verify", "success", 200);
 
       return res.status(200).json({
         message: "Xác thực email thành công.",
@@ -347,6 +353,8 @@ export const verifyEmailOtpController = async (req, res) => {
     user.emailOtpHash = undefined;
     user.emailOtpExpires = undefined;
     await user.save();
+
+    recordAuthAudit(req, user, "auth.email.verify", "success", 200);
 
     return res.status(200).json({ message: "Xác thực email thành công." });
   } catch (error) {
