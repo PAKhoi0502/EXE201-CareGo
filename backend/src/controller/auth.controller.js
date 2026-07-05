@@ -10,6 +10,7 @@ import { sendOtpEmail, sendPasswordResetEmail } from "../utils/email.js";
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
 import { createCustomerWelcomeNotification } from "../utils/notifications.js";
 import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
+import { recordAuditLogLater } from "../utils/audit-log.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -21,7 +22,33 @@ const PASSWORD_RESET_RESPONSE = {
 const REFRESH_TOKEN_COOKIE = "refreshToken";
 const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const COMPANION_PROFILE_FIELDS =
-  "vettingStatus fullName phone phoneVerifiedAt workingShift university major skills serviceAreas rejectionReason userId reviewedAt";
+  "vettingStatus fullName phone phoneVerifiedAt workingShift applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas rejectionReason userId reviewedAt";
+
+const recordAuthAudit = (req, user, action, outcome, statusCode) => {
+  const routeByAction = {
+    "auth.login": "login",
+    "auth.logout": "logout",
+    "auth.refresh": "refresh-token",
+  };
+  recordAuditLogLater({
+    actor: {
+      userId: user?._id,
+      name: user?.name,
+      email: user?.email,
+      role: user?.role,
+    },
+    source: "http",
+    action,
+    method: "POST",
+    route: `/api/auth/${routeByAction[action] || "activity"}`,
+    resourceType: "auth",
+    resourceId: user?._id,
+    outcome,
+    statusCode,
+    ipAddress: req.ip || req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "",
+    userAgent: req.headers["user-agent"] || "",
+  });
+};
 
 const isStrongPassword = (value) =>
   typeof value === "string" &&
@@ -155,9 +182,11 @@ export const loginController = async (req, res) => {
       return res.status(400).json({ message: "Email hoặc mật khẩu không đúng." });
     }
     if (!user.isActive) {
+      recordAuthAudit(req, user, "auth.login", "failure", 403);
       return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa." });
     }
     if (!user.isEmailVerified) {
+      recordAuthAudit(req, user, "auth.login", "failure", 403);
       return res.status(403).json({
         message: "Email chưa được xác thực.",
         code: "EMAIL_NOT_VERIFIED",
@@ -166,6 +195,7 @@ export const loginController = async (req, res) => {
     }
     const isPasswordMatched = await bcrypt.compare(password, user.password);
     if (!isPasswordMatched) {
+      recordAuthAudit(req, user, "auth.login", "failure", 400);
       return res.status(400).json({ message: "Mật khẩu không đúng." });
     }
     if (
@@ -173,6 +203,7 @@ export const loginController = async (req, res) => {
       user.temporaryPasswordExpiresAt &&
       user.temporaryPasswordExpiresAt <= new Date()
     ) {
+      recordAuthAudit(req, user, "auth.login", "failure", 403);
       return res.status(403).json({
         message: "Mật khẩu tạm thời đã hết hạn. Vui lòng sử dụng chức năng quên mật khẩu.",
         code: "TEMPORARY_PASSWORD_EXPIRED",
@@ -195,6 +226,7 @@ export const loginController = async (req, res) => {
     //lưu refresh token vào cookies
     res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, getRefreshTokenCookieOptions());
     const { companionProfile, companionApplication } = await getCompanionContext(user);
+    recordAuthAudit(req, user, "auth.login", "success", 200);
     // Signature: dùng để xác thực token, đảm bảo token không bị thay đổi
     return res.status(200).json({
       message: "Đăng nhập thành công.",
@@ -362,9 +394,10 @@ export const resendEmailOtpController = async (req, res) => {
 export const logoutController = async (req, res) => {
   try {
     const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+    let user = null;
 
     if (refreshToken) {
-      const user = await User.findOne({ refreshToken });
+      user = await User.findOne({ refreshToken });
       if (user) {
         await User.findByIdAndUpdate(
           user._id,
@@ -374,6 +407,9 @@ export const logoutController = async (req, res) => {
       }
     }
     res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
+    if (user) {
+      recordAuthAudit(req, user, "auth.logout", "success", 200);
+    }
     return res
       .status(200)
       .json({ success: true, message: "Đăng xuất thành công." });
@@ -399,10 +435,12 @@ export const refreshTokenController = async (req, res) => {
     }
 
     if (!user.isActive) {
+      recordAuthAudit(req, user, "auth.refresh", "failure", 403);
       return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa." });
     }
 
     if (!user.isEmailVerified) {
+      recordAuthAudit(req, user, "auth.refresh", "failure", 403);
       return res.status(403).json({
         message: "Email chưa được xác thực.",
         code: "EMAIL_NOT_VERIFIED",
@@ -413,12 +451,14 @@ export const refreshTokenController = async (req, res) => {
     const decode = jwt.verify(refreshToken, process.env.JWT_SECRET_KEY_REFRESH);
 
     if (user._id.toString() !== decode.userId) {
+      recordAuthAudit(req, user, "auth.refresh", "failure", 403);
       res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
       return res.status(403).json({ message: "Phiên đăng nhập không hợp lệ." });
     }
 
     // tạo accesstoken mới
     const newAccessToken = generateAccessToken(user, user.role);
+    recordAuthAudit(req, user, "auth.refresh", "success", 200);
     return res.status(200).json({ success: true, accessToken: newAccessToken });
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {

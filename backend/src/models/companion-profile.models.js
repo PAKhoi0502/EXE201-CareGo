@@ -51,6 +51,11 @@ const CompanionProfileSchema = new mongoose.Schema(
       default: "other",
     },
     dateOfBirth: Date,
+    applicantType: {
+      type: String,
+      enum: ["student", "graduate", "healthcare_professional", "experienced_caregiver", "community_supporter"],
+      default: null,
+    },
     university: {
       type: String,
       default: "",
@@ -58,6 +63,23 @@ const CompanionProfileSchema = new mongoose.Schema(
     major: {
       type: String,
       default: "",
+    },
+    graduationYear: {
+      type: Number,
+      default: null,
+      min: 1950,
+    },
+    yearsOfExperience: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 60,
+    },
+    qualificationDescription: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 1000,
     },
     skills: [
       {
@@ -79,6 +101,18 @@ const CompanionProfileSchema = new mongoose.Schema(
         default: "",
       },
       studentCardUrl: {
+        type: String,
+        default: "",
+      },
+      degreeCertificateUrl: {
+        type: String,
+        default: "",
+      },
+      professionalCertificateUrl: {
+        type: String,
+        default: "",
+      },
+      experienceProofUrl: {
         type: String,
         default: "",
       },

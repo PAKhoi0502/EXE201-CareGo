@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client.js";
 import AdminDetailModal, { DetailGrid, DetailItem, DetailTags } from "../../components/AdminDetailModal.jsx";
-import { Button, Input, Select, StatusBadge } from "../../components/Ui.jsx";
+import ImageUpload from "../../components/ImageUpload.jsx";
+import { Button, Input, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime } from "../../utils/format.js";
+import { companionApplicantTypes, getCompanionApplicantType, getCompanionApplicantTypeLabel } from "../../utils/companionApplication.js";
 
 const emptyForm = {
   name: "",
@@ -11,11 +13,23 @@ const emptyForm = {
   email: "",
   password: "",
   phone: "",
+  dateOfBirth: "",
   workingShift: "full_day",
+  applicantType: "student",
   university: "",
   major: "",
+  graduationYear: "",
+  yearsOfExperience: "",
+  qualificationDescription: "",
   skillsText: "",
   serviceAreasText: "",
+  citizenIdFrontUrl: "",
+  citizenIdBackUrl: "",
+  studentCardUrl: "",
+  degreeCertificateUrl: "",
+  professionalCertificateUrl: "",
+  experienceProofUrl: "",
+  backgroundCheckUrl: "",
 };
 
 const initials = (name = "CG") =>
@@ -134,6 +148,8 @@ const AdminCompanionsPage = () => {
   const [gpsStatuses, setGpsStatuses] = useState({});
   const [onlineStatuses, setOnlineStatuses] = useState({});
   const companions = useMemo(() => data?.companions || [], [data?.companions]);
+  const formApplicantType = getCompanionApplicantType(form.applicantType);
+  const selectedApplicantType = getCompanionApplicantType(selectedCompanion?.applicantType);
   const getGpsStatus = (companion) => gpsStatuses[getCompanionUserId(companion)] || null;
   const getOnlineStatus = (companion) => onlineStatuses[getCompanionUserId(companion)] || null;
 
@@ -164,7 +180,7 @@ const AdminCompanionsPage = () => {
 
   const filteredCompanions = companions.filter((item) => {
     const text =
-      `${item.fullName} ${getCompanionAccountEmail(item)} ${getApplicantEmail(item)} ${item.phone} ${item.university} ${item.major} ${(item.skills || []).join(" ")}`.toLowerCase();
+      `${item.fullName} ${getCompanionAccountEmail(item)} ${getApplicantEmail(item)} ${item.phone} ${getCompanionApplicantTypeLabel(item.applicantType)} ${item.university} ${item.major} ${item.qualificationDescription} ${(item.skills || []).join(" ")}`.toLowerCase();
     const matchesQuery = text.includes(query.toLowerCase());
     const matchesStatus = statusFilter === "all" || item.vettingStatus === statusFilter;
     const matchesArea = areaFilter === "all" || item.serviceAreas?.includes(areaFilter);
@@ -190,6 +206,11 @@ const AdminCompanionsPage = () => {
         ...form,
         skills: form.skillsText.split(",").map((item) => item.trim()).filter(Boolean),
         serviceAreas: form.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
+        documents: {
+          citizenIdFrontUrl: form.citizenIdFrontUrl,
+          citizenIdBackUrl: form.citizenIdBackUrl,
+          [formApplicantType.documentField]: form[formApplicantType.documentField],
+        },
       });
       setForm(emptyForm);
       closeCreateModal();
@@ -227,7 +248,7 @@ const AdminCompanionsPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Quản lý người đồng hành</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Tuyển dụng, kiểm duyệt và theo dõi năng lực sinh viên companion.
+            Tuyển dụng, xác minh giấy tờ và theo dõi năng lực của từng nhóm người đồng hành.
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
@@ -238,7 +259,7 @@ const AdminCompanionsPage = () => {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Tìm tên, email, trường, kỹ năng..."
+              placeholder="Tìm tên, email, nhóm ứng viên, kỹ năng..."
               className="min-h-11 w-full rounded-xl border border-transparent bg-slate-100 px-4 pl-10 text-sm outline-none transition focus:border-teal-300 focus:bg-white focus:ring-2 focus:ring-teal-100"
             />
             <span className="absolute left-3 top-2.5 text-slate-400">⌕</span>
@@ -309,7 +330,7 @@ const AdminCompanionsPage = () => {
               <tr className="border-b border-slate-200 bg-slate-50/50 text-xs font-semibold uppercase text-slate-400">
                 <th className="p-4">Companion</th>
                 <th className="p-4">Online / GPS</th>
-                <th className="p-4">Hồ sơ đào tạo</th>
+                <th className="p-4">Hồ sơ năng lực</th>
                 <th className="p-4">Kỹ năng / Khu vực</th>
                 <th className="p-4">Hiệu suất</th>
                 <th className="p-4">Trạng thái</th>
@@ -344,11 +365,12 @@ const AdminCompanionsPage = () => {
                     <RealtimeStatusCard gpsStatus={getGpsStatus(item)} onlineStatus={getOnlineStatus(item)} />
                   </td>
                   <td className="p-4">
-                    <p className="font-semibold text-slate-700">{item.university || "Chua cap nhat truong"}</p>
-                    <p className="mt-1 text-slate-400">{item.major || "Chua cap nhat nganh"}</p>
+                    <p className="font-semibold text-slate-700">{getCompanionApplicantTypeLabel(item.applicantType)}</p>
+                    <p className="mt-1 text-slate-500">{item.university || item.qualificationDescription || "Chưa cập nhật thông tin năng lực"}</p>
+                    <p className="mt-1 text-slate-400">{item.major || (item.yearsOfExperience ? `${item.yearsOfExperience} năm kinh nghiệm` : "")}</p>
                     <p className="mt-1 font-semibold text-teal-700">{getWorkingShiftLabel(item.workingShift)}</p>
                     <div className="mt-2 space-y-1">
-                      <p className="font-semibold text-emerald-600">L1: CCCD / Thẻ SV</p>
+                      <p className="font-semibold text-emerald-600">L1: Danh tính và giấy tờ năng lực</p>
                       <p className={item.vettingStatus === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
                         L2-L3: {item.vettingStatus === "approved" ? "Hoàn tất" : "Đang kiểm duyệt"}
                       </p>
@@ -414,7 +436,7 @@ const AdminCompanionsPage = () => {
               <div>
                 <h2 className="font-bold text-slate-900">Tạo nhanh companion</h2>
                 <p className="mt-1 text-xs text-slate-400">
-                  Tài khoản tạo từ admin chỉ được duyệt khi hồ sơ có đủ ảnh CCCD hợp lệ.
+                  Hồ sơ chỉ được duyệt khi có đủ CCCD và giấy tờ phù hợp với nhóm ứng viên.
                 </p>
               </div>
               <button
@@ -436,17 +458,39 @@ const AdminCompanionsPage = () => {
                 <Input label="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 <Input label="Số điện thoại" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
+              <Input label="Ngày sinh" type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} />
               <Select label="Ca làm việc" value={form.workingShift} onChange={(e) => setForm({ ...form, workingShift: e.target.value })}>
                 <option value="morning">Buổi sáng 07:00 - 13:00</option>
                 <option value="afternoon">Buổi chiều 13:00 - 19:00</option>
                 <option value="full_day">Cả ngày 07:00 - 19:00</option>
               </Select>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input label="Trường" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
-                <Input label="Ngành" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
-              </div>
+              <Select label="Nhóm ứng viên" value={form.applicantType} onChange={(e) => setForm({ ...form, applicantType: e.target.value })}>
+                {companionApplicantTypes.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </Select>
+              {formApplicantType.requiresEducation ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input label="Cơ sở đào tạo" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
+                  <Input label="Ngành hoặc chuyên môn" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
+                </div>
+              ) : null}
+              {form.applicantType === "graduate" ? (
+                <Input label="Năm tốt nghiệp" type="number" min="1950" max={new Date().getFullYear()} value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} />
+              ) : null}
+              {formApplicantType.requiresExperience ? (
+                <Input label="Số năm kinh nghiệm" type="number" min="0" max="60" step="0.5" value={form.yearsOfExperience} onChange={(e) => setForm({ ...form, yearsOfExperience: e.target.value })} />
+              ) : null}
+              {formApplicantType.requiresDescription ? (
+                <Textarea label="Kinh nghiệm hoặc lý do phù hợp" value={form.qualificationDescription} onChange={(e) => setForm({ ...form, qualificationDescription: e.target.value })} maxLength="1000" />
+              ) : null}
               <Input label="Kỹ năng, cách nhau bằng dấu phẩy" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} />
               <Input label="Khu vực hoạt động" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} />
+              <div className="grid gap-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <ImageUpload label="CCCD mặt trước" folder="carego/companion-documents" value={form.citizenIdFrontUrl} onUploaded={(images) => setForm((current) => ({ ...current, citizenIdFrontUrl: images.at(-1) || "" }))} compact />
+                <ImageUpload label="CCCD mặt sau" folder="carego/companion-documents" value={form.citizenIdBackUrl} onUploaded={(images) => setForm((current) => ({ ...current, citizenIdBackUrl: images.at(-1) || "" }))} compact />
+                <ImageUpload label={formApplicantType.documentLabel} folder="carego/companion-documents" value={form[formApplicantType.documentField]} onUploaded={(images) => setForm((current) => ({ ...current, [formApplicantType.documentField]: images.at(-1) || "" }))} compact />
+              </div>
               {submitError ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{submitError}</p> : null}
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
                 <Button type="button" variant="secondary" onClick={closeCreateModal}>
@@ -475,8 +519,12 @@ const AdminCompanionsPage = () => {
                 <PhoneVerifiedBadge verified={Boolean(selectedCompanion.phoneVerifiedAt)} />
               </DetailItem>
               <DetailItem label="Ca lam viec" value={getWorkingShiftLabel(selectedCompanion.workingShift)} />
-              <DetailItem label="Truong" value={selectedCompanion.university} />
-              <DetailItem label="Chuyen nganh" value={selectedCompanion.major} />
+              <DetailItem label="Nhóm ứng viên" value={selectedApplicantType.label} />
+              <DetailItem label="Ngày sinh" value={selectedCompanion.dateOfBirth ? new Date(selectedCompanion.dateOfBirth).toLocaleDateString("vi-VN") : "-"} />
+              <DetailItem label="Cơ sở đào tạo" value={selectedCompanion.university || "Không áp dụng"} />
+              <DetailItem label="Ngành hoặc chuyên môn" value={selectedCompanion.major || "Không áp dụng"} />
+              <DetailItem label="Năm tốt nghiệp" value={selectedCompanion.graduationYear || "Không áp dụng"} />
+              <DetailItem label="Kinh nghiệm" value={`${selectedCompanion.yearsOfExperience || 0} năm`} />
               <DetailItem label="Gioi tinh" value={selectedCompanion.gender} />
               <DetailItem label="Ngay tao ho so" value={dateTime(selectedCompanion.createdAt)} />
               <DetailItem label="Nguoi xu ly" value={getReviewerName(selectedCompanion)} />
@@ -521,28 +569,34 @@ const AdminCompanionsPage = () => {
             <section className="rounded-xl border border-slate-100 p-4">
               <h3 className="font-bold text-slate-900">Ky nang va khu vuc hoat dong</h3>
               <div className="mt-3 space-y-3">
+                {selectedCompanion.qualificationDescription ? (
+                  <p className="rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-600">{selectedCompanion.qualificationDescription}</p>
+                ) : null}
                 <DetailTags items={selectedCompanion.skills || []} tone="blue" empty="Chua co ky nang" />
                 <DetailTags items={selectedCompanion.serviceAreas || []} tone="teal" empty="Chua co khu vuc" />
               </div>
             </section>
 
             <section className="rounded-xl border border-slate-100 p-4">
-              <h3 className="font-bold text-slate-900">Kiem duyet 3 lop</h3>
-              <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <h3 className="font-bold text-slate-900">Giấy tờ kiểm duyệt</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <DetailItem
-                  label="Lop 1 - CCCD"
+                  label="CCCD"
                   value={
                     selectedCompanion.documents?.citizenIdFrontUrl && selectedCompanion.documents?.citizenIdBackUrl
                       ? "Da chup du mat truoc / mat sau"
                       : selectedCompanion.documents?.citizenId || "Chua bo sung"
                   }
                 />
-                <DetailItem label="The sinh vien" value={selectedCompanion.documents?.studentCardUrl ? "Da co file" : "Chua bo sung"} />
-                <DetailItem label="Ly lich tu phap" value={selectedCompanion.documents?.backgroundCheckUrl ? "Da co file" : "Chua bo sung"} />
+                <DetailItem
+                  label={selectedApplicantType.documentLabel}
+                  value={selectedCompanion.documents?.[selectedApplicantType.documentField] ? "Đã có file" : "Chưa bổ sung"}
+                />
               </div>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
                 <DocumentImage label="CCCD mat truoc" src={selectedCompanion.documents?.citizenIdFrontUrl} />
                 <DocumentImage label="CCCD mat sau" src={selectedCompanion.documents?.citizenIdBackUrl} />
+                <DocumentImage label={selectedApplicantType.documentLabel} src={selectedCompanion.documents?.[selectedApplicantType.documentField]} />
               </div>
             </section>
 

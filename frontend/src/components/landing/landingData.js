@@ -50,7 +50,7 @@ export const steps = [
 export const safetyItems = [
   [
     "Xác thực người đồng hành",
-    "Kiểm tra CCCD, thẻ sinh viên, ưu tiên sinh viên ngành Y, Dược, Điều dưỡng, Tâm lý.",
+    "Kiểm tra CCCD và giấy tờ năng lực theo từng nhóm ứng viên, ưu tiên nền tảng sức khỏe và chăm sóc.",
   ],
   [
     "Theo dõi thời gian thực",

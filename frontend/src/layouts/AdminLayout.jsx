@@ -12,6 +12,7 @@ const adminLinks = [
   { label: "Yêu cầu rút tiền", to: "/admin/withdrawals" },
   { label: "Hỗ trợ", to: "/admin/support" },
   { label: "Báo cáo", to: "/admin/reports" },
+  { label: "Nhật ký hoạt động", to: "/admin/audit-logs" },
 ];
 
 export default function AdminLayout() {

@@ -6,6 +6,7 @@ import { Button, Select, Textarea } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
+import { getCompanionApplicantType } from "../../utils/companionApplication.js";
 
 const ServiceIcon = ({ serviceName = "", index = 0 }) => {
   const normalizedName = serviceName.toLowerCase();
@@ -211,6 +212,7 @@ const NewBookingPage = () => {
   );
   const total = (selectedService?.pricePerHour || 0) * Number(form.durationHours || 0);
   const detailCompanionOnlineStatus = detailCompanion ? getCompanionOnlineStatus(detailCompanion) : null;
+  const detailApplicantType = getCompanionApplicantType(detailCompanion?.applicantType);
   const dateOptions = useMemo(() => getDateOptions(), []);
   const durationChoices = useMemo(() => getDurationChoices(), []);
   const selectedStartHour = getStartHourFromValue(form.startTime);
@@ -455,20 +457,36 @@ const NewBookingPage = () => {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Select
-                label="Hồ sơ người thân"
-                value={form.elderProfileId}
-                onChange={(event) => setForm({ ...form, elderProfileId: event.target.value })}
-                required
-                className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
-              >
-                <option value="">{elderLoading ? "Đang tải..." : "Chọn hồ sơ"}</option>
-                {elders.map((elder) => (
-                  <option key={elder._id} value={elder._id}>
-                    {elder.fullName} - {elder.age} tuổi
-                  </option>
-                ))}
-              </Select>
+              {!elderLoading && elderData && elders.length === 0 ? (
+                <div className="rounded-[18px] border border-dashed border-teal-200 bg-teal-50/60 p-5 md:col-span-2">
+                  <p className="font-black text-[#12312f]">Bạn chưa có hồ sơ người thân</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    Tạo hồ sơ người thân trước để CareGo có đủ thông tin cho lần đặt lịch này.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => navigate("/customer/elders")}
+                    className="mt-4 min-h-11 rounded-[16px]"
+                  >
+                    Tạo hồ sơ người thân
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  label="Hồ sơ người thân"
+                  value={form.elderProfileId}
+                  onChange={(event) => setForm({ ...form, elderProfileId: event.target.value })}
+                  required
+                  className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
+                >
+                  <option value="">{elderLoading ? "Đang tải..." : "Chọn hồ sơ"}</option>
+                  {elders.map((elder) => (
+                    <option key={elder._id} value={elder._id}>
+                      {elder.fullName} - {elder.age} tuổi
+                    </option>
+                  ))}
+                </Select>
+              )}
               <div className="grid gap-4 md:col-span-2">
                 <div>
                   <span className="mb-2 block text-sm font-bold text-slate-700">Hình thức đặt lịch</span>
@@ -823,7 +841,7 @@ const NewBookingPage = () => {
                   </div>
                   <h2 className="mt-3 text-3xl font-black">{detailCompanion.fullName}</h2>
                   <p className="mt-2 text-sm font-semibold text-white/75">
-                    {detailCompanion.major || "Người đồng hành CareGo"} · {detailCompanion.university || "Chưa cập nhật trường"}
+                    {detailApplicantType.label} · {detailCompanion.major || detailCompanion.qualificationDescription || "Hồ sơ đã xác minh"}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-amber-500">★ {detailCompanion.ratingAverage || 0}/5</span>
@@ -848,8 +866,10 @@ const NewBookingPage = () => {
                     <h3 className="text-lg font-black text-[#12312f]">Thông tin chuyên môn</h3>
                     <div className="mt-4 grid gap-3">
                       {[
-                        ["Chuyên ngành", detailCompanion.major || "Chưa cập nhật"],
-                        ["Trường học", detailCompanion.university || "Chưa cập nhật"],
+                        ["Nhóm ứng viên", detailApplicantType.label],
+                        ["Chuyên môn", detailCompanion.major || detailCompanion.qualificationDescription || "Đã xác minh"],
+                        ["Cơ sở đào tạo", detailCompanion.university || "Không áp dụng"],
+                        ["Kinh nghiệm", `${detailCompanion.yearsOfExperience || 0} năm`],
                         ["Khu vực hoạt động", detailCompanion.serviceArea || detailCompanion.area || "Chưa cập nhật"],
                         ["Liên hệ", "Mở sau khi người đồng hành nhận lịch"],
                       ].map(([label, value]) => (

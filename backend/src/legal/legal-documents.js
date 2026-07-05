@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-const version = "2026-07-03";
+const version = "2026-07-05";
 
 const documents = [
   {
@@ -31,7 +31,7 @@ const documents = [
     title: "Điều khoản và quy tắc dành cho người đồng hành",
     summary: "Quy định hồ sơ, an toàn ca làm, bảo mật, thu nhập và trách nhiệm của companion.",
     sections: [
-      { title: "Điều kiện tham gia", paragraphs: ["Người đăng ký phải có năng lực hành vi phù hợp, cung cấp hồ sơ và giấy tờ xác minh trung thực, còn hiệu lực."] },
+      { title: "Điều kiện tham gia", paragraphs: ["Người đăng ký phải đủ 18 tuổi, chọn đúng nhóm ứng viên và cung cấp hồ sơ, giấy tờ xác minh năng lực trung thực, còn hiệu lực."] },
       { title: "Phê duyệt hồ sơ", paragraphs: ["CareGo có quyền yêu cầu bổ sung tài liệu, từ chối, tạm dừng hoặc thu hồi trạng thái phê duyệt khi hồ sơ không đáp ứng yêu cầu an toàn."] },
       { title: "Nhận và từ chối booking", paragraphs: ["Companion chủ động xem thông tin cần thiết trước khi nhận ca. Sau khi nhận, companion phải tuân thủ thời gian, địa điểm và quy trình đã xác nhận."] },
       { title: "Phạm vi hỗ trợ", paragraphs: ["Companion không tự chẩn đoán, kê đơn, thay đổi thuốc, thực hiện thủ thuật y tế hoặc cam kết kết quả điều trị ngoài phạm vi chuyên môn hợp pháp."] },
@@ -52,7 +52,7 @@ const documents = [
     title: "Chính sách bảo vệ dữ liệu cá nhân",
     summary: "Mô tả dữ liệu CareGo thu thập, mục đích xử lý, chia sẻ, lưu trữ và quyền của chủ thể dữ liệu.",
     sections: [
-      { title: "Dữ liệu được xử lý", paragraphs: ["CareGo có thể xử lý thông tin tài khoản, liên hệ, CCCD của companion, hồ sơ người thân, thông tin sức khỏe, booking, thanh toán, đánh giá, hỗ trợ, ảnh và vị trí GPS."] },
+      { title: "Dữ liệu được xử lý", paragraphs: ["CareGo có thể xử lý thông tin tài khoản, liên hệ, CCCD, ngày sinh, học vấn, kinh nghiệm và giấy tờ chứng minh năng lực của companion; hồ sơ người thân, thông tin sức khỏe, booking, thanh toán, đánh giá, hỗ trợ, ảnh và vị trí GPS."] },
       { title: "Mục đích", paragraphs: ["Dữ liệu được dùng để xác minh tài khoản, kết nối booking, bảo đảm an toàn, xử lý thanh toán, hỗ trợ, giải quyết tranh chấp, chống gian lận và tuân thủ nghĩa vụ pháp lý."] },
       { title: "Dữ liệu nhạy cảm", paragraphs: ["Thông tin sức khỏe, giấy tờ định danh và vị trí được giới hạn quyền truy cập, chỉ xử lý trong phạm vi cần thiết cho mục đích đã thông báo."] },
       { title: "Chia sẻ", paragraphs: ["Dữ liệu có thể được chia sẻ ở mức cần thiết với customer, companion của booking, nhà cung cấp thanh toán, lưu trữ ảnh, bản đồ, email và cơ quan có thẩm quyền theo pháp luật."] },

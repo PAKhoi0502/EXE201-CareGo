@@ -1,6 +1,7 @@
 import { api } from "../../api/client.js";
 import { Card, EmptyState, PageHeader, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
+import { getCompanionApplicantTypeLabel } from "../../utils/companionApplication.js";
 
 const CustomerCompanionsPage = () => {
   const { data, loading, error } = useAsync(() => api.get("/companions"), []);
@@ -18,8 +19,9 @@ const CustomerCompanionsPage = () => {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="font-bold text-slate-950">{item.fullName}</h2>
-                <p className="text-sm text-slate-500">{item.university}</p>
-                <p className="text-sm text-slate-500">{item.major}</p>
+                <p className="text-sm font-semibold text-teal-700">{getCompanionApplicantTypeLabel(item.applicantType)}</p>
+                <p className="text-sm text-slate-500">{item.major || item.qualificationDescription || "Hồ sơ đã xác minh"}</p>
+                {item.university ? <p className="text-sm text-slate-500">{item.university}</p> : null}
               </div>
               <StatusBadge status={item.vettingStatus} />
             </div>

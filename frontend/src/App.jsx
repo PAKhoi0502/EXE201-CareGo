@@ -6,6 +6,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import { getUserHomePath, hasRoleAccess, needsCompanionApproval } from "./utils/authNavigation.js";
 
 const AdminBlogsPage = lazy(() => import("./pages/admin/AdminBlogsPage.jsx"));
+const AdminAuditLogsPage = lazy(() => import("./pages/admin/AdminAuditLogsPage.jsx"));
 const AdminBookingsPage = lazy(() => import("./pages/admin/AdminBookingsPage.jsx"));
 const AdminCompanionsPage = lazy(() => import("./pages/admin/AdminCompanionsPage.jsx"));
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage.jsx"));
@@ -166,6 +167,7 @@ const App = () => (
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
         <Route path="support" element={<AdminSupportPage />} />
+        <Route path="audit-logs" element={<AdminAuditLogsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

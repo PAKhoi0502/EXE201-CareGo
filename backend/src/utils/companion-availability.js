@@ -142,3 +142,10 @@ export const isWithinCompanionWorkingShift = (workingShift, startTime, durationH
 
   return sameLocalDay(start, end) && start >= shiftStart && end <= shiftEnd;
 };
+
+export const findActiveBookingOutsideWorkingShift = (bookings, workingShift, now = new Date()) =>
+  bookings.find(
+    (booking) =>
+      getBookingEndTime(booking) > now &&
+      !isWithinCompanionWorkingShift(workingShift, booking.startTime, booking.durationHours),
+  );

@@ -4,7 +4,7 @@ import CareGoLogo from "../../components/CareGoLogo.jsx";
 const features = [
   ["GPS realtime", "Xem vị trí người thân và người đồng hành trong quá trình thực hiện dịch vụ."],
   ["Ghi chú ca làm", "Cập nhật hình ảnh, tình trạng sức khỏe và nội dung hỗ trợ sau mỗi ca."],
-  ["Người đồng hành", "Hồ sơ được xác thực, ưu tiên sinh viên ngành sức khỏe và chăm sóc."],
+  ["Người đồng hành", "Hồ sơ danh tính và năng lực được xác minh theo từng nhóm ứng viên."],
   ["Hỗ trợ SOS", "Nút hỗ trợ nhanh trong tình huống khẩn cấp khi đang thực hiện dịch vụ."],
 ];
 

@@ -30,6 +30,7 @@ import { setupSupportSocket } from "./src/socket/support.socket.js";
 import { setupBookingChatSocket } from "./src/socket/booking-chat.socket.js";
 import { setupNotificationSocket } from "./src/socket/notification.socket.js";
 import { setupSocketAuthentication } from "./src/socket/auth.socket.js";
+import { auditHttpActivity } from "./src/middlleware/audit-log.middleware.js";
 
 // import swagger
 import { setupSwagger } from "./src/config/swagger.js";
@@ -97,6 +98,8 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+app.use(auditHttpActivity);
 
 app.use("/api/auth", authRouter); // mục dích phục vụ cho riêng authentication
 app.use("/api/services", serviceRouter);

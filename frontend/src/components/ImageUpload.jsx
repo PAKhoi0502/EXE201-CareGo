@@ -83,10 +83,10 @@ const ImageUpload = ({ label, folder, value = [], onUploaded, locked = false, co
                 <Button
                   type="button"
                   variant="danger"
-                  className="absolute -right-2 -top-2 w-fit rounded-full"
+                  className="absolute -right-2 -top-2 w-fit rounded-full px-2 text-xs"
                   onClick={() => removeImage(index)}
                 >
-                  ✕
+                  Xóa
                 </Button>
               ) : null}
             </div>

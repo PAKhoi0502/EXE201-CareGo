@@ -114,7 +114,7 @@ export const CompanionJoinSection = () => (
           <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-teal-100/70 blur-3xl" />
           <span className="relative inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-700">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Dành cho sinh viên Y Dược, Điều dưỡng, Tâm lý
+            Dành cho người đồng hành có hồ sơ được xác minh
           </span>
           <h2 className="relative mt-5 max-w-2xl text-3xl font-black leading-tight text-[#12312f] sm:text-4xl lg:text-5xl">
             Trở thành người đồng hành CareGo
@@ -126,7 +126,7 @@ export const CompanionJoinSection = () => (
 
           <div className="relative mt-7 grid gap-3 sm:grid-cols-3">
             {[
-              ["Linh hoạt", "Chọn ca phù hợp lịch học"],
+              ["Linh hoạt", "Chọn ca phù hợp lịch cá nhân"],
               ["Minh bạch", "Theo dõi thu nhập rõ ràng"],
               ["An toàn", "Có quy trình từng bước"],
             ].map(([title, body]) => (

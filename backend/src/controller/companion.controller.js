@@ -10,6 +10,14 @@ import { disconnectUserSockets, getUserOnlineStatuses } from "../socket/location
 import { generateOtp, hashOtp, verifyOtp } from "../utils/otp.js";
 import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
 import {
+  getCompanionApplicationProfileError,
+  getRequiredCompanionDocumentFields,
+  normalizeCompanionApplicantType,
+  normalizeGraduationYear,
+  normalizeYearsOfExperience,
+} from "../utils/companion-application.js";
+import {
+  findActiveBookingOutsideWorkingShift,
   getBookingEndTime,
   isTimeOverlapped,
   isWithinCompanionWorkingShift,
@@ -24,10 +32,6 @@ const COMPANION_LOGIN_DOMAIN = "carego.cfd";
 const COMPANION_EMAIL_RETRY_LIMIT = 20;
 const CONFIRMED_BOOKING_STATUSES = ["accepted", "in_progress"];
 const COMPANION_DOCUMENT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
-const REQUIRED_APPROVAL_DOCUMENT_FIELDS = [
-  "citizenIdFrontUrl",
-  "citizenIdBackUrl",
-];
 const COMPANION_VETTING_STATUS_TRANSITIONS = {
   pending: ["approved", "rejected"],
   approved: ["suspended"],
@@ -35,8 +39,9 @@ const COMPANION_VETTING_STATUS_TRANSITIONS = {
   rejected: [],
 };
 const REAPPROVAL_PROFILE_STATUSES = ["approved", "rejected"];
-const REAPPROVAL_TEXT_FIELDS = ["fullName", "university", "major"];
+const REAPPROVAL_TEXT_FIELDS = ["fullName", "university", "major", "qualificationDescription"];
 const REAPPROVAL_LIST_FIELDS = ["skills", "serviceAreas"];
+const REAPPROVAL_NUMBER_FIELDS = ["graduationYear", "yearsOfExperience"];
 
 const normalizeLoginName = (value) =>
   String(value || "")
@@ -189,9 +194,22 @@ const getUnavailableCompanionIds = async ({ companionIds, start, end, bookingMod
   );
 };
 
+const findCompanionWorkingShiftConflict = async ({ companionId, workingShift, now = new Date() }) => {
+  if (!companionId) return undefined;
+
+  const confirmedBookings = await Booking.find({
+    companionId,
+    status: { $in: CONFIRMED_BOOKING_STATUSES },
+  })
+    .select("startTime durationHours status")
+    .lean();
+
+  return findActiveBookingOutsideWorkingShift(confirmedBookings, workingShift, now);
+};
+
 const getCompanionProfileForAuth = async (userId) =>
   CompanionProfile.findOne({ userId }).select(
-    "vettingStatus fullName phone phoneVerifiedAt workingShift university major skills serviceAreas ratingAverage ratingCount completedBookings",
+    "vettingStatus fullName phone phoneVerifiedAt workingShift applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas ratingAverage ratingCount completedBookings",
   );
 
 const normalizeRejectionReason = (value) => String(value || "").trim();
@@ -219,10 +237,19 @@ const hasReapprovalProfileChanges = (currentProfile, profileUpdates) => {
     return true;
   }
 
-  return REAPPROVAL_LIST_FIELDS.some(
+  const hasListChange = REAPPROVAL_LIST_FIELDS.some(
     (field) =>
       Object.hasOwn(profileUpdates, field) &&
       !areTextListsEqual(profileUpdates[field], currentProfile?.[field]),
+  );
+  if (hasListChange) {
+    return true;
+  }
+
+  return REAPPROVAL_NUMBER_FIELDS.some(
+    (field) =>
+      Object.hasOwn(profileUpdates, field) &&
+      Number(profileUpdates[field] || 0) !== Number(currentProfile?.[field] || 0),
   );
 };
 
@@ -231,6 +258,9 @@ const normalizeCompanionDocuments = (documents = {}) => ({
   citizenIdFrontUrl: String(documents?.citizenIdFrontUrl || "").trim(),
   citizenIdBackUrl: String(documents?.citizenIdBackUrl || "").trim(),
   studentCardUrl: String(documents?.studentCardUrl || "").trim(),
+  degreeCertificateUrl: String(documents?.degreeCertificateUrl || "").trim(),
+  professionalCertificateUrl: String(documents?.professionalCertificateUrl || "").trim(),
+  experienceProofUrl: String(documents?.experienceProofUrl || "").trim(),
   backgroundCheckUrl: String(documents?.backgroundCheckUrl || "").trim(),
 });
 
@@ -277,13 +307,13 @@ const isValidCompanionDocumentImage = (value) => {
   return isValidImageDataUrl(trimmedValue) || isTrustedCloudinaryImageUrl(trimmedValue);
 };
 
-const getMissingApprovalDocuments = (documents = {}) =>
-  REQUIRED_APPROVAL_DOCUMENT_FIELDS.filter(
+const getMissingApprovalDocuments = (documents = {}, applicantType = "") =>
+  getRequiredCompanionDocumentFields(applicantType).filter(
     (field) => !isValidCompanionDocumentImage(documents?.[field]),
   );
 
 const buildApprovalDocumentError = (fields) => ({
-  message: "Cần có ảnh CCCD mặt trước và mặt sau hợp lệ để duyệt hồ sơ người đồng hành.",
+  message: "Cần có đầy đủ ảnh CCCD và giấy tờ chứng minh phù hợp với nhóm ứng viên để duyệt hồ sơ.",
   fields,
 });
 
@@ -316,7 +346,7 @@ export const getCompanions = async (req, res) => {
     }
 
     const companions = await CompanionProfile.find(companionFilter)
-      .select("userId fullName gender university major skills workingShift serviceAreas ratingAverage ratingCount completedBookings")
+      .select("userId fullName gender applicantType university major graduationYear yearsOfExperience qualificationDescription skills workingShift serviceAreas ratingAverage ratingCount completedBookings")
       .populate({
         path: "userId",
         select: "name avatar isActive",
@@ -372,7 +402,7 @@ export const getCompanionById = async (req, res) => {
       _id: req.params.id,
       vettingStatus: "approved",
       phoneVerifiedAt: { $ne: null },
-    }).select("+applicantCustomerId userId fullName gender university major skills workingShift serviceAreas ratingAverage ratingCount completedBookings").populate({
+    }).select("+applicantCustomerId userId fullName gender applicantType university major graduationYear yearsOfExperience qualificationDescription skills workingShift serviceAreas ratingAverage ratingCount completedBookings").populate({
       path: "userId",
       select: "name avatar isActive",
       match: { role: "companion", isActive: true, isEmailVerified: true },
@@ -504,8 +534,12 @@ export const applyForCompanion = async (req, res) => {
       fullName,
       gender,
       dateOfBirth,
+      applicantType,
       university,
       major,
+      graduationYear,
+      yearsOfExperience,
+      qualificationDescription,
       skills,
       documents,
       serviceAreas,
@@ -532,8 +566,30 @@ export const applyForCompanion = async (req, res) => {
       return res.status(400).json({ message: "Vui lòng nhập họ tên đầy đủ." });
     }
 
+    const cleanPhone = String(phone || currentUser.phone || "").trim();
+    const normalizedApplicantType = normalizeCompanionApplicantType(applicantType);
+    const normalizedSkills = normalizeTextList(skills);
+    const normalizedServiceAreas = normalizeTextList(serviceAreas);
+    const profileError = getCompanionApplicationProfileError({
+      applicantType: normalizedApplicantType,
+      dateOfBirth,
+      university,
+      major,
+      graduationYear,
+      yearsOfExperience,
+      qualificationDescription,
+    });
+    if (profileError) {
+      return res.status(400).json({ message: profileError });
+    }
+    if (!cleanPhone || normalizedSkills.length === 0 || normalizedServiceAreas.length === 0) {
+      return res.status(400).json({
+        message: "Vui lòng nhập số điện thoại, kỹ năng và ít nhất một khu vực hoạt động.",
+      });
+    }
+
     const normalizedDocuments = normalizeCompanionDocuments(documents);
-    const missingDocuments = getMissingApprovalDocuments(normalizedDocuments);
+    const missingDocuments = getMissingApprovalDocuments(normalizedDocuments, normalizedApplicantType);
     if (missingDocuments.length > 0) {
       return res.status(400).json(buildApprovalDocumentError(missingDocuments));
     }
@@ -550,14 +606,18 @@ export const applyForCompanion = async (req, res) => {
     const companionProfile = await CompanionProfile.create({
       applicantCustomerId: userId,
       fullName: cleanFullName,
-      phone: String(phone || currentUser.phone || "").trim(),
+      phone: cleanPhone,
       gender,
       dateOfBirth,
-      university,
-      major,
-      skills: normalizeTextList(skills),
+      applicantType: normalizedApplicantType,
+      university: String(university || "").trim(),
+      major: String(major || "").trim(),
+      graduationYear: normalizeGraduationYear(graduationYear),
+      yearsOfExperience: normalizeYearsOfExperience(yearsOfExperience),
+      qualificationDescription: String(qualificationDescription || "").trim(),
+      skills: normalizedSkills,
       documents: normalizedDocuments,
-      serviceAreas: normalizeTextList(serviceAreas),
+      serviceAreas: normalizedServiceAreas,
       workingShift: normalizeWorkingShift(workingShift),
       vettingStatus: "pending",
     });
@@ -598,8 +658,12 @@ export const adminCreateCompanion = async (req, res) => {
       fullName,
       gender,
       dateOfBirth,
+      applicantType,
       university,
       major,
+      graduationYear,
+      yearsOfExperience,
+      qualificationDescription,
       skills,
       documents,
       serviceAreas,
@@ -618,8 +682,29 @@ export const adminCreateCompanion = async (req, res) => {
       return res.status(400).json({ message: "Email đã được sử dụng." });
     }
 
+    const normalizedApplicantType = normalizeCompanionApplicantType(applicantType);
+    const normalizedSkills = normalizeTextList(skills);
+    const normalizedServiceAreas = normalizeTextList(serviceAreas);
+    const profileError = getCompanionApplicationProfileError({
+      applicantType: normalizedApplicantType,
+      dateOfBirth,
+      university,
+      major,
+      graduationYear,
+      yearsOfExperience,
+      qualificationDescription,
+    });
+    if (profileError) {
+      return res.status(400).json({ message: profileError });
+    }
+    if (!String(phone || "").trim() || normalizedSkills.length === 0 || normalizedServiceAreas.length === 0) {
+      return res.status(400).json({
+        message: "Vui lòng nhập số điện thoại, kỹ năng và ít nhất một khu vực hoạt động.",
+      });
+    }
+
     const normalizedDocuments = normalizeCompanionDocuments(documents);
-    const hasApprovalDocuments = getMissingApprovalDocuments(normalizedDocuments).length === 0;
+    const hasApprovalDocuments = getMissingApprovalDocuments(normalizedDocuments, normalizedApplicantType).length === 0;
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
@@ -637,11 +722,15 @@ export const adminCreateCompanion = async (req, res) => {
       phone,
       gender,
       dateOfBirth,
-      university,
-      major,
-      skills,
+      applicantType: normalizedApplicantType,
+      university: String(university || "").trim(),
+      major: String(major || "").trim(),
+      graduationYear: normalizeGraduationYear(graduationYear),
+      yearsOfExperience: normalizeYearsOfExperience(yearsOfExperience),
+      qualificationDescription: String(qualificationDescription || "").trim(),
+      skills: normalizedSkills,
       documents: normalizedDocuments,
-      serviceAreas,
+      serviceAreas: normalizedServiceAreas,
       workingShift: normalizeWorkingShift(workingShift),
       vettingStatus: hasApprovalDocuments ? "approved" : "pending",
       reviewedBy: hasApprovalDocuments ? getRequestUserId(req) : null,
@@ -687,7 +776,18 @@ export const adminGetCompanions = async (req, res) => {
 export const updateMyCompanionProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { fullName, phone, university, major, skills, serviceAreas, workingShift } = req.body;
+    const {
+      fullName,
+      phone,
+      university,
+      major,
+      graduationYear,
+      yearsOfExperience,
+      qualificationDescription,
+      skills,
+      serviceAreas,
+      workingShift,
+    } = req.body;
 
     const profileUpdates = {};
     if (fullName !== undefined) {
@@ -709,6 +809,15 @@ export const updateMyCompanionProfile = async (req, res) => {
     if (major !== undefined) {
       profileUpdates.major = String(major).trim();
     }
+    if (graduationYear !== undefined) {
+      profileUpdates.graduationYear = normalizeGraduationYear(graduationYear);
+    }
+    if (yearsOfExperience !== undefined) {
+      profileUpdates.yearsOfExperience = normalizeYearsOfExperience(yearsOfExperience);
+    }
+    if (qualificationDescription !== undefined) {
+      profileUpdates.qualificationDescription = String(qualificationDescription).trim();
+    }
     if (skills !== undefined) {
       profileUpdates.skills = normalizeTextList(skills);
     }
@@ -717,11 +826,35 @@ export const updateMyCompanionProfile = async (req, res) => {
     }
 
     const currentProfile = await CompanionProfile.findOne({ userId })
-      .select("vettingStatus fullName phone university major skills serviceAreas")
+      .select("vettingStatus fullName phone applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas workingShift")
       .lean();
 
     if (!currentProfile) {
       return res.status(404).json({ message: "Không tìm thấy hồ sơ người đồng hành." });
+    }
+
+    if (
+      Object.hasOwn(profileUpdates, "workingShift") &&
+      profileUpdates.workingShift !== normalizeWorkingShift(currentProfile.workingShift)
+    ) {
+      const conflictingBooking = await findCompanionWorkingShiftConflict({
+        companionId: userId,
+        workingShift: profileUpdates.workingShift,
+      });
+
+      if (conflictingBooking) {
+        return res.status(409).json({
+          message: "Không thể đổi ca làm việc vì có booking đã nhận hoặc đang thực hiện nằm ngoài ca mới.",
+        });
+      }
+    }
+
+    const mergedProfile = { ...currentProfile, ...profileUpdates };
+    if (currentProfile.applicantType) {
+      const profileError = getCompanionApplicationProfileError(mergedProfile);
+      if (profileError) {
+        return res.status(400).json({ message: profileError });
+      }
     }
 
     if (hasReapprovalProfileChanges(currentProfile, profileUpdates)) {
@@ -745,7 +878,7 @@ export const updateMyCompanionProfile = async (req, res) => {
       profileUpdates,
       { new: true, runValidators: true },
     ).select(
-      "vettingStatus fullName phone phoneVerifiedAt workingShift university major skills serviceAreas ratingAverage ratingCount completedBookings",
+      "vettingStatus fullName phone phoneVerifiedAt workingShift applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas ratingAverage ratingCount completedBookings",
     );
 
     if (!profile) {
@@ -907,6 +1040,18 @@ export const adminUpdateCompanion = async (req, res) => {
     }
     if (Object.hasOwn(updates, "workingShift")) {
       updates.workingShift = normalizeWorkingShift(updates.workingShift);
+      if (updates.workingShift !== normalizeWorkingShift(currentProfile.workingShift)) {
+        const conflictingBooking = await findCompanionWorkingShiftConflict({
+          companionId: currentProfile.userId,
+          workingShift: updates.workingShift,
+        });
+
+        if (conflictingBooking) {
+          return res.status(409).json({
+            message: "Không thể đổi ca làm việc vì companion có booking đã nhận hoặc đang thực hiện nằm ngoài ca mới.",
+          });
+        }
+      }
     }
     if (Object.hasOwn(updates, "skills")) {
       updates.skills = normalizeTextList(updates.skills);
@@ -918,6 +1063,43 @@ export const adminUpdateCompanion = async (req, res) => {
       updates.fullName = String(updates.fullName || "").trim();
       if (!updates.fullName) {
         return res.status(400).json({ message: "Vui lòng nhập họ tên đầy đủ." });
+      }
+    }
+    if (Object.hasOwn(updates, "applicantType")) {
+      updates.applicantType = normalizeCompanionApplicantType(updates.applicantType);
+      if (!updates.applicantType) {
+        return res.status(400).json({ message: "Nhóm ứng viên không hợp lệ." });
+      }
+    }
+    if (Object.hasOwn(updates, "university")) {
+      updates.university = String(updates.university || "").trim();
+    }
+    if (Object.hasOwn(updates, "major")) {
+      updates.major = String(updates.major || "").trim();
+    }
+    if (Object.hasOwn(updates, "graduationYear")) {
+      updates.graduationYear = normalizeGraduationYear(updates.graduationYear);
+    }
+    if (Object.hasOwn(updates, "yearsOfExperience")) {
+      updates.yearsOfExperience = normalizeYearsOfExperience(updates.yearsOfExperience);
+    }
+    if (Object.hasOwn(updates, "qualificationDescription")) {
+      updates.qualificationDescription = String(updates.qualificationDescription || "").trim();
+    }
+
+    const applicationProfileFields = [
+      "applicantType",
+      "dateOfBirth",
+      "university",
+      "major",
+      "graduationYear",
+      "yearsOfExperience",
+      "qualificationDescription",
+    ];
+    if (applicationProfileFields.some((field) => Object.hasOwn(updates, field))) {
+      const profileError = getCompanionApplicationProfileError({ ...currentProfile, ...updates });
+      if (profileError) {
+        return res.status(400).json({ message: profileError });
       }
     }
 
@@ -961,7 +1143,10 @@ export const adminUpdateCompanion = async (req, res) => {
     }
 
     if (nextVettingStatus === "approved") {
-      const missingDocuments = getMissingApprovalDocuments(mergedDocuments);
+      const missingDocuments = getMissingApprovalDocuments(
+        mergedDocuments,
+        updates.applicantType || currentProfile.applicantType || "",
+      );
       if (missingDocuments.length > 0) {
         return res.status(400).json(buildApprovalDocumentError(missingDocuments));
       }
@@ -1034,7 +1219,10 @@ export const adminUpdateCompanionStatus = async (req, res) => {
     }
 
     if (nextVettingStatus === "approved") {
-      const missingDocuments = getMissingApprovalDocuments(profile.documents);
+      const missingDocuments = getMissingApprovalDocuments(
+        profile.documents,
+        profile.applicantType || "",
+      );
       if (missingDocuments.length > 0) {
         return res.status(400).json(buildApprovalDocumentError(missingDocuments));
       }

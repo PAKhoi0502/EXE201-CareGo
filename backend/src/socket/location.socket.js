@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Booking from "../models/booking.models.js";
 import { revalidateSocketUser } from "./auth.socket.js";
+import { recordAuditLogLater } from "../utils/audit-log.js";
 
 const GPS_ACTIVE_THRESHOLD_MS = 30000;
 const LOCATION_TRACKABLE_BOOKING_STATUSES = ["accepted", "in_progress"];
@@ -31,6 +32,20 @@ const liveLocationSamples = new Map();
 let locationIo = null;
 
 const userRoomName = (userId) => `user:${userId}`;
+
+const recordSocketAudit = (socket, action, details = {}) => {
+  recordAuditLogLater({
+    actor: socket.user,
+    source: "socket",
+    action,
+    route: `socket:${action}`,
+    resourceType: details.resourceType || "socket",
+    resourceId: details.resourceId || "",
+    outcome: details.outcome || "success",
+    ipAddress: socket.handshake.address || socket.handshake.headers["x-forwarded-for"] || "",
+    userAgent: socket.handshake.headers["user-agent"] || "",
+  });
+};
 
 const setCompanionGpsStatus = (socket, companionId, data) => {
   if (!companionId) return;
@@ -220,6 +235,7 @@ export const setupLocationSocket = (io) => {
 
   io.on("connection", (socket) => {
     setUserOnline(socket, socket.user.userId);
+    recordSocketAudit(socket, "socket.connect");
 
     socket.on("user:online", async () => {
       const activeUser = await revalidateSocketUser(socket);
@@ -296,6 +312,7 @@ export const setupLocationSocket = (io) => {
         }
 
         const resolvedCompanionId = booking.companionId;
+        const previousGpsStatus = companionGpsStatus.get(String(resolvedCompanionId));
         setCompanionGpsStatus(socket, resolvedCompanionId, {
           isGpsOn: true,
           bookingId,
@@ -303,6 +320,12 @@ export const setupLocationSocket = (io) => {
           lng: location.lng,
           lastSeenAt: location.recordedAt,
         });
+        if (!previousGpsStatus?.isGpsOn || String(previousGpsStatus.bookingId || "") !== String(bookingId)) {
+          recordSocketAudit(socket, "gps.start", {
+            resourceType: "bookings",
+            resourceId: bookingId,
+          });
+        }
 
         if (shouldPublishLiveLocation({ bookingId, companionId: resolvedCompanionId, location })) {
           io.to(`booking:${bookingId}`).emit("location:update", {
@@ -321,19 +344,27 @@ export const setupLocationSocket = (io) => {
         return;
       }
 
+      const previousGpsStatus = companionGpsStatus.get(String(socket.user.userId));
       setCompanionGpsStatus(socket, socket.user.userId, {
         isGpsOn: true,
         lastSeenAt: new Date(),
       });
+      if (!previousGpsStatus?.isGpsOn) {
+        recordSocketAudit(socket, "gps.start", { resourceType: "companions", resourceId: socket.user.userId });
+      }
     });
 
     socket.on("companion:gps:stop", async () => {
       const activeUser = await revalidateSocketUser(socket);
       if (!activeUser || !isApprovedCompanionSocket(socket.user)) return;
+      const previousGpsStatus = companionGpsStatus.get(String(socket.user.userId));
       setCompanionGpsStatus(socket, socket.user.userId, {
         isGpsOn: false,
         lastSeenAt: new Date(),
       });
+      if (previousGpsStatus?.isGpsOn) {
+        recordSocketAudit(socket, "gps.stop", { resourceType: "companions", resourceId: socket.user.userId });
+      }
     });
 
     socket.on("location:stop", async ({ bookingId }) => {
@@ -350,18 +381,26 @@ export const setupLocationSocket = (io) => {
         if (!canStop) return;
 
         const resolvedCompanionId = booking.companionId;
+        const previousGpsStatus = companionGpsStatus.get(String(resolvedCompanionId));
         setCompanionGpsStatus(socket, resolvedCompanionId, {
           isGpsOn: false,
           bookingId,
           lastSeenAt: new Date(),
         });
         liveLocationSamples.delete(getLiveLocationKey(bookingId, resolvedCompanionId));
+        if (previousGpsStatus?.isGpsOn) {
+          recordSocketAudit(socket, "gps.stop", {
+            resourceType: "bookings",
+            resourceId: bookingId,
+          });
+        }
       } catch {
         return;
       }
     });
 
     socket.on("disconnect", () => {
+      recordSocketAudit(socket, "socket.disconnect");
       setUserOfflineForSocket(socket.id);
 
       const companionIds = socketCompanions.get(socket.id);

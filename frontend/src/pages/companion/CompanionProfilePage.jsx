@@ -3,6 +3,7 @@ import { api, uploadImage } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Button, Card, Input, PageHeader, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import { dateTime } from "../../utils/format.js";
+import { getCompanionApplicantType } from "../../utils/companionApplication.js";
 
 const workingShiftOptions = [
   { value: "morning", label: "Buổi sáng 07:00 - 13:00" },
@@ -34,6 +35,9 @@ const toForm = (user, profile) => ({
   workingShift: profile?.workingShift || "full_day",
   university: profile?.university || "",
   major: profile?.major || "",
+  graduationYear: profile?.graduationYear || "",
+  yearsOfExperience: profile?.yearsOfExperience || "",
+  qualificationDescription: profile?.qualificationDescription || "",
   skillsText: profile?.skills?.join(", ") || "",
   serviceAreasText: profile?.serviceAreas?.join(", ") || "",
 });
@@ -88,6 +92,7 @@ const CompanionProfilePage = () => {
   const displayName = profile?.fullName || user?.name || "Người đồng hành";
   const phone = profile?.phone || user?.phone || "";
   const phoneVerified = Boolean(profile?.phoneVerifiedAt);
+  const applicantType = getCompanionApplicantType(profile?.applicantType);
 
   const loadReviewPage = useCallback(async (page = 1, append = false) => {
     setReviewsLoading(true);
@@ -142,6 +147,9 @@ const CompanionProfilePage = () => {
         workingShift: form.workingShift,
         university: form.university,
         major: form.major,
+        graduationYear: form.graduationYear,
+        yearsOfExperience: form.yearsOfExperience,
+        qualificationDescription: form.qualificationDescription,
         skills: splitTextList(form.skillsText),
         serviceAreas: splitTextList(form.serviceAreasText),
       });
@@ -310,40 +318,42 @@ const CompanionProfilePage = () => {
           </div>
         </Card>
 
-        <Card className="border-emerald-100 bg-white/95 p-6 shadow-xl shadow-emerald-900/10">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-black text-[#12312f]">Xác minh số điện thoại</h2>
-              <p className="mt-1 text-sm text-slate-500">Companion cần xác minh số điện thoại trước khi nhận booking mới.</p>
+        {!phoneVerified ? (
+          <Card className="border-emerald-100 bg-white/95 p-6 shadow-xl shadow-emerald-900/10">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-[#12312f]">Xác minh số điện thoại</h2>
+                <p className="mt-1 text-sm text-slate-500">Companion cần xác minh số điện thoại trước khi nhận booking mới.</p>
+              </div>
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+                Chưa xác minh
+              </span>
             </div>
-            <span className={`rounded-full px-3 py-1 text-xs font-black ${phoneVerified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-              {phoneVerified ? "Đã xác minh" : "Chưa xác minh"}
-            </span>
-          </div>
-          <div className="mt-4 grid gap-3">
-            <Button type="button" variant="secondary" className="min-h-10 px-4 text-sm" onClick={requestPhoneOtp} disabled={phoneOtpLoading}>
-              {phoneOtpLoading ? "Đang xử lý..." : "Gửi OTP mock"}
-            </Button>
-            {phoneOtpMock ? (
-              <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">
-                OTP mock: {phoneOtpMock}
-              </p>
-            ) : null}
-            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-              <Input
-                label="Mã OTP"
-                value={phoneOtp}
-                onChange={(event) => setPhoneOtp(event.target.value)}
-                placeholder="Nhập OTP"
-                className="min-h-10 rounded-xl"
-              />
-              <Button type="button" className="min-h-10 px-4 text-sm" onClick={verifyPhoneOtp} disabled={phoneOtpLoading}>
-                Xác minh
+            <div className="mt-4 grid gap-3">
+              <Button type="button" variant="secondary" className="min-h-10 px-4 text-sm" onClick={requestPhoneOtp} disabled={phoneOtpLoading}>
+                {phoneOtpLoading ? "Đang xử lý..." : "Gửi OTP mock"}
               </Button>
+              {phoneOtpMock ? (
+                <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">
+                  OTP mock: {phoneOtpMock}
+                </p>
+              ) : null}
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Input
+                  label="Mã OTP"
+                  value={phoneOtp}
+                  onChange={(event) => setPhoneOtp(event.target.value)}
+                  placeholder="Nhập OTP"
+                  className="min-h-10 rounded-xl"
+                />
+                <Button type="button" className="min-h-10 px-4 text-sm" onClick={verifyPhoneOtp} disabled={phoneOtpLoading}>
+                  Xác minh
+                </Button>
+              </div>
+              {phoneOtpError ? <p className="text-sm font-semibold text-rose-600">{phoneOtpError}</p> : null}
             </div>
-            {phoneOtpError ? <p className="text-sm font-semibold text-rose-600">{phoneOtpError}</p> : null}
-          </div>
-        </Card>
+          </Card>
+        ) : null}
 
         <Card className="border-emerald-100 bg-white/95 p-6 shadow-xl shadow-emerald-900/10">
           <div className="mb-5 rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-sky-50 p-4">
@@ -354,6 +364,7 @@ const CompanionProfilePage = () => {
           {editing ? (
             <form className="grid gap-4" onSubmit={saveProfile}>
               <div className="grid gap-4 sm:grid-cols-2">
+                <InfoBlock label="Nhóm ứng viên" value={applicantType.label} className="sm:col-span-2" />
                 <Input
                   label="Họ tên đầy đủ"
                   value={form.fullName}
@@ -365,27 +376,67 @@ const CompanionProfilePage = () => {
                   value={form.phone}
                   onChange={(event) => updateField("phone", event.target.value)}
                 />
-                <Select
-                  label="Ca làm việc"
-                  value={form.workingShift}
-                  onChange={(event) => updateField("workingShift", event.target.value)}
-                >
-                  {workingShiftOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-                <Input
-                  label="Trường đại học"
-                  value={form.university}
-                  onChange={(event) => updateField("university", event.target.value)}
-                />
-                <Input
-                  label="Ngành học"
-                  value={form.major}
-                  onChange={(event) => updateField("major", event.target.value)}
-                />
+                <div>
+                  <Select
+                    label="Ca làm việc"
+                    value={form.workingShift}
+                    onChange={(event) => updateField("workingShift", event.target.value)}
+                  >
+                    {workingShiftOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="mt-2 text-xs font-semibold text-slate-500">
+                    Không thể đổi sang ca mới nếu còn booking đã nhận hoặc đang thực hiện nằm ngoài ca đó.
+                  </p>
+                </div>
+                {applicantType.requiresEducation ? (
+                  <>
+                    <Input
+                      label="Cơ sở đào tạo"
+                      value={form.university}
+                      onChange={(event) => updateField("university", event.target.value)}
+                    />
+                    <Input
+                      label="Ngành hoặc chuyên môn"
+                      value={form.major}
+                      onChange={(event) => updateField("major", event.target.value)}
+                    />
+                  </>
+                ) : null}
+                {applicantType.value === "graduate" ? (
+                  <Input
+                    label="Năm tốt nghiệp"
+                    type="number"
+                    min="1950"
+                    max={new Date().getFullYear()}
+                    value={form.graduationYear}
+                    onChange={(event) => updateField("graduationYear", event.target.value)}
+                  />
+                ) : null}
+                {applicantType.requiresExperience ? (
+                  <Input
+                    label="Số năm kinh nghiệm"
+                    type="number"
+                    min="0"
+                    max="60"
+                    step="0.5"
+                    value={form.yearsOfExperience}
+                    onChange={(event) => updateField("yearsOfExperience", event.target.value)}
+                  />
+                ) : null}
+                {applicantType.requiresDescription ? (
+                  <div className="sm:col-span-2">
+                    <Textarea
+                      label="Kinh nghiệm hoặc lý do phù hợp"
+                      value={form.qualificationDescription}
+                      onChange={(event) => updateField("qualificationDescription", event.target.value)}
+                      maxLength="1000"
+                    />
+                  </div>
+                ) : null}
                 <div className="sm:col-span-2">
                   <Textarea
                     label="Kỹ năng, cách nhau bằng dấu phẩy"
@@ -421,8 +472,16 @@ const CompanionProfilePage = () => {
               <InfoBlock label="Số điện thoại" value={phone} />
               <InfoBlock label="Xác minh điện thoại" value={phoneVerified ? "Đã xác minh" : "Chưa xác minh"} />
               <InfoBlock label="Ca làm việc" value={getWorkingShiftLabel(profile?.workingShift)} />
-              <InfoBlock label="Trường" value={profile?.university} />
-              <InfoBlock label="Chuyên ngành" value={profile?.major} />
+              <InfoBlock label="Nhóm ứng viên" value={applicantType.label} />
+              {applicantType.requiresEducation ? (
+                <>
+                  <InfoBlock label="Cơ sở đào tạo" value={profile?.university} />
+                  <InfoBlock label="Ngành hoặc chuyên môn" value={profile?.major} />
+                </>
+              ) : null}
+              {applicantType.value === "graduate" ? <InfoBlock label="Năm tốt nghiệp" value={profile?.graduationYear} /> : null}
+              {applicantType.requiresExperience ? <InfoBlock label="Kinh nghiệm" value={`${profile?.yearsOfExperience || 0} năm`} /> : null}
+              {applicantType.requiresDescription ? <InfoBlock label="Kinh nghiệm hoặc lý do phù hợp" value={profile?.qualificationDescription} className="sm:col-span-2" /> : null}
               <TagList label="Kỹ năng" items={profile?.skills || []} emptyText="Chưa có kỹ năng" />
               <TagList label="Khu vực hoạt động" items={profile?.serviceAreas || []} emptyText="Chưa cập nhật" />
             </div>

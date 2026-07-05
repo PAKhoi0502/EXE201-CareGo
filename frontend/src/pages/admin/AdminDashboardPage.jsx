@@ -431,7 +431,7 @@ const AdminDashboardPage = () => {
         <div className="space-y-6">
           <Card className="border-teal-100 bg-white/95 shadow-xl shadow-teal-900/5">
             <h2 className="font-bold text-slate-900">Chờ duyệt hồ sơ companion</h2>
-            <p className="mt-1 text-xs text-slate-400">Lớp kiểm duyệt CCCD, thẻ sinh viên và hồ sơ cơ bản</p>
+            <p className="mt-1 text-xs text-slate-400">Kiểm duyệt CCCD và giấy tờ năng lực theo nhóm ứng viên</p>
             <div className="mt-4 space-y-3">
               {pendingCompanions.slice(0, 4).map((companion) => (
                 <div

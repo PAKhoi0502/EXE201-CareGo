@@ -4,6 +4,7 @@ import CareGoLogo from "../../components/CareGoLogo.jsx";
 import { Button, Card, StatusBadge } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getUserHomePath, isApprovedCompanion } from "../../utils/authNavigation.js";
+import { getCompanionApplicantTypeLabel } from "../../utils/companionApplication.js";
 
 const statusCopy = {
   pending: {
@@ -110,6 +111,10 @@ const CompanionStatusPage = () => {
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <p className="text-xs font-black uppercase text-slate-400">Số điện thoại</p>
               <p className="mt-2 font-bold text-slate-900">{application?.phone || user.phone || "Chưa cập nhật"}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:col-span-2">
+              <p className="text-xs font-black uppercase text-slate-400">Nhóm ứng viên</p>
+              <p className="mt-2 font-bold text-slate-900">{getCompanionApplicantTypeLabel(application?.applicantType)}</p>
             </div>
           </div>
         </Card>

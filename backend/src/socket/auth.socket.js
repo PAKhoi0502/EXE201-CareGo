@@ -7,7 +7,7 @@ const getActiveSocketUser = async (userId) => {
     throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
   }
 
-  const user = await User.findById(userId).select("_id role isActive isEmailVerified mustChangePassword");
+  const user = await User.findById(userId).select("_id name email role isActive isEmailVerified mustChangePassword");
   if (!user || !user.isActive || !user.isEmailVerified) {
     throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
   }
@@ -22,6 +22,8 @@ const getActiveSocketUser = async (userId) => {
 
   return {
     userId: user._id.toString(),
+    name: user.name,
+    email: user.email,
     role: user.role,
     vettingStatus: companionProfile?.vettingStatus,
   };

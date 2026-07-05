@@ -21,6 +21,7 @@ import {
 } from "../controller/blog.controller.js";
 import { verifyToken } from "../middlleware/auth.middleware.js";
 import { allowRoles } from "../middlleware/role.middleware.js";
+import { getAdminAuditLogs } from "../controller/audit-log.controller.js";
 
 const router = express.Router();
 
@@ -33,6 +34,7 @@ router.get("/bookings", getAdminBookings);
 router.get("/reports", getAdminReports);
 router.get("/gps-statuses", getAdminGpsStatuses);
 router.get("/online-statuses", getAdminOnlineStatuses);
+router.get("/audit-logs", getAdminAuditLogs);
 router.get("/blogs", getAdminBlogs);
 router.post("/blogs", createAdminBlog);
 router.get("/blogs/:id/comments", getAdminBlogComments);

@@ -268,7 +268,7 @@ export const blogSeedPosts = [
       {
         heading: "Một giải pháp cụ thể cho gia đình hiện đại",
         body:
-          "Trong bài blog trước, chúng ta đã khám phá cách CareGo kết nối người cao tuổi với các bạn sinh viên ưu tú cho những buổi dạo công viên hay trò chuyện tại nhà. Hôm nay, CareGo xin giới thiệu một giải pháp cụ thể hơn, giải quyết một trong những nỗi ám ảnh lớn nhất của gia đình hiện đại: đưa cha mẹ đi khám bệnh và xếp hàng chờ đợi tại bệnh viện.",
+          "Trong bài blog trước, chúng ta đã khám phá cách CareGo kết nối người cao tuổi với những người đồng hành đã được xác minh cho các buổi dạo công viên hay trò chuyện tại nhà. Hôm nay, CareGo xin giới thiệu một giải pháp cụ thể hơn, giải quyết một trong những nỗi lo lớn của gia đình hiện đại: đưa cha mẹ đi khám bệnh và xếp hàng chờ đợi tại bệnh viện.",
       },
       {
         heading: "Rào cản bệnh viện: nỗi lo canh cánh của con cái",
@@ -278,7 +278,7 @@ export const blogSeedPosts = [
       {
         heading: "Giải pháp vàng: người đồng hành tại bệnh viện của CareGo",
         body:
-          "CareGo cung cấp tính năng \"Bạn đồng hành tại bệnh viện\", kết nối bạn với những người đồng hành chuyên trách là sinh viên ngành Y, Dược, Điều dưỡng, Tâm lý. Họ không thay thế bác sĩ, nhưng là những người hỗ trợ gia đình trong các bước thủ tục y tế ban đầu.",
+          "CareGo cung cấp tính năng \"Bạn đồng hành tại bệnh viện\", kết nối bạn với những người đồng hành có hồ sơ phù hợp như sinh viên, người đã tốt nghiệp hoặc nhân sự ngành Y, Dược, Điều dưỡng, Tâm lý. Họ không thay thế bác sĩ, nhưng có thể hỗ trợ gia đình trong các bước thủ tục ban đầu.",
       },
       {
         heading: "Công việc cụ thể của người đồng hành",
@@ -314,12 +314,12 @@ export const blogSeedPosts = [
       {
         heading: "CareGo ra đời để san sẻ áp lực chăm sóc",
         body:
-          "Hiểu được nỗi lòng đó, CareGo ra đời như một giải pháp tiên phong tại Việt Nam. Nền tảng của chúng tôi kết nối người cao tuổi với đội ngũ \"Người đồng hành chuyên trách\" (Companions) - là các bạn sinh viên ưu tú, đặc biệt đến từ các khối ngành Y, Dược, Điều dưỡng và Tâm lý.\n\nVới tôn chỉ \"Cần chăm sóc là có ngay\", CareGo không chỉ cung cấp dịch vụ chăm sóc sức khỏe ban đầu mà còn là cầu nối tình thân, mang lại sự hỗ trợ tinh thần vô giá theo mô hình theo giờ cực kỳ linh hoạt.",
+          "Hiểu được nỗi lòng đó, CareGo ra đời như một giải pháp kết nối người cao tuổi với đội ngũ \"Người đồng hành chuyên trách\" đã được xác minh. Đội ngũ có thể gồm sinh viên, người đã tốt nghiệp, nhân sự ngành sức khỏe, người có kinh nghiệm chăm sóc và cộng tác viên cộng đồng phù hợp.\n\nVới tôn chỉ \"Cần chăm sóc là có ngay\", CareGo mang lại sự hỗ trợ phi y tế và tinh thần theo mô hình theo giờ linh hoạt.",
       },
       {
-        heading: "Tại sao lại là sinh viên khối ngành sức khỏe và tâm lý?",
+        heading: "Vì sao CareGo kiểm duyệt năng lực theo từng nhóm ứng viên?",
         body:
-          "CareGo hiểu rằng người cao tuổi không chỉ cần một người trông nom đơn thuần. Họ cần một người biết lắng nghe, thấu hiểu và có kiến thức nền tảng vững vàng.\n\n- Kiến thức y tế cơ bản (phi lâm sàng): Các bạn sinh viên khối ngành sức khỏe có khả năng hỗ trợ nhắc lịch uống thuốc chuẩn xác, theo dõi các chỉ số cơ bản như huyết áp, nhịp tim và phản ứng nhạy bén với những thay đổi nhỏ về sức khỏe của người già.\n- Sự thấu cảm và năng lượng tích cực: Sinh viên ngành Tâm lý mang đến sự kiên nhẫn, khả năng lắng nghe và xoa dịu những nỗi cô đơn thường trực ở tuổi xế chiều. Sự chênh lệch thế hệ không tạo ra khoảng cách, mà ngược lại, mang đến không khí tươi trẻ, mô phỏng lại tình cảm ông bà - cháu chắt vô cùng ấm áp.",
+          "CareGo hiểu rằng người cao tuổi cần một người biết lắng nghe, thấu hiểu và có năng lực phù hợp với nội dung hỗ trợ. Vì vậy hồ sơ được phân theo nhóm ứng viên và đối chiếu giấy tờ tương ứng.\n\n- Sinh viên và người đã tốt nghiệp cung cấp hồ sơ đào tạo.\n- Nhân sự ngành sức khỏe cung cấp bằng cấp hoặc chứng chỉ chuyên môn.\n- Người có kinh nghiệm chăm sóc cung cấp tài liệu xác nhận kinh nghiệm.\n- Cộng tác viên cộng đồng được giới hạn ở hoạt động phi y tế và phải qua kiểm duyệt nhân thân.",
       },
       {
         heading: "Những dịch vụ cốt lõi CareGo mang lại",
@@ -329,12 +329,12 @@ export const blogSeedPosts = [
       {
         heading: "Ứng dụng công nghệ xóa tan mọi lo âu",
         body:
-          "Giao sự an toàn của cha mẹ cho một người mới quen chưa bao giờ là điều dễ dàng. Vì vậy, CareGo đặt yếu tố minh bạch và an toàn lên hàng đầu, tối ưu hóa qua nền tảng ứng dụng thông minh:\n\n- Theo dõi GPS theo thời gian thực: Con cái dù đang ngồi họp trên công ty vẫn có thể xem được chính xác vị trí của cha mẹ và người đồng hành trên bản đồ.\n- Hồ sơ minh bạch 100%: Toàn bộ sinh viên đều được xác minh danh tính, căn cước công dân và thẻ sinh viên rõ ràng trước khi nhận việc.\n- Hệ thống ghi âm và cập nhật hình ảnh: Xóa bỏ nỗi lo về thái độ phục vụ hay các vấn đề tiền bạc ngoài luồng. Mọi chuyến đi đều được ghi âm sau khi có sự đồng thuận và hình ảnh cha mẹ được cập nhật liên tục qua app.",
+          "Giao sự an toàn của cha mẹ cho một người mới quen chưa bao giờ là điều dễ dàng. Vì vậy, CareGo đặt yếu tố minh bạch và an toàn lên hàng đầu:\n\n- Theo dõi GPS theo thời gian thực trong ca hỗ trợ.\n- Mỗi ứng viên được đối chiếu CCCD và giấy tờ năng lực phù hợp với nhóm đăng ký.\n- Hình ảnh, ghi chú và bằng chứng ca làm được cập nhật theo quy trình của hệ thống.",
       },
       {
         heading: "Giá trị kép cho xã hội",
         body:
-          "Sự ra đời của CareGo không chỉ giải quyết nỗi đau của các gia đình hiện đại mà còn tạo ra những tác động xã hội sâu sắc. Một mặt, những người con bận rộn lấy lại được sự cân bằng, có thời gian tập trung phát triển sự nghiệp. Mặt khác, hàng ngàn sinh viên ngành y tế có cơ hội được làm việc trong môi trường thực tế, rèn luyện y đức, kỹ năng giao tiếp và có thêm nguồn thu nhập chính đáng.",
+          "CareGo hướng đến việc giúp gia đình bận rộn có thêm lựa chọn hỗ trợ người thân, đồng thời tạo cơ hội làm việc linh hoạt cho sinh viên, người đã tốt nghiệp, nhân sự ngành sức khỏe và người có kinh nghiệm chăm sóc đã qua kiểm duyệt.",
       },
       {
         heading: "CareGo - san sẻ trách nhiệm bằng sự tận tâm",
@@ -365,12 +365,12 @@ export const blogSeedPosts = [
       {
         heading: "Khám phá giải pháp người đồng hành thông minh của CareGo",
         body:
-          "CareGo không chỉ là một ứng dụng kết nối, mà là một giải pháp chăm sóc theo giờ tiên phong tại Việt Nam. Chúng tôi tiên phong kết nối người cao tuổi với đội ngũ người đồng hành chuyên trách, là những bạn sinh viên ưu tú, đặc biệt từ các khối ngành sức khỏe như Y, Dược, Điều dưỡng và Tâm lý.\n\nĐây là điểm khác biệt cốt lõi, mang lại sự chăm sóc không chỉ về thể chất theo hướng phi lâm sàng mà còn về tinh thần cho cha mẹ bạn.",
+          "CareGo là nền tảng kết nối người cao tuổi với đội ngũ người đồng hành có danh tính và năng lực được xác minh. Đội ngũ đa dạng từ sinh viên, người đã tốt nghiệp đến nhân sự ngành sức khỏe và người có kinh nghiệm chăm sóc.\n\nĐiểm khác biệt cốt lõi là hỗ trợ phi y tế theo đúng phạm vi, đồng thời mang lại sự đồng hành tinh thần cho gia đình.",
       },
       {
         heading: "Yêu thương không cần sự hy sinh",
         body:
-          "Với CareGo, bạn có thể hoàn toàn yên tâm làm việc mà không còn phải hy sinh tình yêu thương dành cho cha mẹ:\n\n- An tâm tuyệt đối với GPS realtime: Chỉ bằng một cái chạm trên điện thoại, bạn có thể theo dõi vị trí của cả cha mẹ và người chăm sóc theo thời gian thực.\n- Cam kết an toàn và minh bạch: Mọi thông tin của người đồng hành đều được xác thực như CCCD và hồ sơ sinh viên. CareGo áp dụng quy trình ghi âm minh bạch trong suốt ca làm việc và cập nhật hình ảnh liên tục, đảm bảo cha mẹ bạn luôn được an toàn và tôn trọng.",
+          "Với CareGo, gia đình có thêm công cụ theo dõi và phối hợp trong ca hỗ trợ:\n\n- GPS realtime giúp theo dõi vị trí người thân và người đồng hành trong thời gian cung cấp dịch vụ.\n- Danh tính và giấy tờ năng lực của người đồng hành được kiểm duyệt theo nhóm ứng viên.\n- Hình ảnh và ghi chú ca làm giúp tăng tính minh bạch khi phối hợp chăm sóc.",
       },
       {
         heading: "Mang lại nụ cười và sự kết nối cho cha mẹ",
@@ -378,9 +378,9 @@ export const blogSeedPosts = [
           "Cha mẹ bạn cần sự hiện diện, không chỉ là những món quà. Người đồng hành CareGo sẽ thay bạn:\n\n- Trò chuyện chân thành: Đọc báo, chia sẻ những khoảnh khắc đời thường, giải tỏa nỗi cô đơn.\n- Hỗ trợ hoạt động xã hội: Đưa đi dạo công viên, đi viện như xếp hàng, làm thủ tục, hoặc tham gia các hoạt động câu lạc bộ, hội nhóm.\n- Nhắc lịch uống thuốc: Đảm bảo cha mẹ uống thuốc đúng giờ theo đơn đã có trước.",
       },
       {
-        heading: "Tác động xã hội: lợi ích kép cho gia đình và sinh viên",
+        heading: "Tác động xã hội: mở rộng cộng đồng người đồng hành",
         body:
-          "Chọn CareGo, bạn đang tạo cơ hội việc làm ý nghĩa cho các bạn sinh viên, đặc biệt là sinh viên ngành sức khỏe. Họ có cơ hội tiếp cận thực tế, rèn luyện kỹ năng và có thêm thu nhập trong giờ hành chính mà không ảnh hưởng đến việc học.\n\nĐây là một mô hình mũi tên trúng hai đích thực sự ý nghĩa, góp phần xây dựng một cộng đồng chăm sóc bền vững.",
+          "CareGo tạo cơ hội việc làm linh hoạt cho sinh viên, người đã tốt nghiệp, nhân sự ngành sức khỏe và người có kinh nghiệm chăm sóc. Mỗi người tham gia theo phạm vi năng lực đã được kiểm duyệt, đồng thời góp phần xây dựng cộng đồng hỗ trợ người cao tuổi bền vững.",
       },
       {
         heading: "Lựa chọn thông minh cho yêu thương hiện đại",
