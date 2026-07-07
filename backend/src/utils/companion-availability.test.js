@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findActiveBookingOutsideWorkingShift } from "./companion-availability.js";
+import {
+  findActiveBookingOutsideWorkingShift,
+  isCompanionScheduleAvailable,
+  normalizeUnavailableDates,
+  normalizeWorkingDays,
+} from "./companion-availability.js";
 
 const at = (day, hour) => new Date(2026, 6, day, hour, 0, 0, 0);
 
@@ -29,4 +34,36 @@ test("ignores a booking whose service time has already ended", () => {
   const conflict = findActiveBookingOutsideWorkingShift(bookings, "afternoon", at(5, 12));
 
   assert.equal(conflict, undefined);
+});
+
+test("normalizes only valid working days and unique unavailable dates", () => {
+  assert.deepEqual(normalizeWorkingDays([1, 5, 5, 9, "2"]), [1, 2, 5]);
+  assert.deepEqual(normalizeUnavailableDates(["2026-07-07", "x", "2026-07-07", "2026-07-08"]), [
+    "2026-07-07",
+    "2026-07-08",
+  ]);
+});
+
+test("rejects bookings outside weekly availability or temporary days off", () => {
+  const profile = {
+    workingShift: "full_day",
+    workingDays: [1, 2, 3, 4, 5],
+    unavailableDates: ["2026-07-07"],
+    acceptingBookings: true,
+  };
+
+  assert.equal(isCompanionScheduleAvailable(profile, new Date("2026-07-07T08:00:00"), 2), false);
+  assert.equal(isCompanionScheduleAvailable(profile, new Date("2026-07-12T08:00:00"), 2), false);
+  assert.equal(isCompanionScheduleAvailable(profile, new Date("2026-07-08T08:00:00"), 2), true);
+});
+
+test("rejects new bookings when the companion temporarily pauses accepting bookings", () => {
+  const profile = {
+    workingShift: "full_day",
+    workingDays: [0, 1, 2, 3, 4, 5, 6],
+    unavailableDates: [],
+    acceptingBookings: false,
+  };
+
+  assert.equal(isCompanionScheduleAvailable(profile, new Date("2026-07-08T08:00:00"), 2), false);
 });

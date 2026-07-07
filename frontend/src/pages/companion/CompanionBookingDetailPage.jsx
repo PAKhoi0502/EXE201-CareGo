@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { api } from "../../api/client.js";
-import { Button, Card, StatusBadge, Textarea } from "../../components/Ui.jsx";
+import { Button, Card, Select, StatusBadge, Textarea } from "../../components/Ui.jsx";
 import ImageUpload from "../../components/ImageUpload.jsx";
 import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
@@ -69,6 +69,14 @@ const shiftRequirementMessages = {
   checkOutPhotoUrl: "ảnh sau ca",
 };
 
+const incidentReasonOptions = [
+  { value: "health", label: "Sá»©c khá»e" },
+  { value: "transport", label: "Di chuyá»ƒn / xe cá»™" },
+  { value: "family_emergency", label: "Viá»‡c gia Ä‘Ã¬nh kháº©n" },
+  { value: "safety", label: "An toÃ n" },
+  { value: "other", label: "KhÃ¡c" },
+];
+
 const formatShiftError = (err) => {
   const missingRequirements = err?.data?.missingRequirements;
   if (Array.isArray(missingRequirements) && missingRequirements.length > 0) {
@@ -128,6 +136,10 @@ const CompanionBookingDetailPage = () => {
   const [gpsError, setGpsError] = useState("");
   const [liveLocations, setLiveLocations] = useState([]);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [incidentReason, setIncidentReason] = useState("health");
+  const [incidentDetails, setIncidentDetails] = useState("");
+  const [incidentFeedback, setIncidentFeedback] = useState(null);
+  const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const watchIdRef = useRef(null);
 
   const booking = data?.booking;
@@ -148,6 +160,8 @@ const CompanionBookingDetailPage = () => {
   const hasChecklist = checklist.length > 0;
   const isChecklistDone = !hasChecklist || checklist.every((item) => item.done);
   const canEditRealtimeNote = booking?.status === "in_progress" && isChecklistDone;
+  const incidentStatus = booking?.incident?.status || "none";
+  const canReportIncident = ["accepted", "in_progress"].includes(booking?.status) && incidentStatus !== "reported";
   const canTrackLiveLocation = ["accepted", "in_progress"].includes(booking?.status);
   const canOpenDirections = canTrackLiveLocation && Boolean(serviceLocation || booking?.address?.trim());
   const isInstantPending = booking?.bookingMode === "instant" && booking?.status === "pending";
@@ -481,6 +495,39 @@ const CompanionBookingDetailPage = () => {
     }
   };
 
+  const reportIncident = async () => {
+    if (!incidentDetails.trim()) {
+      setIncidentFeedback({ tone: "error", message: "Vui lÃ²ng mÃ´ táº£ ngáº¯n gá»n tÃ¬nh tráº¡ng báº­n hoáº·c sá»± cá»‘." });
+      return;
+    }
+
+    setIncidentSubmitting(true);
+    setIncidentFeedback(null);
+    try {
+      const response = await api.post(`/bookings/${id}/incident`, {
+        reason: incidentReason,
+        details: incidentDetails.trim(),
+      });
+      setData((current) =>
+        current
+          ? {
+            ...current,
+            booking: response.booking || current.booking,
+          }
+          : current,
+      );
+      setIncidentFeedback({
+        tone: "success",
+        message: "ÄÃ£ gá»­i bÃ¡o sá»± cá»‘ cho admin. CareGo sáº½ liÃªn há»‡ vÃ  xá»­ lÃ½ phÆ°Æ¡ng Ã¡n phÃ¹ há»£p.",
+      });
+      setIncidentDetails("");
+    } catch (err) {
+      setIncidentFeedback({ tone: "error", message: err.message || "KhÃ´ng gá»­i Ä‘Æ°á»£c bÃ¡o sá»± cá»‘." });
+    } finally {
+      setIncidentSubmitting(false);
+    }
+  };
+
   const acceptBooking = () => updateStatus("accepted", { requireGps: false });
 
   const checkInShift = async ({ useDemoLocation = false } = {}) => {
@@ -605,6 +652,47 @@ const CompanionBookingDetailPage = () => {
             </div>
           ) : null}
           {submitError ? <p className="rounded-3xl bg-rose-50 p-4 text-sm font-semibold text-rose-700">{submitError}</p> : null}
+
+          {["accepted", "in_progress"].includes(booking.status) ? (
+            <Card className="rounded-[30px] border-rose-100 bg-white/95 p-6 shadow-xl shadow-rose-900/5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-2xl font-black">Báº­n hoáº·c cÃ³ sá»± cá»‘ sau khi Ä‘Ã£ nháº­n ca</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Náº¿u khÃ´ng thá»ƒ tiáº¿p tá»¥c ca, hÃ£y gá»­i báº£n tin cho admin Ä‘á»ƒ Ä‘iá»u phá»‘i. Admin cÃ³ thá»ƒ cho tiáº¿p tá»¥c, há»§y ca hoáº·c Ä‘á»•i companion khi booking chÆ°a báº¯t Ä‘áº§u.
+                  </p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-black ${incidentStatus === "reported" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
+                  {incidentStatus === "reported" ? "Äang chá» admin xá»­ lÃ½" : "ChÆ°a bÃ¡o sá»± cá»‘"}
+                </span>
+              </div>
+
+              {canReportIncident ? (
+                <div className="mt-5 grid gap-4">
+                  <Select label="LÃ½ do" value={incidentReason} onChange={(event) => setIncidentReason(event.target.value)}>
+                    {incidentReasonOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                  <Textarea label="MÃ´ táº£" value={incidentDetails} onChange={(event) => setIncidentDetails(event.target.value)} maxLength="1000" placeholder="VÃ­ dá»¥: xe há»ng, sá»©c khá»e khÃ´ng á»•n, khÃ´ng ká»‹p Ä‘áº¿n Ä‘iá»ƒm Ä‘Ã³n..." />
+                  {incidentFeedback ? (
+                    <p className={`rounded-2xl px-4 py-3 text-sm font-semibold ${incidentFeedback.tone === "success" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                      {incidentFeedback.message}
+                    </p>
+                  ) : null}
+                  <Button type="button" variant="danger" onClick={reportIncident} disabled={incidentSubmitting}>
+                    {incidentSubmitting ? "Äang gá»­i..." : "BÃ¡o báº­n / sá»± cá»‘"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+                  {incidentStatus === "reported"
+                    ? "Báº¡n Ä‘Ã£ gá»­i báº£n tin sá»± cá»‘. Vui lÃ²ng chá» admin xá»­ lÃ½ vÃ  liÃªn há»‡ láº¡i náº¿u cáº§n bá»• sung thÃ´ng tin."
+                    : "Booking nÃ y hiá»‡n khÃ´ng náº±m trong tráº¡ng thÃ¡i cÃ³ thá»ƒ bÃ¡o sá»± cá»‘."}
+                </div>
+              )}
+            </Card>
+          ) : null}
 
           <Card id="newBookingSection" className="scroll-mt-24 rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

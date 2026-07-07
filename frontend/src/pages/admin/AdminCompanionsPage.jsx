@@ -53,6 +53,9 @@ const getCompanionAccountEmail = (companion) =>
 
 const getApplicantEmail = (companion) => companion?.applicantCustomerId?.email || "";
 
+const getUploadFieldValue = (value) =>
+  typeof value === "string" ? value : value?.value || "";
+
 const getWorkingShiftLabel = (value) => {
   if (value === "morning") return "Sáng 07:00 - 13:00";
   if (value === "afternoon") return "Chiều 13:00 - 19:00";
@@ -207,9 +210,9 @@ const AdminCompanionsPage = () => {
         skills: form.skillsText.split(",").map((item) => item.trim()).filter(Boolean),
         serviceAreas: form.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
         documents: {
-          citizenIdFrontUrl: form.citizenIdFrontUrl,
-          citizenIdBackUrl: form.citizenIdBackUrl,
-          [formApplicantType.documentField]: form[formApplicantType.documentField],
+          citizenIdFrontUrl: getUploadFieldValue(form.citizenIdFrontUrl),
+          citizenIdBackUrl: getUploadFieldValue(form.citizenIdBackUrl),
+          [formApplicantType.documentField]: getUploadFieldValue(form[formApplicantType.documentField]),
         },
       });
       setForm(emptyForm);
@@ -487,9 +490,9 @@ const AdminCompanionsPage = () => {
               <Input label="Kỹ năng, cách nhau bằng dấu phẩy" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} />
               <Input label="Khu vực hoạt động" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} />
               <div className="grid gap-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
-                <ImageUpload label="CCCD mặt trước" folder="carego/companion-documents" value={form.citizenIdFrontUrl} onUploaded={(images) => setForm((current) => ({ ...current, citizenIdFrontUrl: images.at(-1) || "" }))} compact />
-                <ImageUpload label="CCCD mặt sau" folder="carego/companion-documents" value={form.citizenIdBackUrl} onUploaded={(images) => setForm((current) => ({ ...current, citizenIdBackUrl: images.at(-1) || "" }))} compact />
-                <ImageUpload label={formApplicantType.documentLabel} folder="carego/companion-documents" value={form[formApplicantType.documentField]} onUploaded={(images) => setForm((current) => ({ ...current, [formApplicantType.documentField]: images.at(-1) || "" }))} compact />
+                <ImageUpload label="CCCD mặt trước" folder="carego/companion-documents" value={form.citizenIdFrontUrl} onUploaded={(images) => setForm((current) => ({ ...current, citizenIdFrontUrl: images.at(-1) || "" }))} compact storeUploadReference />
+                <ImageUpload label="CCCD mặt sau" folder="carego/companion-documents" value={form.citizenIdBackUrl} onUploaded={(images) => setForm((current) => ({ ...current, citizenIdBackUrl: images.at(-1) || "" }))} compact storeUploadReference />
+                <ImageUpload label={formApplicantType.documentLabel} folder="carego/companion-documents" value={form[formApplicantType.documentField]} onUploaded={(images) => setForm((current) => ({ ...current, [formApplicantType.documentField]: images.at(-1) || "" }))} compact storeUploadReference />
               </div>
               {submitError ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{submitError}</p> : null}
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">

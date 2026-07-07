@@ -14,7 +14,7 @@ import {
   StepsSection,
 } from "../components/landing/LandingSections.jsx";
 import { trustItems } from "../components/landing/landingData.js";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { hasCustomerAccess } from "../utils/authNavigation.js";
 
 const LandingPage = () => {

@@ -91,6 +91,56 @@ const BookingSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    incident: {
+      status: {
+        type: String,
+        enum: ["none", "reported", "resolved", "reassigned", "cancelled"],
+        default: "none",
+      },
+      reason: {
+        type: String,
+        enum: ["health", "transport", "family_emergency", "safety", "other", ""],
+        default: "",
+      },
+      details: {
+        type: String,
+        default: "",
+        maxlength: 1000,
+      },
+      reportedAt: {
+        type: Date,
+        default: null,
+      },
+      reportedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        default: null,
+      },
+      resolvedAt: {
+        type: Date,
+        default: null,
+      },
+      resolvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        default: null,
+      },
+      resolution: {
+        type: String,
+        enum: ["", "resume", "reassign", "cancel"],
+        default: "",
+      },
+      adminNote: {
+        type: String,
+        default: "",
+        maxlength: 1000,
+      },
+      previousCompanionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        default: null,
+      },
+    },
   },
   { timestamps: true },
 );

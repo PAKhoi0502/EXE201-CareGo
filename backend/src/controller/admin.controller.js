@@ -136,7 +136,7 @@ const buildReportMonthly = (bookings) => {
   });
 
   bookings.forEach((booking) => {
-    const date = new Date(booking.createdAt);
+    const date = new Date(booking.startTime);
     const bucket = months.find((item) => item.key === `${date.getUTCFullYear()}-${date.getUTCMonth()}`);
     if (!bucket) return;
 
@@ -166,7 +166,7 @@ const buildReportDaily = (bookings, range) => {
   }
 
   bookings.forEach((booking) => {
-    const bucket = days.find((item) => item.key === toDateInputValue(booking.createdAt));
+    const bucket = days.find((item) => item.key === toDateInputValue(booking.startTime));
     if (!bucket) return;
 
     bucket.count += 1;
@@ -391,7 +391,7 @@ export const getAdminReports = async (req, res) => {
     }
 
     const bookingFilter = {
-      createdAt: {
+      startTime: {
         $gte: range.start,
         $lte: range.end,
       },
@@ -399,10 +399,10 @@ export const getAdminReports = async (req, res) => {
 
     const [reportBookings, totalBookings, detailBookings, pendingCompanions] = await Promise.all([
       Booking.find(bookingFilter)
-        .select("companionId serviceId status createdAt addressLocation totalAmount platformFee")
+        .select("companionId serviceId status startTime createdAt addressLocation totalAmount platformFee")
         .populate("companionId", "name email")
         .populate("serviceId", "name")
-        .sort({ createdAt: -1 })
+        .sort({ startTime: -1 })
         .lean(),
       Booking.countDocuments(bookingFilter),
       Booking.find(bookingFilter)
@@ -410,7 +410,7 @@ export const getAdminReports = async (req, res) => {
         .populate("companionId", "name email phone")
         .populate("elderProfileId")
         .populate("serviceId")
-        .sort({ createdAt: -1 })
+        .sort({ startTime: -1 })
         .skip(pagination.skip)
         .limit(pagination.limit)
         .lean(),

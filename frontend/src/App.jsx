@@ -2,7 +2,7 @@ import { lazy, Suspense, useLayoutEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import AdminLayout from "./layouts/AdminLayout.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
-import { useAuth } from "./context/AuthContext.jsx";
+import { useAuth } from "./context/useAuth.js";
 import { getUserHomePath, hasRoleAccess, needsCompanionApproval } from "./utils/authNavigation.js";
 
 const AdminBlogsPage = lazy(() => import("./pages/admin/AdminBlogsPage.jsx"));

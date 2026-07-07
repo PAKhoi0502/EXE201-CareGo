@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import { Button, Input, Select } from "../../components/Ui.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/useAuth.js";
 import { getUserHomePath } from "../../utils/authNavigation.js";
 import AuthShell from "./AuthShell.jsx";
 import ConsentChecklist from "../../components/legal/ConsentChecklist.jsx";
@@ -31,7 +31,7 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
 
     videoRef.current.srcObject = streamRef.current;
     videoRef.current.play().catch(() => {
-      setDocumentError("Camera đã mở nhưng trình duyệt chưa phát được hình. Hãy thử đóng rồi mở lại camera.");
+      setDocumentError("Camera Ä‘Ã£ má»Ÿ nhÆ°ng trÃ¬nh duyá»‡t chÆ°a phÃ¡t Ä‘Æ°á»£c hÃ¬nh. HÃ£y thá»­ Ä‘Ã³ng rá»“i má»Ÿ láº¡i camera.");
     });
   }, [cameraOpen]);
 
@@ -39,7 +39,7 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
     setDocumentError("");
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setDocumentError("Trình duyệt không hỗ trợ mở camera.");
+      setDocumentError("TrÃ¬nh duyá»‡t khÃ´ng há»— trá»£ má»Ÿ camera.");
       return;
     }
 
@@ -56,7 +56,7 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
       streamRef.current = stream;
       setCameraOpen(true);
     } catch {
-      setDocumentError("Không mở được camera. Hãy cấp quyền camera rồi thử lại.");
+      setDocumentError("KhÃ´ng má»Ÿ Ä‘Æ°á»£c camera. HÃ£y cáº¥p quyá»n camera rá»“i thá»­ láº¡i.");
     }
   };
 
@@ -67,24 +67,24 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
 
     setDocumentError("");
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setDocumentError("Chỉ hỗ trợ tệp ảnh JPG, PNG hoặc WebP.");
+      setDocumentError("Chá»‰ há»— trá»£ tá»‡p áº£nh JPG, PNG hoáº·c WebP.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setDocumentError("Tệp ảnh không được vượt quá 5 MB.");
+      setDocumentError("Tá»‡p áº£nh khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 5 MB.");
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== "string") {
-        setDocumentError("Không đọc được tệp ảnh. Vui lòng chọn tệp khác.");
+        setDocumentError("KhÃ´ng Ä‘á»c Ä‘Æ°á»£c tá»‡p áº£nh. Vui lÃ²ng chá»n tá»‡p khÃ¡c.");
         return;
       }
       stopCamera();
       onChange(reader.result);
     };
-    reader.onerror = () => setDocumentError("Không đọc được tệp ảnh. Vui lòng chọn tệp khác.");
+    reader.onerror = () => setDocumentError("KhÃ´ng Ä‘á»c Ä‘Æ°á»£c tá»‡p áº£nh. Vui lÃ²ng chá»n tá»‡p khÃ¡c.");
     reader.readAsDataURL(file);
   };
 
@@ -109,19 +109,19 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-black text-[#12312f]">{label}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">Chụp trực tiếp hoặc tải tệp ảnh JPG, PNG, WebP tối đa 5 MB.</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Chá»¥p trá»±c tiáº¿p hoáº·c táº£i tá»‡p áº£nh JPG, PNG, WebP tá»‘i Ä‘a 5 MB.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {value ? (
             <Button type="button" variant="secondary" className="min-h-10 rounded-2xl px-4 text-xs" onClick={() => onChange("")}>
-              Xóa ảnh
+              XÃ³a áº£nh
             </Button>
           ) : null}
           <Button type="button" variant="secondary" className="min-h-10 rounded-2xl px-4 text-xs" onClick={() => fileInputRef.current?.click()}>
-            Tải tệp từ máy
+            Táº£i tá»‡p tá»« mÃ¡y
           </Button>
           <Button type="button" variant="secondary" className="min-h-10 rounded-2xl px-4 text-xs" onClick={cameraOpen ? stopCamera : openCamera}>
-            {cameraOpen ? "Đóng camera" : value ? "Mở camera" : "Chụp ảnh"}
+            {cameraOpen ? "ÄÃ³ng camera" : value ? "Má»Ÿ camera" : "Chá»¥p áº£nh"}
           </Button>
         </div>
       </div>
@@ -131,7 +131,7 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
           <video ref={videoRef} autoPlay playsInline muted controls={false} className="aspect-video w-full bg-slate-950 object-cover" />
           <div className="border-t border-white/10 bg-slate-950/70 p-3">
             <Button type="button" className="min-h-11 w-full rounded-2xl" onClick={capture}>
-              Lưu ảnh
+              LÆ°u áº£nh
             </Button>
           </div>
         </div>
@@ -140,7 +140,7 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
       {value ? (
         <div className="mt-4">
           <img src={value} alt={label} className="max-h-64 w-full rounded-2xl border border-teal-100 object-cover shadow-lg shadow-teal-900/10" />
-          <p className="mt-2 text-xs font-bold text-emerald-700">Đã chọn ảnh, có thể gửi hồ sơ.</p>
+          <p className="mt-2 text-xs font-bold text-emerald-700">ÄÃ£ chá»n áº£nh, cÃ³ thá»ƒ gá»­i há»“ sÆ¡.</p>
         </div>
       ) : null}
 
@@ -151,81 +151,125 @@ const DocumentCameraCapture = ({ label, value, onChange }) => {
   );
 };
 
+const createInitialForm = (user, application) => ({
+  name: application?.fullName || user?.name || "",
+  fullName: application?.fullName || user?.name || "",
+  phone: application?.phone || user?.phone || "",
+  gender: application?.gender || "other",
+  dateOfBirth: application?.dateOfBirth ? String(application.dateOfBirth).slice(0, 10) : "",
+  workingShift: application?.workingShift || "full_day",
+  applicantType: application?.applicantType || "student",
+  university: application?.university || "",
+  major: application?.major || "",
+  graduationYear: application?.graduationYear || "",
+  yearsOfExperience: application?.yearsOfExperience || "",
+  qualificationDescription: application?.qualificationDescription || "",
+  skillsText: application?.skills?.join(", ") || "",
+  serviceAreasText: application?.serviceAreas?.join(", ") || "",
+  citizenIdFrontUrl: "",
+  citizenIdBackUrl: "",
+  studentCardUrl: "",
+  degreeCertificateUrl: "",
+  professionalCertificateUrl: "",
+  experienceProofUrl: "",
+  backgroundCheckUrl: "",
+  legalAcceptances: [],
+});
+
+const splitTextList = (value) =>
+  String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 const RegisterCompanionPage = () => {
-  const { user, loading, registerCompanion } = useAuth();
+  const {
+    user,
+    loading,
+    registerCompanion,
+    resubmitCompanionApplication,
+  } = useAuth();
   const navigate = useNavigate();
+  const application = user?.companionApplication;
+  const isResubmission = application?.vettingStatus === "rejected";
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    name: user?.name || "",
-    fullName: user?.name || "",
-    phone: user?.phone || "",
-    gender: "other",
-    dateOfBirth: "",
-    workingShift: "full_day",
-    applicantType: "student",
-    university: "",
-    major: "",
-    graduationYear: "",
-    yearsOfExperience: "",
-    qualificationDescription: "",
-    skillsText: "",
-    serviceAreasText: "",
-    citizenIdFrontUrl: "",
-    citizenIdBackUrl: "",
-    studentCardUrl: "",
-    degreeCertificateUrl: "",
-    professionalCertificateUrl: "",
-    experienceProofUrl: "",
-    backgroundCheckUrl: "",
-    legalAcceptances: [],
-  });
+  const [form, setForm] = useState(() => createInitialForm(user, application));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const applicantType = getCompanionApplicantType(form.applicantType);
   const companionForm = {
     ...form,
     name: form.name || user?.name || "",
     fullName: form.fullName || user?.name || "",
     phone: form.phone || user?.phone || "",
   };
-  const applicantType = getCompanionApplicantType(form.applicantType);
+
+  useEffect(() => {
+    const nextForm = createInitialForm(user, application);
+    const timer = window.setTimeout(() => {
+      setForm(nextForm);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [user, application]);
+
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
 
   const validateProfileStep = () => {
     if (!companionForm.name || !companionForm.fullName || !companionForm.phone) {
-      return "Vui lòng nhập đủ họ tên hiển thị, họ tên đầy đủ và số điện thoại.";
+      return "Vui lÃ²ng nháº­p Ä‘á»§ tÃªn hiá»ƒn thá»‹, há» tÃªn Ä‘áº§y Ä‘á»§ vÃ  sá»‘ Ä‘iá»‡n thoáº¡i.";
     }
 
     if (!companionForm.dateOfBirth) {
-      return "Vui lòng nhập ngày sinh.";
+      return "Vui lÃ²ng nháº­p ngÃ y sinh.";
     }
 
     const dateOfBirth = new Date(companionForm.dateOfBirth);
     const adultThreshold = new Date();
     adultThreshold.setFullYear(adultThreshold.getFullYear() - 18);
     if (Number.isNaN(dateOfBirth.getTime()) || dateOfBirth > adultThreshold) {
-      return "Người đồng hành phải đủ 18 tuổi tại thời điểm đăng ký.";
+      return "NgÆ°á»i Ä‘á»“ng hÃ nh pháº£i Ä‘á»§ 18 tuá»•i táº¡i thá»i Ä‘iá»ƒm Ä‘Äƒng kÃ½.";
     }
 
     if (applicantType.requiresEducation && (!companionForm.university || !companionForm.major)) {
-      return "Vui lòng nhập đầy đủ cơ sở đào tạo và ngành hoặc chuyên môn.";
+      return "Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ cÆ¡ sá»Ÿ Ä‘Ã o táº¡o vÃ  ngÃ nh hoáº·c chuyÃªn mÃ´n.";
     }
 
     if (companionForm.applicantType === "graduate") {
       const graduationYear = Number(companionForm.graduationYear);
       if (!Number.isInteger(graduationYear) || graduationYear < 1950 || graduationYear > new Date().getFullYear()) {
-        return "Vui lòng nhập năm tốt nghiệp hợp lệ.";
+        return "Vui lÃ²ng nháº­p nÄƒm tá»‘t nghiá»‡p há»£p lá»‡.";
       }
     }
 
     if (companionForm.applicantType === "experienced_caregiver" && Number(companionForm.yearsOfExperience) < 1) {
-      return "Vui lòng nhập ít nhất 1 năm kinh nghiệm chăm sóc.";
+      return "Vui lÃ²ng nháº­p Ã­t nháº¥t 1 nÄƒm kinh nghiá»‡m chÄƒm sÃ³c.";
     }
 
     if (applicantType.requiresDescription && !companionForm.qualificationDescription.trim()) {
-      return "Vui lòng mô tả kinh nghiệm hoặc lý do phù hợp với vai trò người đồng hành.";
+      return "Vui lÃ²ng mÃ´ táº£ kinh nghiá»‡m hoáº·c lÃ½ do phÃ¹ há»£p vá»›i vai trÃ² ngÆ°á»i Ä‘á»“ng hÃ nh.";
     }
 
     if (!companionForm.skillsText || !companionForm.serviceAreasText) {
-      return "Vui lòng nhập kỹ năng và khu vực hoạt động.";
+      return "Vui lÃ²ng nháº­p ká»¹ nÄƒng vÃ  khu vá»±c hoáº¡t Ä‘á»™ng.";
+    }
+
+    return "";
+  };
+
+  const validateDocumentsStep = () => {
+    if (!form.citizenIdFrontUrl || !form.citizenIdBackUrl) {
+      return "Vui lÃ²ng chá»¥p Ä‘á»§ CCCD máº·t trÆ°á»›c vÃ  máº·t sau trÆ°á»›c khi gá»­i há»“ sÆ¡.";
+    }
+
+    if (!form[applicantType.documentField]) {
+      return `Vui lÃ²ng bá»• sung ${applicantType.documentLabel.toLowerCase()} trÆ°á»›c khi gá»­i há»“ sÆ¡.`;
+    }
+
+    if (!isResubmission && (!form.legalAcceptances.length || form.legalAcceptances.some((item) => !item.accepted))) {
+      return "Vui lÃ²ng Ä‘á»c vÃ  Ä‘á»“ng Ã½ vá»›i Ä‘áº§y Ä‘á»§ Ä‘iá»u khoáº£n dÃ nh cho ngÆ°á»i Ä‘á»“ng hÃ nh.";
     }
 
     return "";
@@ -255,34 +299,32 @@ const RegisterCompanionPage = () => {
       return;
     }
 
-    if (!form.citizenIdFrontUrl || !form.citizenIdBackUrl) {
-      setError("Vui lòng chụp đủ CCCD mặt trước và mặt sau trước khi gửi hồ sơ.");
+    const documentError = validateDocumentsStep();
+    if (documentError) {
+      setStep(2);
+      setError(documentError);
       return;
     }
 
-    if (!form[applicantType.documentField]) {
-      setError(`Vui lòng bổ sung ${applicantType.documentLabel.toLowerCase()} trước khi gửi hồ sơ.`);
-      return;
-    }
-
-    if (!form.legalAcceptances.length || form.legalAcceptances.some((item) => !item.accepted)) {
-      setError("Vui lòng đọc và đồng ý với đầy đủ điều khoản dành cho người đồng hành.");
-      return;
-    }
+    const payload = {
+      ...companionForm,
+      skills: splitTextList(companionForm.skillsText),
+      serviceAreas: splitTextList(companionForm.serviceAreasText),
+      documents: {
+        citizenIdFrontUrl: companionForm.citizenIdFrontUrl,
+        citizenIdBackUrl: companionForm.citizenIdBackUrl,
+        [applicantType.documentField]: companionForm[applicantType.documentField],
+      },
+      ...(isResubmission ? {} : { legalAcceptances: companionForm.legalAcceptances }),
+    };
 
     setSubmitting(true);
     try {
-      await registerCompanion({
-        ...companionForm,
-        skills: companionForm.skillsText.split(",").map((item) => item.trim()).filter(Boolean),
-        serviceAreas: companionForm.serviceAreasText.split(",").map((item) => item.trim()).filter(Boolean),
-        documents: {
-          citizenIdFrontUrl: companionForm.citizenIdFrontUrl,
-          citizenIdBackUrl: companionForm.citizenIdBackUrl,
-          [applicantType.documentField]: companionForm[applicantType.documentField],
-        },
-        legalAcceptances: companionForm.legalAcceptances,
-      });
+      if (isResubmission) {
+        await resubmitCompanionApplication(payload);
+      } else {
+        await registerCompanion(payload);
+      }
       navigate("/companion-status", { replace: true });
     } catch (err) {
       setError(err.message);
@@ -292,7 +334,7 @@ const RegisterCompanionPage = () => {
   };
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-500">Đang tải...</div>;
+    return <div className="p-6 text-sm text-slate-500">Äang táº£i...</div>;
   }
 
   if (!user) {
@@ -303,54 +345,62 @@ const RegisterCompanionPage = () => {
     return <Navigate to={getUserHomePath(user)} replace />;
   }
 
-  if (user.companionApplication) {
+  if (application && !isResubmission) {
     return <Navigate to="/companion-status" replace />;
   }
 
   return (
     <AuthShell
-      title="Đăng ký người đồng hành"
-      subtitle={step === 1 ? "Chọn nhóm ứng viên và khai thông tin phù hợp trước khi gửi kiểm duyệt." : "Bổ sung CCCD cùng giấy tờ chứng minh phù hợp với nhóm ứng viên."}
-      badge={`Bước ${step}/2`}
-      footer={
-        <Link className="font-black text-teal-700" to="/">Về trang chủ</Link>
-      }
+      title={isResubmission ? "Bá»• sung vÃ  gá»­i láº¡i há»“ sÆ¡ companion" : "ÄÄƒng kÃ½ ngÆ°á»i Ä‘á»“ng hÃ nh"}
+      subtitle={step === 1
+        ? (isResubmission
+          ? "Cáº­p nháº­t láº¡i thÃ´ng tin theo gá»£i Ã½ tá»« admin, sau Ä‘Ã³ bá»• sung láº¡i giáº¥y tá» Ä‘á»ƒ gá»­i duyá»‡t."
+          : "Chá»n nhÃ³m á»©ng viÃªn vÃ  khai thÃ´ng tin phÃ¹ há»£p trÆ°á»›c khi gá»­i kiá»ƒm duyá»‡t.")
+        : "Bá»• sung CCCD cÃ¹ng giáº¥y tá» chá»©ng minh phÃ¹ há»£p vá»›i nhÃ³m á»©ng viÃªn."}
+      badge={isResubmission ? `Gá»­i láº¡i - BÆ°á»›c ${step}/2` : `BÆ°á»›c ${step}/2`}
+      footer={<Link className="font-black text-teal-700" to="/">Vá» trang chá»§</Link>}
     >
       <form className="grid gap-4" onSubmit={submit}>
+        {isResubmission && application?.rejectionReason ? (
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-700">
+            LÃ½ do tá»« chá»‘i gáº§n nháº¥t: {application.rejectionReason}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-2 gap-2 rounded-2xl bg-teal-50 p-1 text-sm font-black">
           <button
             type="button"
             className={`rounded-xl px-3 py-2 ${step === 1 ? "bg-white text-teal-700 shadow-sm" : "text-slate-500"}`}
             onClick={() => setStep(1)}
           >
-            Hồ sơ
+            Há»“ sÆ¡
           </button>
           <button
             type="button"
             className={`rounded-xl px-3 py-2 ${step === 2 ? "bg-white text-teal-700 shadow-sm" : "text-slate-500"}`}
             onClick={nextStep}
           >
-            Giấy tờ xác minh
+            Giáº¥y tá» xÃ¡c minh
           </button>
         </div>
 
         {step === 1 ? (
           <>
-            <Input label="Tên hiển thị" value={companionForm.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập tên hiển thị" />
-            <Input label="Họ tên đầy đủ" value={companionForm.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập họ tên đầy đủ" />
-            <Input label="Số điện thoại" value={companionForm.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nhập số điện thoại" />
-            <Select label="Giới tính" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="min-h-12 rounded-2xl border-teal-100">
-              <option value="other">Khác</option>
+            <Input label="TÃªn hiá»ƒn thá»‹" value={companionForm.name} onChange={(event) => updateField("name", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nháº­p tÃªn hiá»ƒn thá»‹" />
+            <Input label="Há» tÃªn Ä‘áº§y Ä‘á»§" value={companionForm.fullName} onChange={(event) => updateField("fullName", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nháº­p há» tÃªn Ä‘áº§y Ä‘á»§" />
+            <Input label="Sá»‘ Ä‘iá»‡n thoáº¡i" value={companionForm.phone} onChange={(event) => updateField("phone", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" placeholder="Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i" />
+            <Select label="Giá»›i tÃ­nh" value={form.gender} onChange={(event) => updateField("gender", event.target.value)} className="min-h-12 rounded-2xl border-teal-100">
+              <option value="other">KhÃ¡c</option>
               <option value="male">Nam</option>
-              <option value="female">Nữ</option>
+              <option value="female">Ná»¯</option>
             </Select>
-            <Input label="Ngày sinh" type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
-            <Select label="Ca làm việc" value={form.workingShift} onChange={(e) => setForm({ ...form, workingShift: e.target.value })} className="min-h-12 rounded-2xl border-teal-100">
-              <option value="morning">Buổi sáng 07:00 - 13:00</option>
-              <option value="afternoon">Buổi chiều 13:00 - 19:00</option>
-              <option value="full_day">Cả ngày 07:00 - 19:00</option>
+            <Input label="NgÃ y sinh" type="date" value={form.dateOfBirth} onChange={(event) => updateField("dateOfBirth", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" />
+            <Select label="Ca lÃ m viá»‡c" value={form.workingShift} onChange={(event) => updateField("workingShift", event.target.value)} className="min-h-12 rounded-2xl border-teal-100">
+              <option value="morning">Buá»•i sÃ¡ng 07:00 - 13:00</option>
+              <option value="afternoon">Buá»•i chiá»u 13:00 - 19:00</option>
+              <option value="full_day">Cáº£ ngÃ y 07:00 - 19:00</option>
             </Select>
-            <Select label="Bạn đăng ký với tư cách" value={form.applicantType} onChange={(e) => setForm({ ...form, applicantType: e.target.value })} className="min-h-12 rounded-2xl border-teal-100">
+            <Select label="Báº¡n Ä‘Äƒng kÃ½ vá»›i tÆ° cÃ¡ch" value={form.applicantType} onChange={(event) => updateField("applicantType", event.target.value)} className="min-h-12 rounded-2xl border-teal-100">
               {companionApplicantTypes.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
               ))}
@@ -358,54 +408,53 @@ const RegisterCompanionPage = () => {
             <p className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold leading-6 text-teal-800">
               {applicantType.description}
             </p>
+
             {applicantType.requiresEducation ? (
               <>
-                <Input label="Cơ sở đào tạo" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Ví dụ: Đại học Y Dược TP. HCM" />
-                <Input label="Ngành hoặc chuyên môn" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Ví dụ: Điều dưỡng" />
+                <Input label="CÆ¡ sá»Ÿ Ä‘Ã o táº¡o" value={form.university} onChange={(event) => updateField("university", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" placeholder="VÃ­ dá»¥: Äáº¡i há»c Y DÆ°á»£c TP. HCM" />
+                <Input label="NgÃ nh hoáº·c chuyÃªn mÃ´n" value={form.major} onChange={(event) => updateField("major", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" placeholder="VÃ­ dá»¥: Äiá»u dÆ°á»¡ng" />
               </>
             ) : null}
+
             {form.applicantType === "graduate" ? (
-              <Input label="Năm tốt nghiệp" type="number" min="1950" max={new Date().getFullYear()} value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+              <Input label="NÄƒm tá»‘t nghiá»‡p" type="number" min="1950" max={new Date().getFullYear()} value={form.graduationYear} onChange={(event) => updateField("graduationYear", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" />
             ) : null}
+
             {applicantType.requiresExperience ? (
-              <Input label="Số năm kinh nghiệm" type="number" min="0" max="60" step="0.5" value={form.yearsOfExperience} onChange={(e) => setForm({ ...form, yearsOfExperience: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" />
+              <Input label="Sá»‘ nÄƒm kinh nghiá»‡m" type="number" min="0" max="60" step="0.5" value={form.yearsOfExperience} onChange={(event) => updateField("yearsOfExperience", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" />
             ) : null}
+
             {applicantType.requiresDescription ? (
               <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-700">Kinh nghiệm hoặc lý do phù hợp</span>
-                <textarea value={form.qualificationDescription} onChange={(e) => setForm({ ...form, qualificationDescription: e.target.value })} className="min-h-28 rounded-2xl border border-teal-100 bg-white px-4 py-3 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-100" maxLength="1000" />
+                <span className="text-sm font-medium text-slate-700">Kinh nghiá»‡m hoáº·c lÃ½ do phÃ¹ há»£p</span>
+                <textarea value={form.qualificationDescription} onChange={(event) => updateField("qualificationDescription", event.target.value)} className="min-h-28 rounded-2xl border border-teal-100 bg-white px-4 py-3 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-100" maxLength="1000" />
               </label>
             ) : null}
-            <Input label="Kỹ năng, cách nhau bằng dấu phẩy" value={form.skillsText} onChange={(e) => setForm({ ...form, skillsText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Ví dụ: sơ cứu, đo huyết áp, đi khám" />
-            <Input label="Khu vực hoạt động" value={form.serviceAreasText} onChange={(e) => setForm({ ...form, serviceAreasText: e.target.value })} className="min-h-12 rounded-2xl border-teal-100" placeholder="Ví dụ: Quận 1, Quận 7, Thủ Đức" />
+
+            <Input label="Ká»¹ nÄƒng, cÃ¡ch nhau báº±ng dáº¥u pháº©y" value={form.skillsText} onChange={(event) => updateField("skillsText", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" placeholder="VÃ­ dá»¥: sÆ¡ cá»©u, Ä‘o huyáº¿t Ã¡p, Ä‘i khÃ¡m" />
+            <Input label="Khu vá»±c hoáº¡t Ä‘á»™ng" value={form.serviceAreasText} onChange={(event) => updateField("serviceAreasText", event.target.value)} className="min-h-12 rounded-2xl border-teal-100" placeholder="VÃ­ dá»¥: Quáº­n 1, Quáº­n 7, Thá»§ Äá»©c" />
           </>
         ) : (
           <div className="grid gap-4 rounded-[28px] border border-teal-100 bg-white/70 p-4">
             <div>
-              <h3 className="text-base font-black text-[#12312f]">Giấy tờ xác minh</h3>
+              <h3 className="text-base font-black text-[#12312f]">Giáº¥y tá» xÃ¡c minh</h3>
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                Hãy chụp rõ CCCD và giấy tờ chứng minh tương ứng. Admin sẽ đối chiếu trước khi duyệt hồ sơ.
+                HÃ£y chá»¥p rÃµ CCCD vÃ  giáº¥y tá» chá»©ng minh tÆ°Æ¡ng á»©ng. Admin sáº½ Ä‘á»‘i chiáº¿u trÆ°á»›c khi duyá»‡t há»“ sÆ¡.
               </p>
             </div>
-            <DocumentCameraCapture
-              label="CCCD mặt trước"
-              value={form.citizenIdFrontUrl}
-              onChange={(value) => setForm((current) => ({ ...current, citizenIdFrontUrl: value }))}
-            />
-            <DocumentCameraCapture
-              label="CCCD mặt sau"
-              value={form.citizenIdBackUrl}
-              onChange={(value) => setForm((current) => ({ ...current, citizenIdBackUrl: value }))}
-            />
-            <DocumentCameraCapture
-              label={applicantType.documentLabel}
-              value={form[applicantType.documentField]}
-              onChange={(value) => setForm((current) => ({ ...current, [applicantType.documentField]: value }))}
-            />
-            <ConsentChecklist
-              flow="COMPANION_APPLICATION"
-              onChange={(legalAcceptances) => setForm((current) => ({ ...current, legalAcceptances }))}
-            />
+            <DocumentCameraCapture label="CCCD máº·t trÆ°á»›c" value={form.citizenIdFrontUrl} onChange={(value) => updateField("citizenIdFrontUrl", value)} />
+            <DocumentCameraCapture label="CCCD máº·t sau" value={form.citizenIdBackUrl} onChange={(value) => updateField("citizenIdBackUrl", value)} />
+            <DocumentCameraCapture label={applicantType.documentLabel} value={form[applicantType.documentField]} onChange={(value) => updateField(applicantType.documentField, value)} />
+            {!isResubmission ? (
+              <ConsentChecklist
+                flow="COMPANION_APPLICATION"
+                onChange={(legalAcceptances) => updateField("legalAcceptances", legalAcceptances)}
+              />
+            ) : (
+              <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold leading-6 text-teal-800">
+                Há»“ sÆ¡ bá»‹ tá»« chá»‘i cáº§n báº¡n táº£i láº¡i giÃ¡º¥y tá» má»›i hoáº·c Ä‘Ã£ Ä‘iá»u chá»‰nh. Pháº§n Ä‘iá»u khoáº£n Ä‘Ã£ Ä‘Æ°á»£c lÆ°u tá»« láº§n gá»­i trÆ°á»›c.
+              </div>
+            )}
           </div>
         )}
 
@@ -413,15 +462,15 @@ const RegisterCompanionPage = () => {
 
         {step === 1 ? (
           <Button type="button" className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" onClick={nextStep}>
-            Tiếp tục bổ sung giấy tờ
+            Tiáº¿p tá»¥c bá»• sung giáº¥y tá»
           </Button>
         ) : (
           <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
             <Button type="button" variant="secondary" className="min-h-14 rounded-2xl px-5 text-base font-black" onClick={() => setStep(1)}>
-              Quay lại
+              Quay láº¡i
             </Button>
             <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>
-              {submitting ? "Đang gửi hồ sơ..." : "Gửi hồ sơ"}
+              {submitting ? (isResubmission ? "Äang gá»­i láº¡i..." : "Äang gá»­i há»“ sÆ¡...") : (isResubmission ? "Gá»­i láº¡i há»“ sÆ¡" : "Gá»­i há»“ sÆ¡")}
             </Button>
           </div>
         )}

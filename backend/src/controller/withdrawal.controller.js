@@ -3,6 +3,11 @@ import mongoose from "mongoose";
 import WithdrawalCompanionLock from "../models/withdrawal-companion-lock.models.js";
 import WithdrawalRequest from "../models/withdrawal-request.models.js";
 import Payment from "../models/payment.models.js";
+import {
+  decryptSensitiveValue,
+  encryptSensitiveValue,
+  maskBankAccountNumber,
+} from "../utils/field-encryption.js";
 
 const WITHDRAWAL_CREATE_LOCK_TTL_MS = 10 * 1000;
 const WITHDRAWAL_CREATE_LOCK_WAIT_MS = 1200;
@@ -14,6 +19,8 @@ const WITHDRAWAL_STATUS_TRANSITIONS = {
   paid: [],
   rejected: [],
 };
+const DEFAULT_EARNINGS_LIMIT = 20;
+const MAX_EARNINGS_LIMIT = 100;
 
 const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 
@@ -73,7 +80,6 @@ const releaseCompanionWithdrawalLock = async (lock) => {
       ownerToken: lock.ownerToken,
     });
   } catch {
-    // The lock has a TTL fallback, so release failure should not mask the withdrawal response.
   }
 };
 
@@ -82,10 +88,12 @@ const normalizeAmount = (amount) => {
   return Number.isFinite(value) ? value : 0;
 };
 
+const normalizeText = (value) => String(value || "").trim();
+
 const isValidWithdrawalAmount = (amount) =>
   Number.isInteger(amount) && amount >= MIN_WITHDRAWAL_AMOUNT;
 
-const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
+const normalizeStatus = (status) => normalizeText(status).toLowerCase();
 
 const canTransitionWithdrawalStatus = (currentStatus, nextStatus) =>
   currentStatus === nextStatus ||
@@ -96,6 +104,43 @@ const toPaymentCompanionId = (companionId) => {
   return mongoose.Types.ObjectId.isValid(id)
     ? new mongoose.Types.ObjectId(id)
     : companionId;
+};
+
+const parsePositiveInteger = (value, fallback) => {
+  const parsedValue = Number.parseInt(value, 10);
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
+};
+
+const startOfDay = (date) => {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+};
+
+const startOfWeek = (date) => {
+  const next = startOfDay(date);
+  const day = next.getDay() || 7;
+  next.setDate(next.getDate() - day + 1);
+  return next;
+};
+
+const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
+
+const serializeWithdrawalRequest = (request) => {
+  const payload = request?.toObject ? request.toObject() : request;
+  const bankAccountNumberFull = decryptSensitiveValue(payload?.bankAccountNumber);
+  const bankAccountName = decryptSensitiveValue(payload?.bankAccountName);
+  const bankAccountNumberMasked = maskBankAccountNumber(bankAccountNumberFull);
+  const companion = payload?.companion || payload?.companionId || null;
+
+  return {
+    ...payload,
+    bankAccountNumber: bankAccountNumberMasked,
+    bankAccountNumberMasked,
+    bankAccountNumberFull,
+    bankAccountName: bankAccountName || normalizeText(payload?.bankAccountName),
+    companion,
+  };
 };
 
 const getTotalPaidCompanionEarnings = async (companionId) => {
@@ -122,14 +167,14 @@ const getWithdrawalSummary = async (companionId) => {
   const requests = await WithdrawalRequest.find({ companionId })
     .sort({ createdAt: -1 })
     .lean();
-
+  const serializedRequests = requests.map(serializeWithdrawalRequest);
   const totalEarned = await getTotalPaidCompanionEarnings(companionId);
 
-  const pendingAmount = requests
+  const pendingAmount = serializedRequests
     .filter((item) => normalizeStatus(item.status) === "pending")
     .reduce((sum, item) => sum + normalizeAmount(item.amount), 0);
 
-  const withdrawnAmount = requests
+  const withdrawnAmount = serializedRequests
     .filter((item) => {
       const status = normalizeStatus(item.status);
       return status === "approved" || status === "paid";
@@ -147,8 +192,8 @@ const getWithdrawalSummary = async (companionId) => {
     pending: pendingAmount,
     withdrawnAmount,
     withdrawn: withdrawnAmount,
-    requests,
-    withdrawals: requests,
+    requests: serializedRequests,
+    withdrawals: serializedRequests,
   };
 };
 
@@ -167,6 +212,122 @@ export const getMyWithdrawalSummary = async (req, res) => {
   }
 };
 
+export const getMyEarnings = async (req, res) => {
+  try {
+    const companionId = getUserId(req);
+
+    if (!companionId) {
+      return res.status(401).json({ message: "Không xác định được tài khoản." });
+    }
+
+    const page = parsePositiveInteger(req.query?.page, 1);
+    const limit = Math.min(parsePositiveInteger(req.query?.limit, DEFAULT_EARNINGS_LIMIT), MAX_EARNINGS_LIMIT);
+    const skip = (page - 1) * limit;
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const weekStart = startOfWeek(now);
+    const monthStart = startOfMonth(now);
+    const paymentFilter = {
+      companionId: toPaymentCompanionId(companionId),
+      status: "paid",
+      paidAt: { $ne: null },
+    };
+
+    const [payments, total, [summaryRow]] = await Promise.all([
+      Payment.find(paymentFilter)
+        .sort({ paidAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate({
+          path: "bookingId",
+          select: "serviceId elderProfileId customerId startTime durationHours status address totalAmount platformFee updatedAt",
+          populate: [
+            { path: "serviceId", select: "name" },
+            { path: "elderProfileId", select: "fullName" },
+            { path: "customerId", select: "name email" },
+          ],
+        })
+        .lean(),
+      Payment.countDocuments(paymentFilter),
+      Payment.aggregate([
+        { $match: paymentFilter },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: { $ifNull: ["$companionEarning", 0] } },
+            today: {
+              $sum: {
+                $cond: [
+                  { $gte: ["$paidAt", todayStart] },
+                  { $ifNull: ["$companionEarning", 0] },
+                  0,
+                ],
+              },
+            },
+            week: {
+              $sum: {
+                $cond: [
+                  { $gte: ["$paidAt", weekStart] },
+                  { $ifNull: ["$companionEarning", 0] },
+                  0,
+                ],
+              },
+            },
+            month: {
+              $sum: {
+                $cond: [
+                  { $gte: ["$paidAt", monthStart] },
+                  { $ifNull: ["$companionEarning", 0] },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]),
+    ]);
+
+    const entries = payments.map((payment) => ({
+      _id: payment._id,
+      amount: normalizeAmount(payment.companionEarning),
+      paidAt: payment.paidAt,
+      bookingId: payment.bookingId?._id || payment.bookingId || null,
+      booking: payment.bookingId || null,
+      payment: {
+        _id: payment._id,
+        baseAmount: normalizeAmount(payment.baseAmount),
+        paidAmount: normalizeAmount(payment.paidAmount || payment.amount),
+        platformFee: normalizeAmount(payment.platformFee),
+        penaltyAmount: normalizeAmount(payment.penaltyAmount),
+        companionEarning: normalizeAmount(payment.companionEarning),
+        method: payment.method || "",
+        status: payment.status || "",
+      },
+    }));
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
+
+    return res.status(200).json({
+      summary: {
+        today: normalizeAmount(summaryRow?.today),
+        week: normalizeAmount(summaryRow?.week),
+        month: normalizeAmount(summaryRow?.month),
+        total: normalizeAmount(summaryRow?.total),
+      },
+      entries,
+      items: entries,
+      earnings: entries,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
+  }
+};
+
 export const createWithdrawalRequest = async (req, res) => {
   let withdrawalLock;
 
@@ -177,14 +338,23 @@ export const createWithdrawalRequest = async (req, res) => {
       return res.status(401).json({ message: "Không xác định được tài khoản." });
     }
 
-    const { amount, bankName, bankAccountNumber, bankAccountName, note } = req.body;
+    const {
+      amount,
+      bankName,
+      bankAccountNumber,
+      bankAccountName,
+      note,
+    } = req.body;
     const requestAmount = normalizeAmount(amount);
+    const cleanBankName = normalizeText(bankName);
+    const cleanBankAccountNumber = normalizeText(bankAccountNumber);
+    const cleanBankAccountName = normalizeText(bankAccountName);
 
     if (!isValidWithdrawalAmount(requestAmount)) {
       return res.status(400).json({ message: "Số tiền rút không hợp lệ." });
     }
 
-    if (!bankName || !bankAccountNumber || !bankAccountName) {
+    if (!cleanBankName || !cleanBankAccountNumber || !cleanBankAccountName) {
       return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin ngân hàng." });
     }
 
@@ -198,18 +368,18 @@ export const createWithdrawalRequest = async (req, res) => {
       });
     }
 
-    const withdrawal = await WithdrawalRequest.create({
+    await WithdrawalRequest.create({
       companionId,
       amount: requestAmount,
-      bankName,
-      bankAccountNumber,
-      bankAccountName,
-      note: note || "",
+      bankName: cleanBankName,
+      bankAccountNumber: encryptSensitiveValue(cleanBankAccountNumber),
+      bankAccountName: encryptSensitiveValue(cleanBankAccountName),
+      note: normalizeText(note),
       status: "pending",
     });
 
     const summary = await getWithdrawalSummary(companionId);
-    return res.status(201).json({ withdrawal, ...summary });
+    return res.status(201).json(summary);
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
@@ -227,10 +397,12 @@ export const getAdminWithdrawalRequests = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const normalizedRequests = requests.map((request) => ({
-      ...request,
-      companion: request.companionId,
-    }));
+    const normalizedRequests = requests.map((request) =>
+      serializeWithdrawalRequest({
+        ...request,
+        companion: request.companionId,
+      }),
+    );
 
     return res.status(200).json({
       requests: normalizedRequests,
@@ -263,7 +435,7 @@ export const updateWithdrawalStatus = async (req, res) => {
     }
 
     const statusUpdates = {
-      adminNote: adminNote || "",
+      adminNote: normalizeText(adminNote),
     };
 
     if (currentStatus !== nextStatus) {
@@ -275,7 +447,7 @@ export const updateWithdrawalStatus = async (req, res) => {
     const withdrawal = await WithdrawalRequest.findOneAndUpdate(
       { _id: req.params.id, status: currentWithdrawal.status },
       statusUpdates,
-      { new: true }
+      { new: true },
     )
       .populate("companionId", "name fullName email phone avatar")
       .populate("processedBy", "name fullName email");
@@ -284,15 +456,11 @@ export const updateWithdrawalStatus = async (req, res) => {
       return res.status(409).json({ message: "Trạng thái rút tiền đã thay đổi, vui lòng thử lại." });
     }
 
-    const normalizedWithdrawal = withdrawal.toObject
-      ? withdrawal.toObject()
-      : withdrawal;
-
     return res.status(200).json({
-      withdrawal: {
-        ...normalizedWithdrawal,
-        companion: normalizedWithdrawal.companionId,
-      },
+      withdrawal: serializeWithdrawalRequest({
+        ...(withdrawal.toObject ? withdrawal.toObject() : withdrawal),
+        companion: withdrawal.companionId,
+      }),
     });
   } catch (error) {
     return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });

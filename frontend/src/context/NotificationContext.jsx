@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
-import { useAuth } from "./AuthContext.jsx";
+import { useAuth } from "./useAuth.js";
 import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
 
 const NotificationContext = createContext(null);

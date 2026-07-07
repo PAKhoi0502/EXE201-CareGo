@@ -2,13 +2,59 @@ import { useRef, useState } from "react";
 import { uploadImage } from "../api/client.js";
 import { Button } from "./Ui.jsx";
 
-const ImageUpload = ({ label, folder, value = [], onUploaded, locked = false, compact = false }) => {
+const normalizeImageItem = (item) => {
+  if (!item) {
+    return null;
+  }
+
+  if (typeof item === "string") {
+    const value = item.trim();
+    return value ? { value, previewUrl: value } : null;
+  }
+
+  if (typeof item === "object") {
+    const value = String(item.value || item.url || "").trim();
+    const previewUrl = String(item.previewUrl || item.url || value).trim();
+    if (!value && !previewUrl) {
+      return null;
+    }
+
+    return {
+      value: value || previewUrl,
+      previewUrl: previewUrl || value,
+    };
+  }
+
+  return null;
+};
+
+const normalizeImageList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeImageItem).filter(Boolean);
+  }
+
+  const imageItem = normalizeImageItem(value);
+  return imageItem ? [imageItem] : [];
+};
+
+const serializeImageList = (images, storeUploadReference) =>
+  storeUploadReference
+    ? images.map((image) => ({ value: image.value, previewUrl: image.previewUrl }))
+    : images.map((image) => image.previewUrl || image.value);
+
+const ImageUpload = ({
+  label,
+  folder,
+  value = [],
+  onUploaded,
+  locked = false,
+  compact = false,
+  storeUploadReference = false,
+}) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
-
-  // Normalize value to array
-  const images = Array.isArray(value) ? value : (value ? [value] : []);
+  const images = normalizeImageList(value);
 
   const handleFiles = async (event) => {
     const files = event.target.files;
@@ -19,12 +65,18 @@ const ImageUpload = ({ label, folder, value = [], onUploaded, locked = false, co
     setUploading(true);
     setError("");
     try {
-      const uploadPromises = Array.from(files).map((file) =>
-        uploadImage({ file, folder })
-      );
+      const uploadPromises = Array.from(files).map((file) => uploadImage({ file, folder }));
       const results = await Promise.all(uploadPromises);
-      const newUrls = results.map((data) => data.url);
-      onUploaded([...images, ...newUrls]);
+      const newImages = results
+        .map((data) =>
+          normalizeImageItem(
+            storeUploadReference
+              ? { value: data.storageRef || data.url, previewUrl: data.url || data.storageRef }
+              : data.url,
+          ),
+        )
+        .filter(Boolean);
+      onUploaded(serializeImageList([...images, ...newImages], storeUploadReference));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -34,8 +86,8 @@ const ImageUpload = ({ label, folder, value = [], onUploaded, locked = false, co
   };
 
   const removeImage = (index) => {
-    const updated = images.filter((_, i) => i !== index);
-    onUploaded(updated);
+    const updated = images.filter((_, imageIndex) => imageIndex !== index);
+    onUploaded(serializeImageList(updated, storeUploadReference));
   };
 
   return (
@@ -44,12 +96,12 @@ const ImageUpload = ({ label, folder, value = [], onUploaded, locked = false, co
         <div>
           <p className="text-sm font-medium text-slate-700">{label}</p>
           <p className="text-xs text-slate-500">
-            {locked ? "Ảnh đã được xác nhận và không thể thay đổi." : "Chụp ảnh bằng điện thoại hoặc tải ảnh từ máy. Có thể upload nhiều ảnh."}
+            {locked ? "áº¢nh Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n vÃ  khÃ´ng thá»ƒ thay Ä‘á»•i." : "Chá»¥p áº£nh báº±ng Ä‘iá»‡n thoáº¡i hoáº·c táº£i áº£nh tá»« mÃ¡y. CÃ³ thá»ƒ upload nhiá»u áº£nh."}
           </p>
         </div>
         {!locked ? (
           <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={uploading}>
-            {uploading ? "Đang tải ảnh lên..." : "Chọn/chụp ảnh"}
+            {uploading ? "Äang táº£i áº£nh lÃªn..." : "Chá»n/chá»¥p áº£nh"}
           </Button>
         ) : null}
       </div>
@@ -66,11 +118,11 @@ const ImageUpload = ({ label, folder, value = [], onUploaded, locked = false, co
       ) : null}
       {images.length > 0 ? (
         <div className={compact ? "flex flex-wrap gap-2" : "grid gap-2"}>
-          {images.map((imageUrl, index) => (
-            <div key={imageUrl} className="relative">
-              <a href={imageUrl} target="_blank" rel="noreferrer" className={compact ? "block" : "block"}>
+          {images.map((image, index) => (
+            <div key={image.value || image.previewUrl} className="relative">
+              <a href={image.previewUrl || image.value} target="_blank" rel="noreferrer" className="block">
                 <img
-                  src={imageUrl}
+                  src={image.previewUrl || image.value}
                   alt={`${label} ${index + 1}`}
                   className={
                     compact
@@ -86,7 +138,7 @@ const ImageUpload = ({ label, folder, value = [], onUploaded, locked = false, co
                   className="absolute -right-2 -top-2 w-fit rounded-full px-2 text-xs"
                   onClick={() => removeImage(index)}
                 >
-                  Xóa
+                  XÃ³a
                 </Button>
               ) : null}
             </div>

@@ -45,6 +45,22 @@ const CompanionProfileSchema = new mongoose.Schema(
       enum: ["morning", "afternoon", "full_day"],
       default: "full_day",
     },
+    workingDays: {
+      type: [Number],
+      default: () => [0, 1, 2, 3, 4, 5, 6],
+      validate: {
+        validator: (value) => Array.isArray(value) && value.every((day) => Number.isInteger(day) && day >= 0 && day <= 6),
+        message: "Ngày làm việc không hợp lệ.",
+      },
+    },
+    unavailableDates: {
+      type: [String],
+      default: [],
+    },
+    acceptingBookings: {
+      type: Boolean,
+      default: true,
+    },
     gender: {
       type: String,
       enum: ["male", "female", "other"],

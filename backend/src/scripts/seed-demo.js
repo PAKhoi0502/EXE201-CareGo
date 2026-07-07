@@ -561,7 +561,7 @@ const bookingSeed = [
     elderKey: "elderA",
     companionKey: "companionKhoi",
     serviceCode: "1",
-    dayOffset: 1,
+    dayOffset: -29,
     startHour: 9,
     durationHours: 2,
     address: "Bệnh viện Đại học Y Dược TP. HCM",
@@ -570,8 +570,10 @@ const bookingSeed = [
       lng: 106.6636,
       displayName: "Bệnh viện Đại học Y Dược TP. HCM",
     },
-    note: "Hỗ trợ lấy số thứ tự và ghi chú lời dặn của bác sĩ.",
-    status: "pending",
+    note: "Hỗ trợ lấy số thứ tự, ghi chú lời dặn của bác sĩ và bàn giao đầy đủ cho gia đình.",
+    status: "paid",
+    completedDayOffset: -29,
+    completedHour: 11,
   },
   {
     seedKey: "demo-booking-home-morning-accepted",
@@ -579,7 +581,7 @@ const bookingSeed = [
     elderKey: "elderA",
     companionKey: "companionThanh",
     serviceCode: "2",
-    dayOffset: 2,
+    dayOffset: -28,
     startHour: 9,
     durationHours: 3,
     address: "Vinhomes Grand Park, TP. Thủ Đức, TP. HCM",
@@ -588,9 +590,11 @@ const bookingSeed = [
       lng: 106.8431,
       displayName: "Vinhomes Grand Park",
     },
-    note: "Nhắc thuốc và trò chuyện buổi sáng.",
+    note: "Nhắc thuốc, trò chuyện buổi sáng và cập nhật tình hình cho gia đình.",
     legacyNotes: ["Nhắc thuốc và trò chuyện buổi chiều."],
-    status: "accepted",
+    status: "paid",
+    completedDayOffset: -28,
+    completedHour: 12,
   },
   {
     seedKey: "demo-booking-walk-afternoon-accepted",
@@ -598,7 +602,7 @@ const bookingSeed = [
     elderKey: "elderB",
     companionKey: "companionTuan",
     serviceCode: "3",
-    dayOffset: 1,
+    dayOffset: -27,
     startHour: 14,
     durationHours: 2,
     address: "Công viên ven sông, Quận 7, TP. HCM",
@@ -607,8 +611,10 @@ const bookingSeed = [
       lng: 106.7217,
       displayName: "Công viên ven sông Quận 7",
     },
-    note: "Đi dạo nhẹ, tránh nắng gắt.",
-    status: "accepted",
+    note: "Đã hoàn thành buổi đi dạo nhẹ và bảo đảm an toàn cho người cao tuổi.",
+    status: "paid",
+    completedDayOffset: -27,
+    completedHour: 16,
   },
   {
     seedKey: "demo-booking-home-completed",
@@ -616,7 +622,7 @@ const bookingSeed = [
     elderKey: "elderB",
     companionKey: "companionHoangThanh",
     serviceCode: "2",
-    dayOffset: -4,
+    dayOffset: -26,
     startHour: 9,
     durationHours: 2,
     address: "Chung cư Sunrise City, Quận 7, TP. HCM",
@@ -626,8 +632,8 @@ const bookingSeed = [
       displayName: "Sunrise City Quận 7",
     },
     note: "Theo dõi huyết áp và nhắc thuốc.",
-    status: "completed",
-    completedDayOffset: -4,
+    status: "paid",
+    completedDayOffset: -26,
     completedHour: 11,
   },
   {
@@ -636,7 +642,7 @@ const bookingSeed = [
     elderKey: "elderVan",
     companionKey: "companionKhoi",
     serviceCode: "1",
-    dayOffset: -7,
+    dayOffset: -25,
     startHour: 9,
     durationHours: 3,
     address: "Phòng khám CarePlus Quận 7",
@@ -647,7 +653,7 @@ const bookingSeed = [
     },
     note: "Tái khám định kỳ.",
     status: "paid",
-    completedDayOffset: -7,
+    completedDayOffset: -25,
     completedHour: 12,
     review: {
       rating: 5,
@@ -661,7 +667,7 @@ const bookingSeed = [
     elderKey: "elderB",
     companionKey: "companionThanh",
     serviceCode: "3",
-    dayOffset: -2,
+    dayOffset: -24,
     startHour: 10,
     durationHours: 1,
     address: "Crescent Mall, Quận 7, TP. HCM",
@@ -670,27 +676,64 @@ const bookingSeed = [
       lng: 106.7184,
       displayName: "Crescent Mall",
     },
-    note: "Khách hủy vì thay đổi lịch gia đình.",
-    status: "cancelled",
+    note: "Đã hoàn thành buổi đồng hành đi dạo và bàn giao người cao tuổi an toàn.",
+    status: "paid",
+    completedDayOffset: -24,
+    completedHour: 11,
   },
 ];
 
 const paidBookingSeed = [
-  { companionKey: "companionKhoi", dayOffset: -7, startHour: 8, durationHours: 1 },
-  { companionKey: "companionThanh", dayOffset: -7, startHour: 10, durationHours: 2 },
-  { companionKey: "companionTuan", dayOffset: -6, startHour: 14, durationHours: 1 },
-  { companionKey: "companionHoangThanh", dayOffset: -6, startHour: 15, durationHours: 2 },
-  { companionKey: "companionLanAnh", dayOffset: -5, startHour: 8, durationHours: 2 },
-  { companionKey: "companionQuynhTrang", dayOffset: -5, startHour: 14, durationHours: 1 },
-  { companionKey: "companionDucManh", dayOffset: -4, startHour: 9, durationHours: 1 },
-  { companionKey: "companionPhuongNam", dayOffset: -4, startHour: 15, durationHours: 2 },
-  { companionKey: "companionBaoTran", dayOffset: -3, startHour: 8, durationHours: 2 },
-  { companionKey: "companionHaiYen", dayOffset: -3, startHour: 14, durationHours: 1 },
-  { companionKey: "companionKhoi", dayOffset: -2, startHour: 10, durationHours: 1 },
-  { companionKey: "companionThanh", dayOffset: -2, startHour: 8, durationHours: 2 },
-  { companionKey: "companionTuan", dayOffset: -1, startHour: 14, durationHours: 2 },
-  { companionKey: "companionHoangThanh", dayOffset: -1, startHour: 9, durationHours: 1 },
-  { companionKey: "companionLanAnh", dayOffset: 0, startHour: 7, durationHours: 1 },
+  { companionKey: "companionKhoi", dayOffset: -29, startHour: 8, durationHours: 1 },
+  { companionKey: "companionThanh", dayOffset: -27, startHour: 10, durationHours: 2 },
+  { companionKey: "companionTuan", dayOffset: -26, startHour: 14, durationHours: 1 },
+  { companionKey: "companionHoangThanh", dayOffset: -23, startHour: 15, durationHours: 2 },
+  { companionKey: "companionLanAnh", dayOffset: -22, startHour: 8, durationHours: 2 },
+  { companionKey: "companionQuynhTrang", dayOffset: -22, startHour: 14, durationHours: 1 },
+  { companionKey: "companionDucManh", dayOffset: -21, startHour: 9, durationHours: 1 },
+  { companionKey: "companionPhuongNam", dayOffset: -20, startHour: 15, durationHours: 2 },
+  { companionKey: "companionBaoTran", dayOffset: -19, startHour: 8, durationHours: 2 },
+  { companionKey: "companionHaiYen", dayOffset: -14, startHour: 14, durationHours: 1 },
+  { companionKey: "companionKhoi", dayOffset: -18, startHour: 10, durationHours: 1 },
+  { companionKey: "companionThanh", dayOffset: -18, startHour: 8, durationHours: 2 },
+  { companionKey: "companionTuan", dayOffset: -17, startHour: 14, durationHours: 2 },
+  { companionKey: "companionHoangThanh", dayOffset: -16, startHour: 9, durationHours: 1 },
+  { companionKey: "companionLanAnh", dayOffset: -15, startHour: 7, durationHours: 1 },
+  { companionKey: "companionQuynhTrang", dayOffset: -13, startHour: 15, durationHours: 2 },
+  { companionKey: "companionDucManh", dayOffset: -19, startHour: 14, durationHours: 2 },
+  { companionKey: "companionPhuongNam", dayOffset: -14, startHour: 14, durationHours: 1 },
+  { companionKey: "companionBaoTran", dayOffset: -13, startHour: 10, durationHours: 1 },
+  { companionKey: "companionHaiYen", dayOffset: -12, startHour: 9, durationHours: 2 },
+  { companionKey: "companionTuan", dayOffset: -11, startHour: 15, durationHours: 2 },
+  { companionKey: "companionHoangThanh", dayOffset: -10, startHour: 8, durationHours: 2 },
+  { companionKey: "companionLanAnh", dayOffset: -10, startHour: 9, durationHours: 2 },
+  { companionKey: "companionQuynhTrang", dayOffset: -9, startHour: 14, durationHours: 2 },
+  { companionKey: "companionDucManh", dayOffset: -8, startHour: 8, durationHours: 2 },
+  { companionKey: "companionPhuongNam", dayOffset: -8, startHour: 16, durationHours: 1 },
+  { companionKey: "companionBaoTran", dayOffset: -7, startHour: 8, durationHours: 1 },
+  { companionKey: "companionHaiYen", dayOffset: -7, startHour: 14, durationHours: 2 },
+  { companionKey: "companionLanAnh", dayOffset: -6, startHour: 10, durationHours: 2 },
+  { companionKey: "companionQuynhTrang", dayOffset: -5, startHour: 15, durationHours: 1 },
+  { companionKey: "companionDucManh", dayOffset: -4, startHour: 9, durationHours: 2 },
+  { companionKey: "companionPhuongNam", dayOffset: -3, startHour: 14, durationHours: 2 },
+  { companionKey: "companionBaoTran", dayOffset: -2, startHour: 10, durationHours: 2 },
+  { companionKey: "companionHaiYen", dayOffset: -1, startHour: 8, durationHours: 1 },
+  { companionKey: "companionHaiYen", dayOffset: 0, startHour: 8, durationHours: 2 },
+  { companionKey: "companionThanh", dayOffset: -25, startHour: 8, durationHours: 1 },
+  { companionKey: "companionTuan", dayOffset: -12, startHour: 14, durationHours: 2 },
+  { companionKey: "companionHoangThanh", dayOffset: -2, startHour: 9, durationHours: 1 },
+  { companionKey: "companionLanAnh", dayOffset: -23, startHour: 8, durationHours: 2 },
+  { companionKey: "companionQuynhTrang", dayOffset: -23, startHour: 14, durationHours: 1 },
+  { companionKey: "companionKhoi", dayOffset: -11, startHour: 8, durationHours: 2 },
+  { companionKey: "companionThanh", dayOffset: -11, startHour: 10, durationHours: 2 },
+  { companionKey: "companionHoangThanh", dayOffset: -5, startHour: 8, durationHours: 2 },
+  { companionKey: "companionLanAnh", dayOffset: -5, startHour: 10, durationHours: 2 },
+  { companionKey: "companionDucManh", dayOffset: -27, startHour: 9, durationHours: 2 },
+  { companionKey: "companionBaoTran", dayOffset: -14, startHour: 8, durationHours: 2 },
+  { companionKey: "companionTuan", dayOffset: -19, startHour: 16, durationHours: 2 },
+  { companionKey: "companionQuynhTrang", dayOffset: -19, startHour: 13, durationHours: 1 },
+  { companionKey: "companionPhuongNam", dayOffset: -7, startHour: 13, durationHours: 2 },
+  { companionKey: "companionHaiYen", dayOffset: -7, startHour: 7, durationHours: 1 },
 ];
 
 const paidBookingReviews = [
@@ -893,6 +936,69 @@ const seedElderProfiles = async (users) => {
   return elders;
 };
 
+const resolveBookingDependencies = async () => {
+  const requiredUserKeys = [...new Set(bookingSeed.flatMap((item) => [item.customerKey, item.companionKey]))];
+  const requiredServiceCodes = [...new Set(bookingSeed.map((item) => item.serviceCode))];
+  const requiredElderKeys = [...new Set(bookingSeed.map((item) => item.elderKey))];
+  const users = {};
+  const services = {};
+  const elders = {};
+  const missing = [];
+
+  for (const userKey of requiredUserKeys) {
+    const userData = usersSeed.find((item) => item.key === userKey);
+    const emails = [userData?.email, ...(userData?.legacyEmails || [])]
+      .filter(Boolean)
+      .map((value) => String(value).trim().toLowerCase());
+    const user = userData ? await User.findOne({ email: { $in: emails } }) : null;
+    if (user) {
+      users[userKey] = user;
+    } else {
+      missing.push(`user:${userKey}`);
+    }
+  }
+
+  const serviceRows = await Service.find({ code: { $in: requiredServiceCodes } });
+  for (const service of serviceRows) {
+    services[service.code] = service;
+  }
+  for (const serviceCode of requiredServiceCodes) {
+    if (!services[serviceCode]) {
+      missing.push(`service:${serviceCode}`);
+    }
+  }
+
+  for (const elderKey of requiredElderKeys) {
+    const elderData = elderProfilesSeed.find((item) => item.key === elderKey);
+    const customer = elderData ? users[elderData.customerKey] : null;
+    const elder = customer
+      ? await ElderProfile.findOne({ customerId: customer._id, fullName: elderData.fullName })
+      : null;
+    if (elder) {
+      elders[elderKey] = elder;
+    } else {
+      missing.push(`elder:${elderKey}`);
+    }
+  }
+
+  const companionKeys = [...new Set(bookingSeed.map((item) => item.companionKey))];
+  const companionIds = companionKeys.map((key) => users[key]?._id).filter(Boolean);
+  const companionProfiles = await CompanionProfile.find({ userId: { $in: companionIds } }).select("userId");
+  const companionProfileIds = new Set(companionProfiles.map((profile) => String(profile.userId)));
+  for (const companionKey of companionKeys) {
+    const companionId = users[companionKey]?._id;
+    if (companionId && !companionProfileIds.has(String(companionId))) {
+      missing.push(`companionProfile:${companionKey}`);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`Missing booking seed dependencies: ${missing.join(", ")}. Run npm run seed:demo first.`);
+  }
+
+  return { users, services, elders };
+};
+
 const upsertShiftLog = async ({ booking, service, status }) => {
   const checklist = (service.defaultChecklist || []).map((label, index) => ({
     label,
@@ -1005,21 +1111,25 @@ const seedBookings = async ({ users, elders, services }) => {
       totalAmount,
       platformFee: Math.round(totalAmount * platformFeeRate),
     };
-    const legacyCandidates = await Booking.find({
-      customerId,
-      elderProfileId,
-      serviceId,
-      companionId,
-      seedKey: { $exists: false },
-    }).select("_id note");
-    const expectedNotes = [item.note, ...(item.legacyNotes || [])];
-    const legacyBooking = legacyCandidates.find((booking) => expectedNotes.includes(booking.note))
-      || (legacyCandidates.length === 1 ? legacyCandidates[0] : null);
-    if (legacyCandidates.length > 1 && !legacyBooking) {
-      throw new Error(`Cannot identify legacy booking for seed key ${item.seedKey}`);
+    const existingSeedBooking = await Booking.findOne({ seedKey: item.seedKey }).select("_id");
+    let legacyBooking = null;
+    if (!existingSeedBooking) {
+      const legacyCandidates = await Booking.find({
+        customerId,
+        elderProfileId,
+        serviceId,
+        companionId,
+        seedKey: { $exists: false },
+      }).select("_id note");
+      const expectedNotes = [item.note, ...(item.legacyNotes || [])];
+      legacyBooking = legacyCandidates.find((booking) => expectedNotes.includes(booking.note)) || null;
     }
     const booking = await Booking.findOneAndUpdate(
-      legacyBooking ? { _id: legacyBooking._id } : { seedKey: item.seedKey },
+      existingSeedBooking
+        ? { _id: existingSeedBooking._id }
+        : legacyBooking
+          ? { _id: legacyBooking._id }
+          : { seedKey: item.seedKey },
       { $set: payload },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );
@@ -1104,6 +1214,14 @@ const syncCompanionStats = async (users) => {
   }
 
   return stats;
+};
+
+export const seedBookingData = async () => {
+  const { users, services, elders } = await resolveBookingDependencies();
+  const bookings = await seedBookings({ users, elders, services });
+  const companionStats = await syncCompanionStats(users);
+
+  return { bookings, companionStats };
 };
 
 export const seedDemoData = async () => {

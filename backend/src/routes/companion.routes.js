@@ -11,6 +11,7 @@ import {
   getCompanionById,
   getCompanions,
   requestMyCompanionPhoneOtp,
+  resubmitCompanionApplication,
   updateMyCompanionProfile,
   verifyMyCompanionPhoneOtp,
 } from "../controller/companion.controller.js";
@@ -22,6 +23,7 @@ const router = express.Router();
 router.get("/", optionalVerifyToken, getCompanions);
 router.get("/online-statuses", verifyToken, getCompanionOnlineStatuses);
 router.post("/me/apply", verifyToken, allowRoles("customer"), applyForCompanion);
+router.patch("/me/application", verifyToken, allowRoles("customer"), resubmitCompanionApplication);
 router.patch("/me", verifyToken, allowRoles("companion"), updateMyCompanionProfile);
 router.post("/me/phone-otp/request", verifyToken, allowRoles("companion"), requestMyCompanionPhoneOtp);
 router.post("/me/phone-otp/verify", verifyToken, allowRoles("companion"), verifyMyCompanionPhoneOtp);

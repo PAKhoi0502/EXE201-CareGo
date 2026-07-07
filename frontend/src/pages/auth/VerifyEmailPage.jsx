@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Button, Input } from "../../components/Ui.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/useAuth.js";
 import { getUserHomePath } from "../../utils/authNavigation.js";
 import AuthShell from "./AuthShell.jsx";
 

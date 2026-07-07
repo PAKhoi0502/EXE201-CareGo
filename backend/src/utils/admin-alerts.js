@@ -99,6 +99,21 @@ export const emitAdminBookingCreatedAlert = (booking, details = {}) => {
   });
 };
 
+export const emitAdminBookingIncidentAlert = (booking, companion) => {
+  emitAdminAlert({
+    type: "booking_incident_reported",
+    tone: "urgent",
+    title: "Sự cố ca chăm sóc",
+    message: `${personLabel(companion, "Người đồng hành")} vừa báo sự cố cho booking #${bookingCode(booking)}.`,
+    link: "/admin/bookings",
+    metadata: {
+      bookingId: toIdString(booking?._id),
+      companionId: toIdString(booking?.companionId),
+      reason: booking?.incident?.reason || "",
+    },
+  });
+};
+
 export const emitAdminPaymentSuccessAlert = ({ booking, payment }) => {
   emitAdminAlert({
     type: "booking_payment_success",

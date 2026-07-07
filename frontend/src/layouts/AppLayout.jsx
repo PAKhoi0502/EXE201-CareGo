@@ -6,7 +6,7 @@ import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 import NotificationBell from "../components/notifications/NotificationBell.jsx";
 import SupportFloatingButton from "../components/support/SupportFloatingButton.jsx";
 import BookingChatFloatingButton from "../components/booking-chat/BookingChatFloatingButton.jsx";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { useAsync } from "../hooks/useAsync.js";
 import { money } from "../utils/format.js";
 

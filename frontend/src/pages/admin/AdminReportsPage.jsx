@@ -163,6 +163,7 @@ const AdminReportsPage = () => {
       tong_khach_tra: getPaidPayment(booking) ? getPaidAmount(booking) : 0,
       carego_thu: getPaidPayment(booking) ? getCareGoRevenue(booking) : 0,
       thu_nhap_companion: getPaidPayment(booking) ? getCompanionEarning(booking) : 0,
+      ngay_thuc_hien: formatDateTime(booking.startTime),
       ngay_tao: formatDateTime(booking.createdAt),
     }));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings page");
@@ -178,6 +179,22 @@ const AdminReportsPage = () => {
     scales: {
       y: { grid: { color: "#f1f5f9" } },
       x: { grid: { display: false } },
+    },
+  };
+
+  const dailyChartOptions = {
+    ...chartOptions,
+    scales: {
+      ...chartOptions.scales,
+      y: {
+        beginAtZero: true,
+        suggestedMax: 10,
+        ticks: {
+          precision: 0,
+          stepSize: 1,
+        },
+        grid: { color: "#f1f5f9" },
+      },
     },
   };
 
@@ -217,7 +234,7 @@ const AdminReportsPage = () => {
         backgroundColor: "rgba(20, 184, 166, 0.18)",
         pointBackgroundColor: "#0f766e",
         pointRadius: 3,
-        tension: 0.35,
+        tension: 0.2,
         fill: true,
       },
     ],
@@ -292,7 +309,7 @@ const AdminReportsPage = () => {
               <p className="text-xs font-black uppercase tracking-[0.22em] text-teal-100">
                 Bộ lọc báo cáo
               </p>
-              <h2 className="mt-1 text-xl font-black">Lọc dữ liệu theo ngày tạo booking</h2>
+              <h2 className="mt-1 text-xl font-black">Lọc dữ liệu theo ngày thực hiện booking</h2>
               <p className="mt-1 max-w-2xl text-sm font-medium text-teal-50">
                 Doanh thu, biểu đồ, top dịch vụ, hiệu suất companion và file Excel sẽ tính theo khoảng ngày này.
               </p>
@@ -395,7 +412,7 @@ const AdminReportsPage = () => {
             <div>
               <h2 className="font-bold text-slate-900">Booking theo ngày</h2>
               <p className="mt-1 text-xs text-slate-400">
-                Theo dõi nhu cầu đặt lịch trong khoảng ngày đang lọc.
+                Theo dõi số lịch chăm sóc theo ngày thực hiện trong khoảng đang lọc.
               </p>
             </div>
             <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">
@@ -403,7 +420,7 @@ const AdminReportsPage = () => {
             </span>
           </div>
           <div className="mt-4 h-72">
-            <Line data={dailyBookingData} options={chartOptions} />
+            <Line data={dailyBookingData} options={dailyChartOptions} />
           </div>
         </section>
 
@@ -551,7 +568,8 @@ const AdminReportsPage = () => {
                 <tr key={booking._id}>
                   <td className="p-4">
                     <p className="font-bold text-slate-800">{booking._id}</p>
-                    <p className="mt-1 text-slate-400">{formatDateTime(booking.createdAt)}</p>
+                    <p className="mt-1 text-slate-500">Thực hiện: {formatDateTime(booking.startTime)}</p>
+                    <p className="mt-1 text-slate-400">Tạo: {formatDateTime(booking.createdAt)}</p>
                   </td>
                   <td className="p-4">
                     <p className="font-semibold text-slate-800">{booking.customerId?.name || ""}</p>

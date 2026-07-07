@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client.js";
 import AdminDetailModal, { DetailGrid, DetailItem } from "../../components/AdminDetailModal.jsx";
 import { Button, StatusBadge } from "../../components/Ui.jsx";
@@ -58,16 +58,45 @@ const AdminBookingsPage = () => {
   const [actionLoading, setActionLoading] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [replacementCompanions, setReplacementCompanions] = useState([]);
+  const [replacementCompanionId, setReplacementCompanionId] = useState("");
   const bookings = useMemo(() => data?.bookings || [], [data?.bookings]);
   const selectedStatusActions = selectedBooking ? adminStatusActions[selectedBooking.status] || [] : [];
   const canCancelSelectedBooking = selectedBooking
     ? adminCancellableStatuses.includes(selectedBooking.status) && selectedBooking.payment?.status !== "paid"
     : false;
+  const hasReportedIncident = selectedBooking?.incident?.status === "reported";
 
   const services = useMemo(() => {
     const values = bookings.map((booking) => booking.serviceId?.name).filter(Boolean);
     return ["all", ...new Set(values)];
   }, [bookings]);
+
+  useEffect(() => {
+    const loadReplacementCompanions = async () => {
+      if (!selectedBooking || selectedBooking.incident?.status !== "reported" || selectedBooking.status !== "accepted") {
+        setReplacementCompanions([]);
+        setReplacementCompanionId("");
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          startTime: selectedBooking.startTime,
+          durationHours: String(selectedBooking.durationHours || 0),
+        });
+        const response = await api.get(`/companions?${params.toString()}`);
+        const companions = (response.companions || []).filter((item) => item.userId !== selectedBooking.companionId?._id);
+        setReplacementCompanions(companions);
+        setReplacementCompanionId(companions[0]?.userId || "");
+      } catch {
+        setReplacementCompanions([]);
+        setReplacementCompanionId("");
+      }
+    };
+
+    loadReplacementCompanions();
+  }, [selectedBooking]);
 
   const filteredBookings = bookings.filter((booking) => {
     const text =
@@ -137,6 +166,41 @@ const AdminBookingsPage = () => {
         updatedAt: updatedBooking.updatedAt || new Date().toISOString(),
       });
       setActionMessage("Đã hủy lịch chăm sóc.");
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  const handleResolveIncident = async (resolution) => {
+    if (!selectedBooking) return;
+
+    if (resolution === "reassign" && !replacementCompanionId) {
+      setActionError("Vui lÃ²ng chá»n companion thay tháº¿.");
+      return;
+    }
+
+    setActionLoading(`incident:${resolution}`);
+    setActionError("");
+    setActionMessage("");
+    try {
+      const data = await api.patch(`/bookings/${selectedBooking._id}/incident/resolve`, {
+        resolution,
+        companionId: resolution === "reassign" ? replacementCompanionId : undefined,
+      });
+      const updatedBooking = data.booking || {};
+      updateBookingInView(selectedBooking._id, {
+        ...updatedBooking,
+        updatedAt: updatedBooking.updatedAt || new Date().toISOString(),
+      });
+      setActionMessage(
+        resolution === "resume"
+          ? "ÄÃ£ cho booking tiáº¿p tá»¥c sau sá»± cá»‘."
+          : resolution === "cancel"
+            ? "ÄÃ£ há»§y booking sau sá»± cá»‘."
+            : "ÄÃ£ chuyá»ƒn booking vá» chá» companion thay tháº¿ xÃ¡c nháº­n.",
+      );
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -389,6 +453,60 @@ const AdminBookingsPage = () => {
                 </p>
               ) : null}
             </section>
+
+            {hasReportedIncident ? (
+              <section className="rounded-xl border border-rose-100 bg-rose-50 p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h3 className="font-bold text-rose-700">Sá»± cá»‘ companion Ä‘Ã£ bÃ¡o</h3>
+                    <p className="mt-2 text-sm font-semibold text-rose-700">
+                      LÃ½ do: {selectedBooking.incident?.reason || "KhÃ´ng rÃµ"}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-rose-700">
+                      {selectedBooking.incident?.details || "KhÃ´ng cÃ³ mÃ´ táº£."}
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:min-w-72">
+                    {selectedBooking.status === "accepted" ? (
+                      <>
+                        <select
+                          value={replacementCompanionId}
+                          onChange={(event) => setReplacementCompanionId(event.target.value)}
+                          className="min-h-10 rounded-lg border border-rose-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-rose-100"
+                        >
+                          <option value="">Chá»n companion thay tháº¿</option>
+                          {replacementCompanions.map((companion) => (
+                            <option key={companion.userId} value={companion.userId}>
+                              {companion.fullName} - {companion.serviceAreas?.join(", ") || "KhÃ´ng rÃµ khu vá»±c"}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("resume")} disabled={Boolean(actionLoading)}>
+                            {actionLoading === "incident:resume" ? "Äang xá»­ lÃ½..." : "Cho tiáº¿p tá»¥c"}
+                          </Button>
+                          <Button type="button" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("reassign")} disabled={Boolean(actionLoading) || !replacementCompanionId}>
+                            {actionLoading === "incident:reassign" ? "Äang Ä‘iá»u phá»‘i..." : "Äá»•i companion"}
+                          </Button>
+                          <Button type="button" variant="danger" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("cancel")} disabled={Boolean(actionLoading)}>
+                            {actionLoading === "incident:cancel" ? "Äang há»§y..." : "Há»§y booking"}
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("resume")} disabled={Boolean(actionLoading)}>
+                          {actionLoading === "incident:resume" ? "Äang xá»­ lÃ½..." : "Cho tiáº¿p tá»¥c"}
+                        </Button>
+                        <Button type="button" variant="danger" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("cancel")} disabled={Boolean(actionLoading)}>
+                          {actionLoading === "incident:cancel" ? "Äang há»§y..." : "Há»§y booking"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
             <DetailGrid>
               <DetailItem label="Khách hàng" value={`${selectedBooking.customerId?.name || "Khách hàng"} - ${selectedBooking.customerId?.email || ""}`} />

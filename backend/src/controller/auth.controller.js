@@ -23,7 +23,7 @@ const PASSWORD_RESET_RESPONSE = {
 const REFRESH_TOKEN_COOKIE = "refreshToken";
 const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const COMPANION_PROFILE_FIELDS =
-  "vettingStatus fullName phone phoneVerifiedAt workingShift applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas rejectionReason userId reviewedAt";
+  "vettingStatus fullName phone phoneVerifiedAt workingShift workingDays unavailableDates acceptingBookings applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas rejectionReason userId reviewedAt";
 
 const recordAuthAudit = (req, user, action, outcome, statusCode) => {
   const routeByAction = {

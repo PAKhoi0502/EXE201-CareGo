@@ -3,10 +3,10 @@ import { api } from "../../api/client";
 import { useAsync } from "../../hooks/useAsync";
 
 const statusOptions = [
-  ["pending", "Chờ xử lý"],
-  ["approved", "Đã duyệt"],
-  ["paid", "Đã chuyển tiền"],
-  ["rejected", "Từ chối"],
+  ["pending", "Chá» xá»­ lÃ½"],
+  ["approved", "ÄÃ£ duyá»‡t"],
+  ["paid", "ÄÃ£ chuyá»ƒn tiá»n"],
+  ["rejected", "Tá»« chá»‘i"],
 ];
 
 const statusLabels = Object.fromEntries(statusOptions);
@@ -20,11 +20,7 @@ const statusTransitions = {
 
 const getStatusOptions = (status) => {
   const currentStatus = Object.hasOwn(statusTransitions, status) ? status : "pending";
-  const allowedStatuses = new Set([
-    currentStatus,
-    ...statusTransitions[currentStatus],
-  ]);
-
+  const allowedStatuses = new Set([currentStatus, ...statusTransitions[currentStatus]]);
   return statusOptions.filter(([value]) => allowedStatuses.has(value));
 };
 
@@ -60,30 +56,24 @@ const getRequests = (data) => {
 };
 
 const getCompanion = (request) => request.companion || request.companionId || {};
-
 const getCompanionName = (request) => {
   const companion = getCompanion(request);
-  return (
-    companion.fullName ||
-    companion.name ||
-    request.companionName ||
-    "Người đồng hành"
-  );
+  return companion.fullName || companion.name || request.companionName || "NgÆ°á»i Ä‘á»“ng hÃ nh";
 };
-
 const getProcessorName = (request) => {
   const processor = request.processedBy || {};
   return processor.fullName || processor.name || processor.email || "-";
 };
+const getMaskedBankAccountNumber = (request) =>
+  request.bankAccountNumberMasked || request.bankAccountNumber || "-";
+const getFullBankAccountNumber = (request) =>
+  request.bankAccountNumberFull || request.bankAccountNumberMasked || request.bankAccountNumber || "-";
 
 export default function AdminWithdrawalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [processingId, setProcessingId] = useState("");
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const { data, loading, error, reload } = useAsync(
-    () => api.get("/withdrawals/admin"),
-    []
-  );
+  const { data, loading, error, reload } = useAsync(() => api.get("/withdrawals/admin"), []);
 
   const requests = useMemo(() => getRequests(data), [data]);
   const filteredRequests = useMemo(() => {
@@ -91,17 +81,15 @@ export default function AdminWithdrawalsPage() {
     return requests.filter((item) => item.status === statusFilter);
   }, [requests, statusFilter]);
 
-  const stats = useMemo(() => {
-    return requests.reduce(
-      (acc, item) => {
-        const amount = Number(item.amount || 0);
-        acc.total += amount;
-        acc[item.status] = (acc[item.status] || 0) + amount;
-        return acc;
-      },
-      { total: 0, pending: 0, approved: 0, paid: 0, rejected: 0 }
-    );
-  }, [requests]);
+  const stats = useMemo(() => requests.reduce(
+    (acc, item) => {
+      const amount = Number(item.amount || 0);
+      acc.total += amount;
+      acc[item.status] = (acc[item.status] || 0) + amount;
+      return acc;
+    },
+    { total: 0, pending: 0, approved: 0, paid: 0, rejected: 0 },
+  ), [requests]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -117,51 +105,40 @@ export default function AdminWithdrawalsPage() {
                 processedAt: new Date().toISOString(),
               }),
             }
-          : current
+          : current,
       );
     } finally {
       setProcessingId("");
     }
   };
-  const selectedStatusOptions = selectedRequest
-    ? getStatusOptions(selectedRequest.status)
-    : [];
+
+  const selectedStatusOptions = selectedRequest ? getStatusOptions(selectedRequest.status) : [];
 
   return (
     <div className="space-y-6">
       <section className="rounded-[28px] border border-teal-100 bg-gradient-to-br from-teal-700 to-teal-400 p-6 text-white shadow-xl shadow-teal-100">
-        <p className="text-sm font-black uppercase tracking-wide text-teal-100">
-          Quản lý ví người đồng hành
-        </p>
+        <p className="text-sm font-black uppercase tracking-wide text-teal-100">Quáº£n lÃ½ vÃ­ ngÆ°á»i Ä‘á»“ng hÃ nh</p>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-black">Yêu cầu rút tiền</h1>
+            <h1 className="text-3xl font-black">YÃªu cáº§u rÃºt tiá»n</h1>
             <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-teal-50">
-              Theo dõi yêu cầu rút tiền từ người đồng hành, đổi trạng thái xử
-              lý và xác nhận chuyển khoản.
+              Danh sÃ¡ch bÃªn dÆ°á»›i Ä‘ang hiá»ƒn thá»‹ sá»‘ tÃ i khoáº£n Ä‘Ã£ che. Khi cáº§n xá»­ lÃ½ chuyá»ƒn khoáº£n, admin xem sá»‘ Ä‘áº§y Ä‘á»§ trong popup chi tiáº¿t.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={reload}
-            className="rounded-full bg-white px-5 py-3 text-sm font-black text-teal-700 shadow-lg shadow-teal-800/10 transition hover:-translate-y-0.5"
-          >
-            Làm mới
+          <button type="button" onClick={reload} className="rounded-full bg-white px-5 py-3 text-sm font-black text-teal-700 shadow-lg shadow-teal-800/10 transition hover:-translate-y-0.5">
+            LÃ m má»›i
           </button>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
         {[
-          ["Tổng yêu cầu", currency(stats.total)],
-          ["Chờ xử lý", currency(stats.pending)],
-          ["Đã duyệt", currency(stats.approved)],
-          ["Đã chuyển", currency(stats.paid)],
+          ["Tá»•ng yÃªu cáº§u", currency(stats.total)],
+          ["Chá» xá»­ lÃ½", currency(stats.pending)],
+          ["ÄÃ£ duyá»‡t", currency(stats.approved)],
+          ["ÄÃ£ chuyá»ƒn", currency(stats.paid)],
         ].map(([label, value]) => (
-          <div
-            key={label}
-            className="rounded-3xl border border-teal-100 bg-white p-5 shadow-lg shadow-teal-50"
-          >
+          <div key={label} className="rounded-3xl border border-teal-100 bg-white p-5 shadow-lg shadow-teal-50">
             <p className="text-sm font-bold text-slate-500">{label}</p>
             <p className="mt-2 text-2xl font-black text-slate-950">{value}</p>
           </div>
@@ -171,25 +148,17 @@ export default function AdminWithdrawalsPage() {
       <section className="rounded-[28px] border border-teal-100 bg-white p-5 shadow-xl shadow-teal-50">
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-2xl font-black text-slate-950">
-              Danh sách yêu cầu
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              {filteredRequests.length} yêu cầu đang hiển thị
-            </p>
+            <h2 className="text-2xl font-black text-slate-950">Danh sÃ¡ch yÃªu cáº§u</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{filteredRequests.length} yÃªu cáº§u Ä‘ang hiá»ƒn thá»‹</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {[["all", "Tất cả"], ...statusOptions].map(([value, label]) => (
+            {[["all", "Táº¥t cáº£"], ...statusOptions].map(([value, label]) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setStatusFilter(value)}
-                className={`rounded-full px-4 py-2 text-xs font-black transition ${
-                  statusFilter === value
-                    ? "bg-teal-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700"
-                }`}
+                className={`rounded-full px-4 py-2 text-xs font-black transition ${statusFilter === value ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700"}`}
               >
                 {label}
               </button>
@@ -198,30 +167,24 @@ export default function AdminWithdrawalsPage() {
         </div>
 
         {error ? (
-          <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
-            {error}
-          </div>
+          <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{error}</div>
         ) : null}
 
         {loading ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">
-            Đang tải yêu cầu rút tiền...
-          </div>
+          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">Äang táº£i yÃªu cáº§u rÃºt tiá»n...</div>
         ) : filteredRequests.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">
-            Chưa có yêu cầu rút tiền.
-          </div>
+          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">ChÆ°a cÃ³ yÃªu cáº§u rÃºt tiá»n.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-xs font-black uppercase tracking-wide text-slate-400">
-                  <th className="px-4 py-3">Người đồng hành</th>
-                  <th className="px-4 py-3">Số tiền</th>
-                  <th className="px-4 py-3">Ngân hàng</th>
-                  <th className="px-4 py-3">Thời gian</th>
-                  <th className="px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3 text-right">Thao tác</th>
+                  <th className="px-4 py-3">NgÆ°á»i Ä‘á»“ng hÃ nh</th>
+                  <th className="px-4 py-3">Sá»‘ tiá»n</th>
+                  <th className="px-4 py-3">NgÃ¢n hÃ ng</th>
+                  <th className="px-4 py-3">Thá»i gian</th>
+                  <th className="px-4 py-3">Tráº¡ng thÃ¡i</th>
+                  <th className="px-4 py-3 text-right">Thao tÃ¡c</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,67 +193,37 @@ export default function AdminWithdrawalsPage() {
                   const requestStatusOptions = getStatusOptions(request.status);
 
                   return (
-                    <tr
-                      key={request._id}
-                      className="border-b border-slate-100 align-top last:border-0"
-                    >
+                    <tr key={request._id} className="border-b border-slate-100 align-top last:border-0">
                       <td className="px-4 py-4">
-                        <p className="font-black text-slate-950">
-                          {getCompanionName(request)}
-                        </p>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {companion.email || request.email || "-"}
-                        </p>
+                        <p className="font-black text-slate-950">{getCompanionName(request)}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">{companion.email || request.email || "-"}</p>
                       </td>
-                      <td className="px-4 py-4 font-black text-teal-700">
-                        {currency(request.amount)}
-                      </td>
+                      <td className="px-4 py-4 font-black text-teal-700">{currency(request.amount)}</td>
                       <td className="px-4 py-4">
-                        <p className="font-bold text-slate-800">
-                          {request.bankName || "-"}
-                        </p>
+                        <p className="font-bold text-slate-800">{request.bankName || "-"}</p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {request.bankAccountNumber || "-"} ·{" "}
-                          {request.bankAccountName || "-"}
+                          {getMaskedBankAccountNumber(request)} Â· {request.bankAccountName || "-"}
                         </p>
                       </td>
-                      <td className="px-4 py-4 font-semibold text-slate-500">
-                        {dateTime(request.createdAt)}
-                      </td>
+                      <td className="px-4 py-4 font-semibold text-slate-500">{dateTime(request.createdAt)}</td>
                       <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
-                            statusClasses[request.status] ||
-                            statusClasses.pending
-                          }`}
-                        >
-                          {statusLabels[request.status] || "Chờ xử lý"}
+                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClasses[request.status] || statusClasses.pending}`}>
+                          {statusLabels[request.status] || "Chá» xá»­ lÃ½"}
                         </span>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRequest(request)}
-                            className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-teal-50 hover:text-teal-700"
-                          >
-                            Chi tiết
+                          <button type="button" onClick={() => setSelectedRequest(request)} className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-teal-50 hover:text-teal-700">
+                            Chi tiáº¿t
                           </button>
                           <select
                             value={request.status || "pending"}
-                            disabled={
-                              Boolean(processingId) ||
-                              requestStatusOptions.length <= 1
-                            }
-                            onChange={(event) =>
-                              updateStatus(request._id, event.target.value)
-                            }
+                            disabled={Boolean(processingId) || requestStatusOptions.length <= 1}
+                            onChange={(event) => updateStatus(request._id, event.target.value)}
                             className="min-h-9 rounded-full border border-teal-100 bg-white px-3 text-xs font-black text-slate-700 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {requestStatusOptions.map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
+                              <option key={value} value={value}>{label}</option>
                             ))}
                           </select>
                         </div>
@@ -305,122 +238,66 @@ export default function AdminWithdrawalsPage() {
       </section>
 
       {selectedRequest ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4"
-          onClick={() => setSelectedRequest(null)}
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[30px] border border-teal-100 bg-white p-6 shadow-2xl shadow-slate-950/20"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4" onClick={() => setSelectedRequest(null)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[30px] border border-teal-100 bg-white p-6 shadow-2xl shadow-slate-950/20" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase tracking-wide text-teal-700">
-                  Chi tiết yêu cầu rút tiền
-                </p>
-                <h2 className="mt-2 text-2xl font-black text-slate-950">
-                  {currency(selectedRequest.amount)}
-                </h2>
+                <p className="text-sm font-black uppercase tracking-wide text-teal-700">Chi tiáº¿t yÃªu cáº§u rÃºt tiá»n</p>
+                <h2 className="mt-2 text-2xl font-black text-slate-950">{currency(selectedRequest.amount)}</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRequest(null)}
-                className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-              >
-                ×
+              <button type="button" onClick={() => setSelectedRequest(null)} className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-red-50 hover:text-red-600">
+                Ã—
               </button>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
-                <p className="text-xs font-black uppercase text-slate-400">
-                  Người đồng hành
-                </p>
-                <p className="mt-2 font-black text-slate-950">
-                  {getCompanionName(selectedRequest)}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  {getCompanion(selectedRequest).email ||
-                    selectedRequest.email ||
-                    "-"}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  {getCompanion(selectedRequest).phone ||
-                    selectedRequest.phone ||
-                    "-"}
-                </p>
+                <p className="text-xs font-black uppercase text-slate-400">NgÆ°á»i Ä‘á»“ng hÃ nh</p>
+                <p className="mt-2 font-black text-slate-950">{getCompanionName(selectedRequest)}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{getCompanion(selectedRequest).email || selectedRequest.email || "-"}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{getCompanion(selectedRequest).phone || selectedRequest.phone || "-"}</p>
               </div>
 
               <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
-                <p className="text-xs font-black uppercase text-slate-400">
-                  Trạng thái
-                </p>
+                <p className="text-xs font-black uppercase text-slate-400">Tráº¡ng thÃ¡i</p>
                 <select
                   value={selectedRequest.status || "pending"}
-                  disabled={
-                    Boolean(processingId) ||
-                    selectedStatusOptions.length <= 1
-                  }
-                  onChange={(event) =>
-                    updateStatus(selectedRequest._id, event.target.value)
-                  }
+                  disabled={Boolean(processingId) || selectedStatusOptions.length <= 1}
+                  onChange={(event) => updateStatus(selectedRequest._id, event.target.value)}
                   className="mt-2 min-h-11 w-full rounded-2xl border border-teal-100 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {selectedStatusOptions.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
+                    <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
-                <p className="mt-3 text-sm font-semibold text-slate-500">
-                  Tạo lúc: {dateTime(selectedRequest.createdAt)}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Xử lý lúc: {dateTime(selectedRequest.processedAt)}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Xử lý bởi: {getProcessorName(selectedRequest)}
-                </p>
+                <p className="mt-3 text-sm font-semibold text-slate-500">Táº¡o lÃºc: {dateTime(selectedRequest.createdAt)}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Xá»­ lÃ½ lÃºc: {dateTime(selectedRequest.processedAt)}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Xá»­ lÃ½ bá»Ÿi: {getProcessorName(selectedRequest)}</p>
               </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-teal-100 bg-white p-4">
-              <p className="text-xs font-black uppercase text-slate-400">
-                Thông tin ngân hàng
-              </p>
+              <p className="text-xs font-black uppercase text-slate-400">ThÃ´ng tin ngÃ¢n hÃ ng</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-400">Ngân hàng</p>
-                  <p className="mt-1 font-black text-slate-950">
-                    {selectedRequest.bankName || "-"}
-                  </p>
+                  <p className="text-xs font-bold text-slate-400">NgÃ¢n hÃ ng</p>
+                  <p className="mt-1 font-black text-slate-950">{selectedRequest.bankName || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400">
-                    Số tài khoản
-                  </p>
-                  <p className="mt-1 font-black text-slate-950">
-                    {selectedRequest.bankAccountNumber || "-"}
-                  </p>
+                  <p className="text-xs font-bold text-slate-400">Sá»‘ tÃ i khoáº£n Ä‘áº§y Ä‘á»§</p>
+                  <p className="mt-1 font-black text-slate-950">{getFullBankAccountNumber(selectedRequest)}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">Hiá»ƒn thá»‹ chung: {getMaskedBankAccountNumber(selectedRequest)}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400">
-                    Chủ tài khoản
-                  </p>
-                  <p className="mt-1 font-black text-slate-950">
-                    {selectedRequest.bankAccountName || "-"}
-                  </p>
+                  <p className="text-xs font-bold text-slate-400">Chá»§ tÃ i khoáº£n</p>
+                  <p className="mt-1 font-black text-slate-950">{selectedRequest.bankAccountName || "-"}</p>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-xs font-black uppercase text-slate-400">
-                Ghi chú người đồng hành
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">
-                {selectedRequest.note || "Không có ghi chú."}
-              </p>
+              <p className="text-xs font-black uppercase text-slate-400">Ghi chÃº ngÆ°á»i Ä‘á»“ng hÃ nh</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">{selectedRequest.note || "KhÃ´ng cÃ³ ghi chÃº."}</p>
             </div>
           </div>
         </div>

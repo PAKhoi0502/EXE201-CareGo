@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from "react-router";
 import { api } from "../api/client.js";
 import LandingNavbar from "../components/landing/LandingNavbar.jsx";
 import { LandingFooter } from "../components/landing/LandingSections.jsx";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { useAsync } from "../hooks/useAsync.js";
 
 const RatingStars = ({ value, onChange, disabled = false }) => (

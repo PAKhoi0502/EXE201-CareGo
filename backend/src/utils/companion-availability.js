@@ -143,6 +143,36 @@ export const isWithinCompanionWorkingShift = (workingShift, startTime, durationH
   return sameLocalDay(start, end) && start >= shiftStart && end <= shiftEnd;
 };
 
+export const normalizeWorkingDays = (value) => {
+  if (!Array.isArray(value)) return [0, 1, 2, 3, 4, 5, 6];
+  return [...new Set(value.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))].sort();
+};
+
+export const normalizeUnavailableDates = (value) => {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => String(item || "").trim()).filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item)))].sort();
+};
+
+export const toLocalDateKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+export const isCompanionScheduleAvailable = (profile, startTime, durationHours) => {
+  if (profile?.acceptingBookings === false) return false;
+  const start = new Date(startTime);
+  if (Number.isNaN(start.getTime())) return false;
+  const workingDays = normalizeWorkingDays(profile?.workingDays);
+  const unavailableDates = new Set(normalizeUnavailableDates(profile?.unavailableDates));
+  return workingDays.includes(start.getDay()) &&
+    !unavailableDates.has(toLocalDateKey(start)) &&
+    isWithinCompanionWorkingShift(profile?.workingShift, start, durationHours);
+};
+
 export const findActiveBookingOutsideWorkingShift = (bookings, workingShift, now = new Date()) =>
   bookings.find(
     (booking) =>

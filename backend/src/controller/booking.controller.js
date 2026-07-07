@@ -22,6 +22,7 @@ import {
   createBookingAcceptedNotification,
   createBookingCompletedNotification,
   createBookingCreatedNotification,
+  createNotification,
   createCompanionBookingCreatedNotification,
   createCompanionPaymentSuccessNotification,
   createCompanionReviewCreatedNotification,
@@ -33,14 +34,15 @@ import {
 } from "../utils/notifications.js";
 import {
   emitAdminBookingCreatedAlert,
+  emitAdminBookingIncidentAlert,
   emitAdminPaymentOverdueRestrictionAlert,
   emitAdminPaymentSuccessAlert,
 } from "../utils/admin-alerts.js";
 import {
   getBookingEndTime,
   getRequestedEndTime,
+  isCompanionScheduleAvailable,
   isTimeOverlapped,
-  isWithinCompanionWorkingShift,
   parseBookingAvailabilityWindow,
   parseInstantBookingAvailabilityWindow,
 } from "../utils/companion-availability.js";
@@ -60,6 +62,12 @@ const toIdString = (value) => {
   return (value._id || value).toString();
 };
 
+const customerBookingLink = (bookingId) => `/customer/bookings/${toIdString(bookingId)}`;
+const companionBookingLink = (bookingId) => `/companion/bookings/${toIdString(bookingId)}`;
+const normalizeIncidentReason = (value) => String(value || "").trim().toLowerCase();
+const normalizeIncidentResolution = (value) => String(value || "").trim().toLowerCase();
+const normalizeIncidentDetails = (value) => String(value || "").trim();
+
 const CONFIRMED_BOOKING_STATUSES = ["accepted", "in_progress"];
 const BOOKING_STATUS_TRANSITIONS = {
   pending: ["accepted", "cancelled"],
@@ -72,6 +80,9 @@ const BOOKING_STATUS_TRANSITIONS = {
 const CUSTOMER_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted"];
 const ADMIN_CANCELLABLE_BOOKING_STATUSES = ["pending", "accepted", "in_progress"];
 const COMPANION_REJECTABLE_BOOKING_STATUSES = ["pending"];
+const INCIDENT_REPORTABLE_BOOKING_STATUSES = ["accepted", "in_progress"];
+const INCIDENT_RESOLUTION_OPTIONS = ["resume", "reassign", "cancel"];
+const INCIDENT_REASON_OPTIONS = ["health", "transport", "family_emergency", "safety", "other"];
 const SHIFT_EVIDENCE_EDITABLE_BOOKING_STATUSES = ["accepted", "in_progress"];
 const SHIFT_PHOTO_FOLDERS = {
   checkInPhotoUrl: "carego/check-in",
@@ -155,6 +166,59 @@ const findCompanionTimeConflict = async ({
     isTimeOverlapped(requestedStart, requestedEnd, new Date(booking.startTime), getBookingEndTime(booking)),
   );
 };
+
+const createBookingIncidentCustomerNotification = (booking, reason) =>
+  createNotification({
+    recipientId: toIdString(booking?.customerId),
+    recipientRole: "customer",
+    type: "BOOKING_INCIDENT_REPORTED",
+    title: "Companion vừa báo bận hoặc sự cố",
+    message: "CareGo đã nhận thông tin sự cố và đang xử lý phương án phù hợp cho booking của bạn.",
+    link: customerBookingLink(booking?._id),
+    bookingId: toIdString(booking?._id),
+    metadata: {
+      status: booking?.status || "",
+      reason,
+    },
+  });
+
+const createIncidentResolutionNotification = ({
+  recipientId,
+  recipientRole,
+  booking,
+  resolution,
+  message,
+  link,
+}) =>
+  createNotification({
+    recipientId,
+    recipientRole,
+    type: "BOOKING_INCIDENT_RESOLVED",
+    title: resolution === "cancel" ? "Booking đã được xử lý sau sự cố" : "Sự cố booking đã được xử lý",
+    message,
+    link: link || (recipientRole === "customer" ? customerBookingLink(booking?._id) : companionBookingLink(booking?._id)),
+    bookingId: toIdString(booking?._id),
+    metadata: {
+      status: booking?.status || "",
+      resolution,
+    },
+  });
+
+const createCompanionReassignmentNotification = ({ recipientId, booking }) =>
+  createNotification({
+    recipientId,
+    recipientRole: "companion",
+    type: "COMPANION_BOOKING_REASSIGNED",
+    title: "CareGo vừa điều phối lại một booking",
+    message: "Một booking mới đã được chuyển sang cho bạn. Vui lòng kiểm tra và phản hồi sớm.",
+    link: companionBookingLink(booking?._id),
+    bookingId: toIdString(booking?._id),
+    metadata: {
+      status: booking?.status || "",
+      reassigned: true,
+      startTime: booking?.startTime || null,
+    },
+  });
 
 const canAccessBooking = (booking, user) => {
   return (
@@ -833,7 +897,7 @@ export const createBooking = async (req, res) => {
     if (!companionProfile.phoneVerifiedAt) {
       return res.status(409).json({ message: "Người đồng hành cần xác minh số điện thoại trước khi nhận booking." });
     }
-    if (!isWithinCompanionWorkingShift(companionProfile.workingShift, parsedStartTime, parsedDurationHours)) {
+    if (!isCompanionScheduleAvailable(companionProfile, parsedStartTime, parsedDurationHours)) {
       return res.status(409).json({ message: "Người đồng hành không làm việc trong khung giờ bạn đã chọn." });
     }
     if (
@@ -1038,11 +1102,11 @@ export const updateBookingStatus = async (req, res) => {
       const companionProfile = await CompanionProfile.findOne({
         userId: booking.companionId,
         vettingStatus: "approved",
-      }).select("phoneVerifiedAt workingShift");
+      }).select("phoneVerifiedAt workingShift workingDays unavailableDates acceptingBookings");
       if (!companionProfile?.phoneVerifiedAt) {
         return res.status(409).json({ message: "Người đồng hành cần xác minh số điện thoại trước khi nhận booking." });
       }
-      if (!isWithinCompanionWorkingShift(companionProfile.workingShift, booking.startTime, booking.durationHours)) {
+      if (!isCompanionScheduleAvailable(companionProfile, booking.startTime, booking.durationHours)) {
         return res.status(409).json({ message: "Booking này nằm ngoài ca làm việc hiện tại của người đồng hành." });
       }
     }
@@ -1128,6 +1192,286 @@ export const updateBookingStatus = async (req, res) => {
     });
   } finally {
     await releaseCompanionBookingLock(bookingLock);
+  }
+};
+
+export const reportBookingIncident = async (req, res) => {
+  try {
+    const reason = normalizeIncidentReason(req.body?.reason);
+    const details = normalizeIncidentDetails(req.body?.details);
+
+    if (!INCIDENT_REASON_OPTIONS.includes(reason)) {
+      return res.status(400).json({ message: "Lý do báo sự cố không hợp lệ." });
+    }
+
+    if (!details) {
+      return res.status(400).json({ message: "Vui lòng mô tả ngắn gọn tình trạng bận hoặc sự cố." });
+    }
+
+    if (details.length > 1000) {
+      return res.status(400).json({ message: "Nội dung sự cố không được vượt quá 1000 ký tự." });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking || !canAccessBooking(booking, req.user)) {
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
+    }
+
+    if (toIdString(booking.companionId) !== req.user.userId) {
+      return res.status(403).json({ message: "Bạn không có quyền báo sự cố cho lịch chăm sóc này." });
+    }
+
+    if (!INCIDENT_REPORTABLE_BOOKING_STATUSES.includes(booking.status)) {
+      return res.status(409).json({ message: "Chỉ có thể báo sự cố sau khi đã nhận ca hoặc khi ca đang diễn ra." });
+    }
+
+    if (booking.incident?.status === "reported") {
+      return res.status(409).json({ message: "Sự cố của booking này đang chờ admin xử lý." });
+    }
+
+    const incidentUpdates = {
+      "incident.status": "reported",
+      "incident.reason": reason,
+      "incident.details": details,
+      "incident.reportedAt": new Date(),
+      "incident.reportedBy": req.user.userId,
+      "incident.resolvedAt": null,
+      "incident.resolvedBy": null,
+      "incident.resolution": "",
+      "incident.adminNote": "",
+    };
+
+    const updatedBooking = await Booking.findOneAndUpdate(
+      {
+        _id: booking._id,
+        companionId: req.user.userId,
+        status: { $in: INCIDENT_REPORTABLE_BOOKING_STATUSES },
+        "incident.status": { $ne: "reported" },
+      },
+      { $set: incidentUpdates },
+      { new: true, runValidators: true },
+    ).populate(populateBooking);
+
+    if (!updatedBooking) {
+      return res.status(409).json({ message: "Booking đã thay đổi trạng thái. Vui lòng tải lại và thử lại." });
+    }
+
+    const companion = await User.findById(req.user.userId).select("name email");
+    await createBookingIncidentCustomerNotification(updatedBooking, reason);
+    emitAdminBookingIncidentAlert(updatedBooking, companion || req.user);
+
+    return res.status(200).json({
+      message: "Đã gửi báo bận hoặc sự cố cho admin.",
+      booking: updatedBooking,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+      error: error.message,
+    });
+  }
+};
+
+export const resolveBookingIncident = async (req, res) => {
+  const bookingLocks = [];
+
+  try {
+    const resolution = normalizeIncidentResolution(req.body?.resolution);
+    const adminNote = normalizeIncidentDetails(req.body?.adminNote);
+    const nextCompanionId = toIdString(req.body?.companionId);
+
+    if (!INCIDENT_RESOLUTION_OPTIONS.includes(resolution)) {
+      return res.status(400).json({ message: "Phương án xử lý sự cố không hợp lệ." });
+    }
+
+    if (adminNote.length > 1000) {
+      return res.status(400).json({ message: "Ghi chú xử lý không được vượt quá 1000 ký tự." });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: "Không tìm thấy lịch chăm sóc." });
+    }
+
+    if (booking.incident?.status !== "reported") {
+      return res.status(409).json({ message: "Booking này hiện không có sự cố chờ xử lý." });
+    }
+
+    if (resolution === "reassign" && booking.status !== "accepted") {
+      return res.status(409).json({ message: "Chỉ có thể đổi companion khi booking đã nhận nhưng chưa bắt đầu ca." });
+    }
+
+    if (resolution === "reassign" && !nextCompanionId) {
+      return res.status(400).json({ message: "Vui lòng chọn companion thay thế." });
+    }
+
+    if (resolution === "reassign" && nextCompanionId === toIdString(booking.companionId)) {
+      return res.status(400).json({ message: "Companion thay thế phải khác companion hiện tại." });
+    }
+
+    const lockIds = resolution === "reassign"
+      ? [toIdString(booking.companionId), nextCompanionId]
+      : [toIdString(booking.companionId)];
+    for (const lockId of [...new Set(lockIds.filter(Boolean))].sort()) {
+      bookingLocks.push(await acquireCompanionBookingLock(lockId));
+    }
+
+    let reassignedCompanion = null;
+    if (resolution === "reassign") {
+      reassignedCompanion = await User.findById(nextCompanionId).select("name email phone isActive isEmailVerified");
+      if (!reassignedCompanion?.isActive || !reassignedCompanion?.isEmailVerified) {
+        return res.status(409).json({ message: "Companion thay thế hiện không sẵn sàng nhận ca." });
+      }
+
+      const companionProfile = await CompanionProfile.findOne({
+        userId: nextCompanionId,
+        vettingStatus: "approved",
+      }).select("phoneVerifiedAt workingShift workingDays unavailableDates acceptingBookings");
+
+      if (!companionProfile?.phoneVerifiedAt) {
+        return res.status(409).json({ message: "Companion thay thế cần xác minh số điện thoại trước khi nhận ca." });
+      }
+
+      if (!isCompanionScheduleAvailable(companionProfile, booking.startTime, booking.durationHours)) {
+        return res.status(409).json({ message: "Booking này nằm ngoài lịch khả dụng hiện tại của companion thay thế." });
+      }
+
+      const conflictingBooking = await findCompanionTimeConflict({
+        companionId: nextCompanionId,
+        startTime: booking.startTime,
+        durationHours: booking.durationHours,
+        statuses: CONFIRMED_BOOKING_STATUSES,
+      });
+
+      if (conflictingBooking) {
+        return res.status(409).json({ message: "Companion thay thế đang có ca khác trùng thời gian." });
+      }
+    }
+
+    const incidentStatus =
+      resolution === "resume"
+        ? "resolved"
+        : resolution === "reassign"
+          ? "reassigned"
+          : "cancelled";
+    const bookingUpdates = {
+      "incident.status": incidentStatus,
+      "incident.resolution": resolution,
+      "incident.resolvedAt": new Date(),
+      "incident.resolvedBy": req.user.userId,
+      "incident.adminNote": adminNote,
+    };
+
+    if (resolution === "cancel") {
+      bookingUpdates.status = "cancelled";
+    }
+
+    if (resolution === "reassign") {
+      bookingUpdates.status = "pending";
+      bookingUpdates.companionId = nextCompanionId;
+      bookingUpdates["incident.previousCompanionId"] = booking.companionId;
+      bookingUpdates.offerExpiresAt = null;
+    }
+
+    const updatedBooking = await Booking.findOneAndUpdate(
+      {
+        _id: booking._id,
+        companionId: booking.companionId,
+        status: booking.status,
+        "incident.status": "reported",
+      },
+      { $set: bookingUpdates },
+      { new: true, runValidators: true },
+    ).populate(populateBooking);
+
+    if (!updatedBooking) {
+      return res.status(409).json({ message: "Booking đã thay đổi trạng thái. Vui lòng tải lại và thử lại." });
+    }
+
+    if (resolution === "reassign") {
+      await ShiftLog.deleteOne({ bookingId: booking._id });
+    }
+
+    emitBookingChatState(updatedBooking);
+
+    const previousCompanionId = toIdString(booking.companionId);
+    const customerId = toIdString(updatedBooking.customerId);
+    const nextAssignedCompanionId = toIdString(updatedBooking.companionId);
+
+    if (resolution === "resume") {
+      await Promise.all([
+        createIncidentResolutionNotification({
+          recipientId: customerId,
+          recipientRole: "customer",
+          booking: updatedBooking,
+          resolution,
+          message: "CareGo đã xác nhận companion có thể tiếp tục booking này.",
+        }),
+        createIncidentResolutionNotification({
+          recipientId: previousCompanionId,
+          recipientRole: "companion",
+          booking: updatedBooking,
+          resolution,
+          message: "Admin đã xác nhận bạn có thể tiếp tục booking này.",
+        }),
+      ]);
+    }
+
+    if (resolution === "cancel") {
+      await Promise.all([
+        createIncidentResolutionNotification({
+          recipientId: customerId,
+          recipientRole: "customer",
+          booking: updatedBooking,
+          resolution,
+          message: "CareGo đã hủy booking sau khi xử lý sự cố. Bộ phận hỗ trợ sẽ liên hệ nếu cần thêm phương án khác.",
+        }),
+        createIncidentResolutionNotification({
+          recipientId: previousCompanionId,
+          recipientRole: "companion",
+          booking: updatedBooking,
+          resolution,
+          message: "Admin đã hủy booking này sau khi tiếp nhận báo sự cố của bạn.",
+        }),
+      ]);
+    }
+
+    if (resolution === "reassign") {
+      await Promise.all([
+        createIncidentResolutionNotification({
+          recipientId: customerId,
+          recipientRole: "customer",
+          booking: updatedBooking,
+          resolution,
+          message: "CareGo đang đổi companion cho booking này. Booking đã quay về trạng thái chờ xác nhận từ companion thay thế.",
+        }),
+        createIncidentResolutionNotification({
+          recipientId: previousCompanionId,
+          recipientRole: "companion",
+          booking: updatedBooking,
+          resolution,
+          message: "Admin đã tiếp nhận báo sự cố và chuyển booking này sang companion khác.",
+          link: "/companion/bookings",
+        }),
+        createCompanionReassignmentNotification({
+          recipientId: nextAssignedCompanionId,
+          booking: updatedBooking,
+        }),
+      ]);
+    }
+
+    return res.status(200).json({
+      message: "Đã cập nhật phương án xử lý sự cố.",
+      booking: updatedBooking,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+      error: error.message,
+    });
+  } finally {
+    await Promise.all(bookingLocks.map((lock) => releaseCompanionBookingLock(lock)));
   }
 };
 

@@ -20,12 +20,17 @@ import {
 import {
   findActiveBookingOutsideWorkingShift,
   getBookingEndTime,
+  isCompanionScheduleAvailable,
   isTimeOverlapped,
   isWithinCompanionWorkingShift,
+  normalizeUnavailableDates,
+  normalizeWorkingDays,
   normalizeWorkingShift,
   parseBookingAvailabilityWindow,
   parseInstantBookingAvailabilityWindow,
 } from "../utils/companion-availability.js";
+import { decryptSensitiveValue, encryptSensitiveValue } from "../utils/field-encryption.js";
+import { buildCloudinaryAuthenticatedUrl } from "../utils/private-media.js";
 
 const PHONE_OTP_EXPIRES_IN_MS = 10 * 60 * 1000;
 const TEMPORARY_PASSWORD_EXPIRES_IN_MS = 24 * 60 * 60 * 1000;
@@ -37,7 +42,7 @@ const COMPANION_VETTING_STATUS_TRANSITIONS = {
   pending: ["approved", "rejected"],
   approved: ["suspended"],
   suspended: ["approved"],
-  rejected: [],
+  rejected: ["pending"],
 };
 const REAPPROVAL_PROFILE_STATUSES = ["approved", "rejected"];
 const REAPPROVAL_TEXT_FIELDS = ["fullName", "university", "major", "qualificationDescription"];
@@ -208,9 +213,21 @@ const findCompanionWorkingShiftConflict = async ({ companionId, workingShift, no
   return findActiveBookingOutsideWorkingShift(confirmedBookings, workingShift, now);
 };
 
+const findCompanionScheduleConflict = async ({ companionId, profile, now = new Date() }) => {
+  if (!companionId) return undefined;
+  const confirmedBookings = await Booking.find({
+    companionId,
+    status: { $in: CONFIRMED_BOOKING_STATUSES },
+    startTime: { $gte: now },
+  }).select("startTime durationHours status").lean();
+  return confirmedBookings.find(
+    (booking) => !isCompanionScheduleAvailable(profile, booking.startTime, booking.durationHours),
+  );
+};
+
 const getCompanionProfileForAuth = async (userId) =>
   CompanionProfile.findOne({ userId }).select(
-    "vettingStatus fullName phone phoneVerifiedAt workingShift applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas ratingAverage ratingCount completedBookings",
+    "vettingStatus fullName phone phoneVerifiedAt workingShift workingDays unavailableDates acceptingBookings applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas ratingAverage ratingCount completedBookings",
   );
 
 const normalizeRejectionReason = (value) => String(value || "").trim();
@@ -265,6 +282,30 @@ const normalizeCompanionDocuments = (documents = {}) => ({
   backgroundCheckUrl: String(documents?.backgroundCheckUrl || "").trim(),
 });
 
+const decryptCompanionDocuments = (documents = {}) =>
+  Object.fromEntries(
+    Object.entries(normalizeCompanionDocuments(documents)).map(([field, value]) => [
+      field,
+      decryptSensitiveValue(value),
+    ]),
+  );
+
+const encryptCompanionDocuments = (documents = {}) =>
+  Object.fromEntries(
+    Object.entries(normalizeCompanionDocuments(documents)).map(([field, value]) => [
+      field,
+      encryptSensitiveValue(value),
+    ]),
+  );
+
+const presentCompanionDocuments = (documents = {}) =>
+  Object.fromEntries(
+    Object.entries(decryptCompanionDocuments(documents)).map(([field, value]) => [
+      field,
+      buildCloudinaryAuthenticatedUrl(value),
+    ]),
+  );
+
 const isValidImageDataUrl = (value) => {
   const match = /^data:image\/(?:jpeg|jpg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/i.exec(value);
   if (!match) return false;
@@ -305,13 +346,14 @@ const isValidCompanionDocumentImage = (value) => {
   const trimmedValue = String(value || "").trim();
   if (!trimmedValue) return false;
 
-  return isValidImageDataUrl(trimmedValue) || isTrustedCloudinaryImageUrl(trimmedValue);
+  return isValidImageDataUrl(trimmedValue) || isTrustedCloudinaryImageUrl(trimmedValue) || trimmedValue.startsWith("cloudinary-auth:");
 };
 
 const getMissingApprovalDocuments = (documents = {}, applicantType = "") =>
-  getRequiredCompanionDocumentFields(applicantType).filter(
-    (field) => !isValidCompanionDocumentImage(documents?.[field]),
-  );
+  getRequiredCompanionDocumentFields(applicantType).filter((field) => {
+    const decryptedDocuments = decryptCompanionDocuments(documents);
+    return !isValidCompanionDocumentImage(decryptedDocuments?.[field]);
+  });
 
 const buildApprovalDocumentError = (fields) => ({
   message: "Cần có đầy đủ ảnh CCCD và giấy tờ chứng minh phù hợp với nhóm ứng viên để duyệt hồ sơ.",
@@ -341,13 +383,14 @@ export const getCompanions = async (req, res) => {
     const companionFilter = {
       vettingStatus: "approved",
       phoneVerifiedAt: { $ne: null },
+      acceptingBookings: { $ne: false },
     };
     if (req.user?.role === "customer") {
       companionFilter.applicantCustomerId = { $ne: getRequestUserId(req) };
     }
 
     const companions = await CompanionProfile.find(companionFilter)
-      .select("userId fullName gender applicantType university major graduationYear yearsOfExperience qualificationDescription skills workingShift serviceAreas ratingAverage ratingCount completedBookings")
+      .select("userId fullName gender applicantType university major graduationYear yearsOfExperience qualificationDescription skills workingShift workingDays unavailableDates acceptingBookings serviceAreas ratingAverage ratingCount completedBookings")
       .populate({
         path: "userId",
         select: "name avatar isActive",
@@ -365,8 +408,8 @@ export const getCompanions = async (req, res) => {
       const companionId = String(companion.userId._id || companion.userId);
       return (
         (bookingMode !== "instant" || onlineStatuses[companionId]?.isOnline) &&
-        isWithinCompanionWorkingShift(
-          companion.workingShift,
+        isCompanionScheduleAvailable(
+          companion,
           availabilityWindow.start,
           availabilityWindow.durationHours,
         )
@@ -403,7 +446,7 @@ export const getCompanionById = async (req, res) => {
       _id: req.params.id,
       vettingStatus: "approved",
       phoneVerifiedAt: { $ne: null },
-    }).select("+applicantCustomerId userId fullName gender applicantType university major graduationYear yearsOfExperience qualificationDescription skills workingShift serviceAreas ratingAverage ratingCount completedBookings").populate({
+    }).select("+applicantCustomerId userId fullName gender applicantType university major graduationYear yearsOfExperience qualificationDescription skills workingShift workingDays unavailableDates acceptingBookings serviceAreas ratingAverage ratingCount completedBookings").populate({
       path: "userId",
       select: "name avatar isActive",
       match: { role: "companion", isActive: true, isEmailVerified: true },
@@ -617,7 +660,7 @@ export const applyForCompanion = async (req, res) => {
       yearsOfExperience: normalizeYearsOfExperience(yearsOfExperience),
       qualificationDescription: String(qualificationDescription || "").trim(),
       skills: normalizedSkills,
-      documents: normalizedDocuments,
+      documents: encryptCompanionDocuments(normalizedDocuments),
       serviceAreas: normalizedServiceAreas,
       workingShift: normalizeWorkingShift(workingShift),
       vettingStatus: "pending",
@@ -647,6 +690,82 @@ export const applyForCompanion = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+  }
+};
+
+export const resubmitCompanionApplication = async (req, res) => {
+  try {
+    const userId = getRequestUserId(req);
+    const profile = await CompanionProfile.findOne({ applicantCustomerId: userId }).select("+applicantCustomerId");
+    if (!profile) {
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ người đồng hành." });
+    }
+    if (profile.userId || profile.vettingStatus !== "rejected") {
+      return res.status(409).json({ message: "Chỉ hồ sơ đã bị từ chối mới có thể cập nhật và gửi duyệt lại." });
+    }
+
+    const normalizedApplicantType = normalizeCompanionApplicantType(req.body.applicantType);
+    const normalizedSkills = normalizeTextList(req.body.skills);
+    const normalizedServiceAreas = normalizeTextList(req.body.serviceAreas);
+    const cleanFullName = String(req.body.fullName || req.body.name || "").trim();
+    const cleanPhone = String(req.body.phone || "").trim();
+    const profileError = getCompanionApplicationProfileError({
+      applicantType: normalizedApplicantType,
+      dateOfBirth: req.body.dateOfBirth,
+      university: req.body.university,
+      major: req.body.major,
+      graduationYear: req.body.graduationYear,
+      yearsOfExperience: req.body.yearsOfExperience,
+      qualificationDescription: req.body.qualificationDescription,
+    });
+    if (profileError) return res.status(400).json({ message: profileError });
+    if (!cleanFullName || !cleanPhone || normalizedSkills.length === 0 || normalizedServiceAreas.length === 0) {
+      return res.status(400).json({ message: "Vui lòng nhập đầy đủ họ tên, số điện thoại, kỹ năng và khu vực hoạt động." });
+    }
+
+    const normalizedDocuments = normalizeCompanionDocuments(req.body.documents);
+    const missingDocuments = getMissingApprovalDocuments(normalizedDocuments, normalizedApplicantType);
+    if (missingDocuments.length > 0) {
+      return res.status(400).json(buildApprovalDocumentError(missingDocuments));
+    }
+
+    profile.set({
+      fullName: cleanFullName,
+      phone: cleanPhone,
+      gender: req.body.gender,
+      dateOfBirth: req.body.dateOfBirth,
+      applicantType: normalizedApplicantType,
+      university: String(req.body.university || "").trim(),
+      major: String(req.body.major || "").trim(),
+      graduationYear: normalizeGraduationYear(req.body.graduationYear),
+      yearsOfExperience: normalizeYearsOfExperience(req.body.yearsOfExperience),
+      qualificationDescription: String(req.body.qualificationDescription || "").trim(),
+      skills: normalizedSkills,
+      documents: encryptCompanionDocuments(normalizedDocuments),
+      serviceAreas: normalizedServiceAreas,
+      workingShift: normalizeWorkingShift(req.body.workingShift),
+      vettingStatus: "pending",
+      reviewedBy: null,
+      reviewedAt: null,
+      rejectionReason: "",
+    });
+    await profile.save();
+
+    const currentUser = await User.findById(userId).select("-password -refreshToken -__v");
+    const companionApplication = profile.toObject();
+    delete companionApplication.applicantCustomerId;
+    delete companionApplication.documents;
+    emitAdminCompanionReapprovalAlert(profile, currentUser);
+    return res.status(200).json({
+      message: "Hồ sơ đã được cập nhật và gửi duyệt lại.",
+      user: currentUser,
+      companionApplication,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+      error: error.message,
+    });
   }
 };
 
@@ -731,7 +850,7 @@ export const adminCreateCompanion = async (req, res) => {
       yearsOfExperience: normalizeYearsOfExperience(yearsOfExperience),
       qualificationDescription: String(qualificationDescription || "").trim(),
       skills: normalizedSkills,
-      documents: normalizedDocuments,
+      documents: encryptCompanionDocuments(normalizedDocuments),
       serviceAreas: normalizedServiceAreas,
       workingShift: normalizeWorkingShift(workingShift),
       vettingStatus: hasApprovalDocuments ? "approved" : "pending",
@@ -767,7 +886,13 @@ export const adminGetCompanions = async (req, res) => {
       .populate("reviewedBy", "name email")
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({ companions });
+    const companionPayloads = companions.map((companion) => {
+      const payload = companion.toObject();
+      payload.documents = presentCompanionDocuments(payload.documents);
+      return payload;
+    });
+
+    return res.status(200).json({ companions: companionPayloads });
   } catch (error) {
     return res
       .status(500)
@@ -789,6 +914,9 @@ export const updateMyCompanionProfile = async (req, res) => {
       skills,
       serviceAreas,
       workingShift,
+      workingDays,
+      unavailableDates,
+      acceptingBookings,
     } = req.body;
 
     const profileUpdates = {};
@@ -804,6 +932,21 @@ export const updateMyCompanionProfile = async (req, res) => {
     }
     if (workingShift !== undefined) {
       profileUpdates.workingShift = normalizeWorkingShift(workingShift);
+    }
+    if (workingDays !== undefined) {
+      profileUpdates.workingDays = normalizeWorkingDays(workingDays);
+      if (profileUpdates.workingDays.length === 0) {
+        return res.status(400).json({ message: "Vui lòng chọn ít nhất một ngày làm việc trong tuần." });
+      }
+    }
+    if (unavailableDates !== undefined) {
+      profileUpdates.unavailableDates = normalizeUnavailableDates(unavailableDates);
+    }
+    if (acceptingBookings !== undefined) {
+      if (typeof acceptingBookings !== "boolean") {
+        return res.status(400).json({ message: "Trạng thái nhận booking không hợp lệ." });
+      }
+      profileUpdates.acceptingBookings = acceptingBookings;
     }
     if (university !== undefined) {
       profileUpdates.university = String(university).trim();
@@ -828,7 +971,7 @@ export const updateMyCompanionProfile = async (req, res) => {
     }
 
     const currentProfile = await CompanionProfile.findOne({ userId })
-      .select("vettingStatus fullName phone applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas workingShift")
+      .select("vettingStatus fullName phone applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas workingShift workingDays unavailableDates acceptingBookings")
       .lean();
 
     if (!currentProfile) {
@@ -852,6 +995,18 @@ export const updateMyCompanionProfile = async (req, res) => {
     }
 
     const mergedProfile = { ...currentProfile, ...profileUpdates };
+    if (["workingShift", "workingDays", "unavailableDates"].some((field) => Object.hasOwn(profileUpdates, field))) {
+      const scheduleConflict = await findCompanionScheduleConflict({
+        companionId: userId,
+        profile: mergedProfile,
+      });
+      if (scheduleConflict) {
+        return res.status(409).json({
+          message: "Không thể cập nhật lịch khả dụng vì có booking đã nhận bị nằm ngoài lịch mới.",
+          bookingId: scheduleConflict._id,
+        });
+      }
+    }
     if (currentProfile.applicantType) {
       const profileError = getCompanionApplicationProfileError(mergedProfile);
       if (profileError) {
@@ -880,7 +1035,7 @@ export const updateMyCompanionProfile = async (req, res) => {
       profileUpdates,
       { new: true, runValidators: true },
     ).select(
-      "vettingStatus fullName phone phoneVerifiedAt workingShift applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas ratingAverage ratingCount completedBookings",
+      "vettingStatus fullName phone phoneVerifiedAt workingShift workingDays unavailableDates acceptingBookings applicantType dateOfBirth university major graduationYear yearsOfExperience qualificationDescription skills serviceAreas ratingAverage ratingCount completedBookings",
     );
 
     if (!profile) {
@@ -1138,11 +1293,11 @@ export const adminUpdateCompanion = async (req, res) => {
     }
 
     const mergedDocuments = normalizeCompanionDocuments({
-      ...(currentProfile.documents || {}),
+      ...decryptCompanionDocuments(currentProfile.documents || {}),
       ...(updates.documents || {}),
     });
     if (updates.documents !== undefined) {
-      updates.documents = mergedDocuments;
+      updates.documents = encryptCompanionDocuments(mergedDocuments);
     }
 
     if (nextVettingStatus === "approved") {

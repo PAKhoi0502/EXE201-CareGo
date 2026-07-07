@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import CareGoLogo from "../CareGoLogo.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/useAuth.js";
 import NotificationBell from "../notifications/NotificationBell.jsx";
 import LandingButton from "./LandingButton.jsx";
 import { hasCustomerAccess, isApprovedCompanion } from "../../utils/authNavigation.js";

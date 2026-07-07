@@ -2,6 +2,7 @@ import express from "express";
 import {
   createWithdrawalRequest,
   getAdminWithdrawalRequests,
+  getMyEarnings,
   getMyWithdrawalSummary,
   updateWithdrawalStatus,
 } from "../controller/withdrawal.controller.js";
@@ -12,6 +13,7 @@ import { allowRoles } from "../middlleware/role.middleware.js";
 const router = express.Router();
 
 router.get("/my", verifyToken, allowRoles("companion"), requireApprovedCompanion, getMyWithdrawalSummary);
+router.get("/earnings", verifyToken, allowRoles("companion"), requireApprovedCompanion, getMyEarnings);
 router.post("/", verifyToken, allowRoles("companion"), requireApprovedCompanion, createWithdrawalRequest);
 router.get("/admin", verifyToken, allowRoles("admin"), getAdminWithdrawalRequests);
 router.patch("/admin/:id/status", verifyToken, allowRoles("admin"), updateWithdrawalStatus);

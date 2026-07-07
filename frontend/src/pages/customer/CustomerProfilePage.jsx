@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { api, uploadImage } from "../../api/client.js";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/useAuth.js";
 import { Button, Card, Input, PageHeader } from "../../components/Ui.jsx";
 import { dateTime } from "../../utils/format.js";
 

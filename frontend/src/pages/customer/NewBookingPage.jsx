@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { api } from "../../api/client.js";
 import AddressSearchMap from "../../components/AddressSearchMap.jsx";
 import { Button, Select, Textarea } from "../../components/Ui.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/useAuth.js";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
 import { getCompanionApplicantType } from "../../utils/companionApplication.js";

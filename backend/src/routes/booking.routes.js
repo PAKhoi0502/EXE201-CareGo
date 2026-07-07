@@ -7,6 +7,8 @@ import {
   getBookingById,
   getMyBookings,
   payBooking,
+  reportBookingIncident,
+  resolveBookingIncident,
   updateBookingStatus,
   updateShiftLog,
 } from "../controller/booking.controller.js";
@@ -27,6 +29,13 @@ router.patch(
   requireApprovedCompanion,
   updateBookingStatus,
 );
+router.post(
+  "/:id/incident",
+  allowRoles("companion"),
+  requireApprovedCompanion,
+  reportBookingIncident,
+);
+router.patch("/:id/incident/resolve", allowRoles("admin"), resolveBookingIncident);
 router.patch("/:id/cancel", allowRoles("customer", "admin"), cancelBooking);
 router.post(
   "/:id/location",

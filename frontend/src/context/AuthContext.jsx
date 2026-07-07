@@ -1,9 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, setToken } from "../api/client.js";
+import AuthContext from "./auth-context.js";
 import { connectLocationSocket, locationSocket } from "../socket/locationSocket.js";
 import { isApprovedCompanion } from "../utils/authNavigation.js";
-
-const AuthContext = createContext(null);
 
 const normalizeUser = (data) => {
   if (!data?.user) {
@@ -48,16 +47,25 @@ export const AuthProvider = ({ children }) => {
     return normalizeUser(data);
   };
 
-  const registerCustomer = async (payload) => {
-    return api.post("/auth/signup", payload);
-  };
+  const registerCustomer = async (payload) => api.post("/auth/signup", payload);
 
   const registerCompanion = useCallback(async (payload) => {
     if (!user) {
-      throw new Error("Vui lòng đăng nhập bằng tài khoản customer trước khi đăng ký companion.");
+      throw new Error("Vui lÃ²ng Ä‘Äƒng nháº­p báº±ng tÃ i khoáº£n customer trÆ°á»›c khi Ä‘Äƒng kÃ½ companion.");
     }
 
     const data = await api.post("/companions/me/apply", payload);
+    const nextUser = normalizeUser(data);
+    setUser(nextUser);
+    return nextUser;
+  }, [user]);
+
+  const resubmitCompanionApplication = useCallback(async (payload) => {
+    if (!user) {
+      throw new Error("Vui lÃ²ng Ä‘Äƒng nháº­p báº±ng tÃ i khoáº£n customer trÆ°á»›c khi gá»­i láº¡i há»“ sÆ¡.");
+    }
+
+    const data = await api.patch("/companions/me/application", payload);
     const nextUser = normalizeUser(data);
     setUser(nextUser);
     return nextUser;
@@ -77,9 +85,8 @@ export const AuthProvider = ({ children }) => {
     return nextUser;
   };
 
-  const requestCompanionPhoneOtp = async (phone) => {
-    return api.post("/companions/me/phone-otp/request", { phone });
-  };
+  const requestCompanionPhoneOtp = async (phone) =>
+    api.post("/companions/me/phone-otp/request", { phone });
 
   const verifyCompanionPhoneOtp = async (otp) => {
     const data = await api.post("/companions/me/phone-otp/verify", { otp });
@@ -95,13 +102,8 @@ export const AuthProvider = ({ children }) => {
     return nextUser;
   }, []);
 
-  const verifyEmail = async (payload) => {
-    return api.post("/auth/verify-email", payload);
-  };
-
-  const resendOtp = async (email) => {
-    return api.post("/auth/resend-otp", { email });
-  };
+  const verifyEmail = async (payload) => api.post("/auth/verify-email", payload);
+  const resendOtp = async (email) => api.post("/auth/resend-otp", { email });
 
   const clearClientSession = useCallback(() => {
     if (userId) {
@@ -121,8 +123,10 @@ export const AuthProvider = ({ children }) => {
     try {
       await api.post("/auth/logout", {});
     } catch {
-      // Local session is already cleared, so a network/server logout failure should not block the user.
+      return null;
     }
+
+    return null;
   }, [clearClientSession]);
 
   useEffect(() => {
@@ -163,6 +167,7 @@ export const AuthProvider = ({ children }) => {
       login,
       registerCustomer,
       registerCompanion,
+      resubmitCompanionApplication,
       updateProfile,
       updateCompanionProfile,
       requestCompanionPhoneOtp,
@@ -172,11 +177,8 @@ export const AuthProvider = ({ children }) => {
       resendOtp,
       logout,
     }),
-    [user, loading, logout, registerCompanion, changeInitialPassword],
+    [user, loading, logout, registerCompanion, resubmitCompanionApplication, changeInitialPassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthContext);

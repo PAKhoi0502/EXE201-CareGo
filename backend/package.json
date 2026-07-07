@@ -13,6 +13,7 @@
     "seed:admin": "node src/scripts/seed-admin.js",
     "seed:blogs": "node src/scripts/seed-blogs.js",
     "seed:customers": "node src/scripts/seed-customers.js --yes",
+    "seed:bookings": "node src/scripts/seed-bookings.js --yes",
     "seed:demo": "node src/scripts/seed-demo.js --yes",
     "seed:reset:demo": "node src/scripts/reset-demo.js"
   },
