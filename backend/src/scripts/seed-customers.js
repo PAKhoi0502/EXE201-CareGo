@@ -3,6 +3,8 @@ import dns from "dns";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { pathToFileURL } from "url";
+import Booking from "../models/booking.models.js";
+import ElderProfile from "../models/elder-profile.models.js";
 import User from "../models/user.models.js";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
@@ -32,24 +34,71 @@ export const customersSeed = [
   { name: "Bùi Anh Khoa", email: "anhkhoa@gmail.com", phone: "0932648175" },
   { name: "Đỗ Ngọc Diệp", email: "ngocdiep@gmail.com", phone: "0947152836" },
   { name: "Hồ Minh Trí", email: "minhtri@gmail.com", phone: "0965827413" },
-  { name: "Ngô Thảo Nhi", email: "thaonhi@gmail.com", phone: "0978136254" },
-  { name: "Dương Quốc Việt", email: "quocviet@gmail.com", phone: "0982475613" },
-  { name: "Lý Thanh Hà", email: "thanhha@gmail.com", phone: "0915382746" },
-  { name: "Nguyễn Tuấn Kiệt", email: "tuankiet@gmail.com", phone: "0906248157" },
-  { name: "Trần Ngọc Hân", email: "ngochan@gmail.com", phone: "0937524618" },
-  { name: "Lê Đức Thịnh", email: "ducthinh@gmail.com", phone: "0943861725" },
-  { name: "Phạm Quỳnh Như", email: "quynhnhu@gmail.com", phone: "0962715384" },
-  { name: "Võ Minh Nhật", email: "minhnhat@gmail.com", phone: "0976382145" },
-  { name: "Đặng Hoài An", email: "hoaian@gmail.com", phone: "0984517263" },
-  { name: "Bùi Phương Thảo", email: "phuongthao@gmail.com", phone: "0912738465" },
-  { name: "Đỗ Quốc Trung", email: "quoctrung@gmail.com", phone: "0908153726" },
-  { name: "Hồ Ngọc Ánh", email: "ngocanh@gmail.com", phone: "0934267185" },
-  { name: "Ngô Gia Huy", email: "giahuy@gmail.com", phone: "0947632518" },
-  { name: "Dương Thu Trang", email: "thutrang@gmail.com", phone: "0961548273" },
 ];
+
+const obsoleteCustomersSeed = [
+  { email: "thaonhi@gmail.com", sequence: "22" },
+  { email: "quocviet@gmail.com", sequence: "23" },
+  { email: "thanhha@gmail.com", sequence: "24" },
+  { email: "tuankiet@gmail.com", sequence: "25" },
+  { email: "ngochan@gmail.com", sequence: "26" },
+  { email: "ducthinh@gmail.com", sequence: "27" },
+  { email: "quynhnhu@gmail.com", sequence: "28" },
+  { email: "minhnhat@gmail.com", sequence: "29" },
+  { email: "hoaian@gmail.com", sequence: "30" },
+  { email: "phuongthao@gmail.com", sequence: "31" },
+  { email: "quoctrung@gmail.com", sequence: "32" },
+  { email: "ngocanh@gmail.com", sequence: "33" },
+  { email: "giahuy@gmail.com", sequence: "34" },
+  { email: "thutrang@gmail.com", sequence: "35" },
+];
+
+const buildCustomerEmailCandidates = ({ email, sequence }) => {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const localPart = normalizedEmail.split("@")[0];
+  return [
+    normalizedEmail,
+    `${localPart}.carego${sequence}@gmail.com`,
+    `customer${sequence}@carego.test`,
+  ];
+};
+
+export const cleanupObsoleteCustomerUsers = async () => {
+  const cleanup = {
+    deletedCount: 0,
+    skipped: [],
+  };
+
+  for (const obsoleteCustomer of obsoleteCustomersSeed) {
+    const emailCandidates = buildCustomerEmailCandidates(obsoleteCustomer);
+    const users = await User.find({ role: "customer", email: { $in: emailCandidates } }).select("_id email");
+
+    for (const user of users) {
+      const [bookingCount, elderCount] = await Promise.all([
+        Booking.countDocuments({ customerId: user._id }),
+        ElderProfile.countDocuments({ customerId: user._id }),
+      ]);
+
+      if (bookingCount > 0 || elderCount > 0) {
+        cleanup.skipped.push({
+          email: user.email,
+          bookingCount,
+          elderCount,
+        });
+        continue;
+      }
+
+      const result = await User.deleteOne({ _id: user._id, role: "customer" });
+      cleanup.deletedCount += result.deletedCount || 0;
+    }
+  }
+
+  return cleanup;
+};
 
 export const seedCustomerUsers = async () => {
   const hashedPassword = await bcrypt.hash(password, 10);
+  const cleanup = await cleanupObsoleteCustomerUsers();
 
   for (const [index, customer] of customersSeed.entries()) {
     const email = customer.email.trim().toLowerCase();
@@ -83,7 +132,10 @@ export const seedCustomerUsers = async () => {
     );
   }
 
-  return customersSeed.length;
+  return {
+    seededCount: customersSeed.length,
+    cleanup,
+  };
 };
 
 const run = async () => {
@@ -99,10 +151,16 @@ const run = async () => {
     dbName: process.env.MONGODB_DB_NAME || "carego",
   });
 
-  const seededCount = await seedCustomerUsers();
+  const { seededCount, cleanup } = await seedCustomerUsers();
   console.log("Database:", mongoose.connection.name);
   console.log("Customer seed mode: additive upsert");
   console.log("Customers:", seededCount);
+  console.log("Obsolete customers deleted:", cleanup.deletedCount);
+  if (cleanup.skipped.length > 0) {
+    console.log("Obsolete customers skipped:", cleanup.skipped.map((item) =>
+      `${item.email} (${item.bookingCount} bookings, ${item.elderCount} elders)`
+    ).join(", "));
+  }
   console.log("Seed password:", process.env.SEED_PASSWORD ? "from SEED_PASSWORD" : password);
 };
 

@@ -839,6 +839,196 @@ bookingSeed.push(
   }),
 );
 
+const projectWeekBookingSeed = [
+  {
+    seedKey: "demo-booking-week5-01",
+    customerIndex: 0,
+    companionKey: "companionKhoi",
+    serviceCode: "1",
+    date: "2026-06-08",
+    startHour: 8,
+    durationHours: 3,
+    address: "Benh vien Dai hoc Y Duoc TP. HCM",
+    addressLocation: { lat: 10.7553, lng: 106.6636, displayName: "Benh vien Dai hoc Y Duoc TP. HCM" },
+  },
+  {
+    seedKey: "demo-booking-week5-02",
+    customerIndex: 1,
+    companionKey: "companionTuan",
+    serviceCode: "3",
+    date: "2026-06-09",
+    startHour: 14,
+    durationHours: 4,
+    address: "Cong vien ven song, Quan 7, TP. HCM",
+    addressLocation: { lat: 10.7297, lng: 106.7217, displayName: "Cong vien ven song Quan 7" },
+  },
+  {
+    seedKey: "demo-booking-week5-03",
+    customerIndex: 2,
+    companionKey: "companionThanh",
+    serviceCode: "1",
+    date: "2026-06-10",
+    startHour: 9,
+    durationHours: 4,
+    address: "Phong kham CarePlus Quan 7",
+    addressLocation: { lat: 10.7308, lng: 106.7032, displayName: "CarePlus Quan 7" },
+  },
+  {
+    seedKey: "demo-booking-week5-04",
+    customerIndex: 0,
+    companionKey: "companionQuynhTrang",
+    serviceCode: "3",
+    date: "2026-06-11",
+    startHour: 13,
+    durationHours: 3,
+    address: "Cong vien Gia Dinh, Quan Phu Nhuan, TP. HCM",
+    addressLocation: { lat: 10.8133, lng: 106.6717, displayName: "Cong vien Gia Dinh" },
+  },
+  {
+    seedKey: "demo-booking-week5-05",
+    customerIndex: 1,
+    companionKey: "companionLanAnh",
+    serviceCode: "1",
+    date: "2026-06-12",
+    startHour: 7,
+    durationHours: 3,
+    address: "Benh vien FV, Quan 7, TP. HCM",
+    addressLocation: { lat: 10.7326, lng: 106.7198, displayName: "Benh vien FV" },
+  },
+  {
+    seedKey: "demo-booking-week5-06",
+    customerIndex: 2,
+    companionKey: "companionDucManh",
+    serviceCode: "2",
+    date: "2026-06-13",
+    startHour: 8,
+    durationHours: 4,
+    address: "Chung cu Masteri An Phu, TP. Thu Duc, TP. HCM",
+    addressLocation: { lat: 10.8025, lng: 106.7409, displayName: "Masteri An Phu" },
+  },
+  {
+    seedKey: "demo-booking-week5-07",
+    customerIndex: 0,
+    companionKey: "companionPhuongNam",
+    serviceCode: "1",
+    date: "2026-06-14",
+    startHour: 15,
+    durationHours: 3,
+    address: "Benh vien Vinmec Central Park, Binh Thanh, TP. HCM",
+    addressLocation: { lat: 10.7946, lng: 106.7219, displayName: "Vinmec Central Park" },
+  },
+  {
+    seedKey: "demo-booking-week6-01",
+    customerIndex: 1,
+    companionKey: "companionBaoTran",
+    serviceCode: "3",
+    date: "2026-06-15",
+    startHour: 8,
+    durationHours: 4,
+    address: "Crescent Mall, Quan 7, TP. HCM",
+    addressLocation: { lat: 10.7294, lng: 106.7184, displayName: "Crescent Mall" },
+  },
+  {
+    seedKey: "demo-booking-week6-02",
+    customerIndex: 2,
+    companionKey: "companionHaiYen",
+    serviceCode: "1",
+    date: "2026-06-18",
+    startHour: 13,
+    durationHours: 4,
+    address: "Benh vien Cho Ray, Quan 5, TP. HCM",
+    addressLocation: { lat: 10.7569, lng: 106.6608, displayName: "Benh vien Cho Ray" },
+  },
+  {
+    seedKey: "demo-booking-week6-03",
+    customerIndex: 0,
+    companionKey: "companionTuan",
+    serviceCode: "3",
+    date: "2026-06-21",
+    startHour: 14,
+    durationHours: 3,
+    address: "Cong vien Tao Dan, Quan 1, TP. HCM",
+    addressLocation: { lat: 10.7766, lng: 106.6933, displayName: "Cong vien Tao Dan" },
+  },
+  {
+    seedKey: "demo-booking-week7-01",
+    customerIndex: 1,
+    companionKey: "companionKhoi",
+    serviceCode: "1",
+    date: "2026-06-22",
+    startHour: 9,
+    durationHours: 3,
+    address: "Benh vien Mat TP. HCM, Quan 3",
+    addressLocation: { lat: 10.7785, lng: 106.6864, displayName: "Benh vien Mat TP. HCM" },
+  },
+  {
+    seedKey: "demo-booking-week7-02",
+    customerIndex: 2,
+    companionKey: "companionHoangThanh",
+    serviceCode: "3",
+    date: "2026-06-23",
+    startHour: 14,
+    durationHours: 4,
+    address: "Pho di bo Nguyen Hue, Quan 1, TP. HCM",
+    addressLocation: { lat: 10.7743, lng: 106.7041, displayName: "Pho di bo Nguyen Hue" },
+  },
+  {
+    seedKey: "demo-booking-week7-03",
+    customerIndex: 0,
+    companionKey: "companionThanh",
+    serviceCode: "1",
+    date: "2026-06-25",
+    startHour: 8,
+    durationHours: 4,
+    address: "Benh vien Thong Nhat, Quan Tan Binh, TP. HCM",
+    addressLocation: { lat: 10.7913, lng: 106.6537, displayName: "Benh vien Thong Nhat" },
+  },
+  {
+    seedKey: "demo-booking-week7-04",
+    customerIndex: 1,
+    companionKey: "companionQuynhTrang",
+    serviceCode: "3",
+    date: "2026-06-27",
+    startHour: 13,
+    durationHours: 3,
+    address: "Cong vien Le Van Tam, Quan 1, TP. HCM",
+    addressLocation: { lat: 10.7873, lng: 106.6947, displayName: "Cong vien Le Van Tam" },
+  },
+  {
+    seedKey: "demo-booking-week7-05",
+    customerIndex: 2,
+    companionKey: "companionPhuongNam",
+    serviceCode: "1",
+    date: "2026-06-28",
+    startHour: 15,
+    durationHours: 3,
+    address: "Benh vien Gia Dinh, Binh Thanh, TP. HCM",
+    addressLocation: { lat: 10.8036, lng: 106.6944, displayName: "Benh vien Gia Dinh" },
+  },
+];
+
+bookingSeed.splice(
+  0,
+  bookingSeed.length,
+  ...projectWeekBookingSeed.map((item, index) => {
+    const customer = paidBookingCustomers[item.customerIndex % paidBookingCustomers.length];
+    return {
+      seedKey: item.seedKey,
+      ...customer,
+      companionKey: item.companionKey,
+      serviceCode: item.serviceCode,
+      date: item.date,
+      startHour: item.startHour,
+      durationHours: item.durationHours,
+      address: item.address,
+      addressLocation: item.addressLocation,
+      note: `Paid demo booking ${item.seedKey}`,
+      status: "paid",
+      review: paidBookingReviews[index % paidBookingReviews.length],
+    };
+  }),
+);
+
 const upsertServices = async () => {
   const services = {};
 
@@ -1057,16 +1247,40 @@ const upsertPayment = async ({ booking, status }) => {
   );
 };
 
+const pruneObsoleteDemoBookings = async () => {
+  const seedKeys = bookingSeed.map((item) => item.seedKey);
+  const obsoleteBookings = await Booking.find({
+    seedKey: { $regex: /^demo-booking-/, $nin: seedKeys },
+  }).select("_id");
+  const obsoleteIds = obsoleteBookings.map((booking) => booking._id);
+
+  if (!obsoleteIds.length) return;
+
+  await Promise.all([
+    ShiftLog.deleteMany({ bookingId: { $in: obsoleteIds } }),
+    Payment.deleteMany({ bookingId: { $in: obsoleteIds } }),
+    Review.deleteMany({ bookingId: { $in: obsoleteIds } }),
+  ]);
+  await Booking.deleteMany({ _id: { $in: obsoleteIds } });
+};
+
 const seedBookings = async ({ users, elders, services }) => {
   const now = new Date();
   const bookings = [];
 
-  const atLocalHour = (dayOffset, hour) => {
+  const atLocalHour = ({ date, dayOffset, hour }) => {
+    if (date) {
+      const [year, month, day] = String(date).split("-").map(Number);
+      return new Date(year, month - 1, day, hour, 0, 0, 0);
+    }
+
     const value = new Date(now);
     value.setHours(hour, 0, 0, 0);
     value.setDate(value.getDate() + dayOffset);
     return value;
   };
+
+  await pruneObsoleteDemoBookings();
 
   for (const item of bookingSeed) {
     const customerId = users[item.customerKey]._id;
@@ -1075,10 +1289,16 @@ const seedBookings = async ({ users, elders, services }) => {
     const service = services[item.serviceCode];
     const serviceId = service._id;
     const totalAmount = service.pricePerHour * item.durationHours;
-    const startTime = atLocalHour(item.dayOffset, item.startHour);
-    const completedAt = Number.isInteger(item.completedDayOffset) && Number.isInteger(item.completedHour)
-      ? atLocalHour(item.completedDayOffset, item.completedHour)
-      : null;
+    const startTime = atLocalHour({ date: item.date, dayOffset: item.dayOffset, hour: item.startHour });
+    const completedAt = Number.isInteger(item.completedHour)
+      ? atLocalHour({
+          date: item.completedDate || item.date,
+          dayOffset: Number.isInteger(item.completedDayOffset) ? item.completedDayOffset : item.dayOffset,
+          hour: item.completedHour,
+        })
+      : ["completed", "paid"].includes(item.status)
+        ? new Date(startTime.getTime() + item.durationHours * 60 * 60 * 1000)
+        : null;
     const availabilityWindow = parseBookingAvailabilityWindow({
       startTime,
       durationHours: item.durationHours,
@@ -1227,7 +1447,8 @@ export const seedBookingData = async () => {
 export const seedDemoData = async () => {
   const services = await upsertServices();
   const users = await seedUsers();
-  const customerCount = await seedCustomerUsers();
+  const customerSeedResult = await seedCustomerUsers();
+  const customerCount = customerSeedResult.seededCount;
   await seedCompanionProfiles(users);
   const elders = await seedElderProfiles(users);
   const bookings = await seedBookings({ users, elders, services });
@@ -1240,10 +1461,16 @@ export const seedDemoData = async () => {
   console.log("Accounts:", usersSeed.map((user) => `${user.role}:${user.email}`).join(", "));
   console.log("Services:", Object.keys(services).length);
   console.log("Additional customers:", customerCount);
+  console.log("Obsolete customers deleted:", customerSeedResult.cleanup.deletedCount);
+  if (customerSeedResult.cleanup.skipped.length > 0) {
+    console.log("Obsolete customers skipped:", customerSeedResult.cleanup.skipped.map((item) =>
+      `${item.email} (${item.bookingCount} bookings, ${item.elderCount} elders)`
+    ).join(", "));
+  }
   console.log("Bookings:", bookings.length);
   console.log("Companion reviews:", Object.values(companionStats).reduce((total, item) => total + item.ratingCount, 0));
 
-  return { services, users, elders, bookings, customerCount, companionStats };
+  return { services, users, elders, bookings, customerCount, customerCleanup: customerSeedResult.cleanup, companionStats };
 };
 
 const run = async () => {
