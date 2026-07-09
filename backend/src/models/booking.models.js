@@ -8,6 +8,16 @@ const BookingSchema = new mongoose.Schema(
       sparse: true,
       select: false,
     },
+    idempotencyKey: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      select: false,
+    },
+    idempotencyFingerprint: {
+      type: String,
+      select: false,
+    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
@@ -147,6 +157,16 @@ const BookingSchema = new mongoose.Schema(
 
 BookingSchema.index({ companionId: 1, startTime: 1, status: 1 });
 BookingSchema.index({ customerId: 1, status: 1, paymentDueAt: 1 });
+BookingSchema.index(
+  { customerId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: "string" } },
+  },
+);
+BookingSchema.index({ createdAt: -1 });
+BookingSchema.index({ status: 1, createdAt: -1 });
+BookingSchema.index({ serviceId: 1, createdAt: -1 });
 
 const Booking = mongoose.model("booking", BookingSchema);
 export default Booking;

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../../api/client.js";
 import { Button, Input } from "../../components/Ui.jsx";
+import { isStrongPassword, PASSWORD_POLICY_HINT, PASSWORD_POLICY_MESSAGE } from "../../utils/passwordPolicy.js";
 import AuthShell from "./AuthShell.jsx";
 
 const ResetPasswordPage = () => {
@@ -19,6 +20,11 @@ const ResetPasswordPage = () => {
 
     if (form.password !== form.confirmPassword) {
       setError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    if (!isStrongPassword(form.password)) {
+      setError(PASSWORD_POLICY_MESSAGE);
       return;
     }
 
@@ -45,17 +51,23 @@ const ResetPasswordPage = () => {
         <Input
           label="Mật khẩu mới"
           type="password"
+          minLength={8}
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
           className="min-h-14 rounded-2xl border-teal-100"
+          placeholder="Nhập mật khẩu mạnh"
+          required
         />
         <Input
           label="Nhập lại mật khẩu"
           type="password"
+          minLength={8}
           value={form.confirmPassword}
           onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
           className="min-h-14 rounded-2xl border-teal-100"
+          required
         />
+        <p className="text-xs font-semibold text-slate-500">{PASSWORD_POLICY_HINT}</p>
         {message ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p> : null}
         {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
         <Button className="min-h-14 rounded-2xl text-base font-black shadow-lg shadow-teal-700/20" disabled={submitting}>

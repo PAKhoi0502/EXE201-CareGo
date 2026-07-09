@@ -20,17 +20,26 @@ import { money } from "../../utils/format.js";
 ChartJS.register(ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip);
 
 const statuses = ["pending", "accepted", "in_progress", "completed", "paid", "cancelled"];
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
 const toDateInputValue = (date) => {
   const value = new Date(date);
-  value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
-  return value.toISOString().slice(0, 10);
+  if (Number.isNaN(value.getTime())) return "";
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: VIETNAM_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 };
 
 const getRecentRange = (days) => {
   const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - (days - 1));
+  const start = new Date(end.getTime() - (days - 1) * MS_PER_DAY);
 
   return {
     from: toDateInputValue(start),
@@ -62,7 +71,13 @@ const getCompanionEarning = (booking) => {
 const getCareGoRevenue = (booking) => getPlatformFee(booking) + getPenaltyAmount(booking);
 const getSummaryNumber = (summary, key) => Number(summary?.[key] || 0);
 
-const formatDateTime = (value) => (value ? new Date(value).toLocaleString("vi-VN") : "");
+const formatDateTime = (value) => value
+  ? new Intl.DateTimeFormat("vi-VN", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: VIETNAM_TIME_ZONE,
+    }).format(new Date(value))
+  : "";
 
 const AdminReportsPage = () => {
   const [dateRange, setDateRange] = useState(() => getRecentRange(30));

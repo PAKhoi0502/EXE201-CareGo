@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router";
 import { Button, Input } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/useAuth.js";
 import { getUserHomePath } from "../../utils/authNavigation.js";
+import { isStrongPassword, PASSWORD_POLICY_HINT, PASSWORD_POLICY_MESSAGE } from "../../utils/passwordPolicy.js";
 import AuthShell from "./AuthShell.jsx";
 
 const InitialPasswordPage = () => {
@@ -37,6 +38,11 @@ const InitialPasswordPage = () => {
       return;
     }
 
+    if (!isStrongPassword(form.newPassword)) {
+      setError(PASSWORD_POLICY_MESSAGE);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const nextUser = await changeInitialPassword(form);
@@ -67,18 +73,23 @@ const InitialPasswordPage = () => {
         <Input
           label="Mật khẩu mới"
           type="password"
+          minLength={8}
           value={form.newPassword}
           onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
           className="min-h-14 rounded-2xl border-teal-100"
-          placeholder="Tối thiểu 8 ký tự, có hoa, thường, số, ký tự đặc biệt"
+          placeholder={PASSWORD_POLICY_HINT}
+          required
         />
         <Input
           label="Nhập lại mật khẩu mới"
           type="password"
+          minLength={8}
           value={form.confirmPassword}
           onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
           className="min-h-14 rounded-2xl border-teal-100"
+          required
         />
+        <p className="text-xs font-semibold text-slate-500">{PASSWORD_POLICY_HINT}</p>
 
         {error ? <p className="rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
 

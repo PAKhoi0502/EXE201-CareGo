@@ -3,8 +3,16 @@ import test, { afterEach } from "node:test";
 import Booking from "../models/booking.models.js";
 import BookingCompanionLock from "../models/booking-companion-lock.models.js";
 import CompanionProfile from "../models/companion-profile.models.js";
+import ElderProfile from "../models/elder-profile.models.js";
 import Notification from "../models/notification.models.js";
-import { updateBookingStatus } from "./booking.controller.js";
+import Service from "../models/service.models.js";
+import User from "../models/user.models.js";
+import {
+  buildBookingIdempotencyFingerprint,
+  getMyBookings,
+  normalizeBookingIdempotencyKey,
+  updateBookingStatus,
+} from "./booking.controller.js";
 
 const restorers = [];
 
@@ -50,6 +58,146 @@ afterEach(() => {
   while (restorers.length > 0) {
     restorers.pop()();
   }
+});
+
+test("booking idempotency fingerprint is stable and changes with the request", () => {
+  const payload = {
+    elderProfileId: "elder-1",
+    serviceId: "service-1",
+    companionId: "companion-1",
+    startTime: "2026-07-10T08:00:00.000Z",
+    durationHours: 2,
+    address: "  Quận 7, TP.HCM  ",
+    addressLocation: { lat: 10.73, lng: 106.72, displayName: "Quận 7" },
+    note: "Đi chậm",
+    bookingMode: "scheduled",
+  };
+
+  const first = buildBookingIdempotencyFingerprint(payload);
+  const sameRequest = buildBookingIdempotencyFingerprint({ ...payload, address: "Quận 7, TP.HCM" });
+  const changedRequest = buildBookingIdempotencyFingerprint({ ...payload, durationHours: 3 });
+
+  assert.equal(first, sameRequest);
+  assert.notEqual(first, changedRequest);
+  assert.equal(normalizeBookingIdempotencyKey("  booking-key-123456  "), "booking-key-123456");
+});
+
+test("booking model enforces one idempotency key per customer without affecting legacy rows", () => {
+  const [fields, options] = Booking.schema.indexes().find(([indexFields]) =>
+    indexFields.customerId === 1 && indexFields.idempotencyKey === 1,
+  );
+
+  assert.deepEqual(fields, { customerId: 1, idempotencyKey: 1 });
+  assert.equal(options.unique, true);
+  assert.deepEqual(options.partialFilterExpression, { idempotencyKey: { $type: "string" } });
+  assert.equal(Booking.schema.path("idempotencyKey").options.select, false);
+  assert.equal(Booking.schema.path("idempotencyFingerprint").options.select, false);
+});
+
+test("getMyBookings paginates, filters and searches customer bookings", { concurrency: false }, async () => {
+  let countFilter = null;
+  let findFilter = null;
+  let capturedSort = null;
+  let capturedSkip = null;
+  let capturedLimit = null;
+
+  mockMethod(ElderProfile, "find", () => ({
+    distinct: async (field) => {
+      assert.equal(field, "_id");
+      return ["elder-1"];
+    },
+  }));
+  mockMethod(Service, "find", () => ({
+    distinct: async (field) => {
+      assert.equal(field, "_id");
+      return ["service-1"];
+    },
+  }));
+  mockMethod(User, "find", () => ({
+    distinct: async (field) => {
+      assert.equal(field, "_id");
+      return ["companion-1"];
+    },
+  }));
+  mockMethod(Booking, "countDocuments", async (filter) => {
+    countFilter = filter;
+    return 12;
+  });
+  mockMethod(Booking, "find", (filter) => {
+    findFilter = filter;
+    return {
+      populate() {
+        return this;
+      },
+      sort(sort) {
+        capturedSort = sort;
+        return this;
+      },
+      skip(skip) {
+        capturedSkip = skip;
+        return this;
+      },
+      async limit(limit) {
+        capturedLimit = limit;
+        return [{ _id: "booking-1" }];
+      },
+    };
+  });
+
+  const res = createResponse();
+  await getMyBookings({
+    user: { userId: "customer-1", role: "customer" },
+    query: {
+      as: "customer",
+      page: "2",
+      limit: "5",
+      status: "pending",
+      dateFrom: "2026-07-01",
+      dateTo: "2026-07-31",
+      search: "mẹ",
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(findFilter, countFilter);
+  assert.equal(findFilter.customerId, "customer-1");
+  assert.equal(findFilter.status, "pending");
+  assert.ok(findFilter.startTime.$gte instanceof Date);
+  assert.ok(findFilter.startTime.$lte instanceof Date);
+  assert.ok(findFilter.$or.some((condition) => condition.elderProfileId?.$in.includes("elder-1")));
+  assert.ok(findFilter.$or.some((condition) => condition.serviceId?.$in.includes("service-1")));
+  assert.ok(findFilter.$or.some((condition) => condition.companionId?.$in.includes("companion-1")));
+  assert.deepEqual(capturedSort, { createdAt: -1 });
+  assert.equal(capturedSkip, 5);
+  assert.equal(capturedLimit, 5);
+  assert.deepEqual(res.body.bookings, [{ _id: "booking-1" }]);
+  assert.deepEqual(res.body.pagination, {
+    page: 2,
+    limit: 5,
+    total: 12,
+    totalPages: 3,
+  });
+});
+
+test("getMyBookings rejects invalid status filters before querying bookings", { concurrency: false }, async () => {
+  let queriedBookings = false;
+  mockMethod(Booking, "find", () => {
+    queriedBookings = true;
+    throw new Error("Booking.find should not be called for invalid status");
+  });
+  mockMethod(Booking, "countDocuments", () => {
+    queriedBookings = true;
+    throw new Error("Booking.countDocuments should not be called for invalid status");
+  });
+
+  const res = createResponse();
+  await getMyBookings({
+    user: { userId: "customer-1", role: "customer" },
+    query: { as: "customer", status: "unknown" },
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(queriedBookings, false);
 });
 
 test("updateBookingStatus blocks a concurrent companion acceptance on the same lock", { concurrency: false }, async () => {

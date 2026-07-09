@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createWithdrawalRequest,
+  getAdminWithdrawalRequestDetail,
   getAdminWithdrawalRequests,
   getMyEarnings,
   getMyWithdrawalSummary,
@@ -16,6 +17,7 @@ router.get("/my", verifyToken, allowRoles("companion"), requireApprovedCompanion
 router.get("/earnings", verifyToken, allowRoles("companion"), requireApprovedCompanion, getMyEarnings);
 router.post("/", verifyToken, allowRoles("companion"), requireApprovedCompanion, createWithdrawalRequest);
 router.get("/admin", verifyToken, allowRoles("admin"), getAdminWithdrawalRequests);
+router.get("/admin/:id", verifyToken, allowRoles("admin"), getAdminWithdrawalRequestDetail);
 router.patch("/admin/:id/status", verifyToken, allowRoles("admin"), updateWithdrawalStatus);
 router.get("/", verifyToken, allowRoles("admin"), getAdminWithdrawalRequests);
 

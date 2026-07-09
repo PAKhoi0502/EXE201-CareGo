@@ -34,6 +34,8 @@ const AdminServicesPage = () => {
   const [editingService, setEditingService] = useState(null);
   const [editForm, setEditForm] = useState(emptyForm);
   const [editError, setEditError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [deletingServiceId, setDeletingServiceId] = useState("");
   const [selectedService, setSelectedService] = useState(null);
   const services = useMemo(() => data?.services || [], [data?.services]);
 
@@ -93,9 +95,19 @@ const AdminServicesPage = () => {
     }
   };
 
-  const disable = async (id) => {
-    await api.delete(`/services/${id}`);
-    reload();
+  const disable = async (service) => {
+    if (!window.confirm(`Ẩn dịch vụ “${service.name}”? Dịch vụ sẽ không còn hiển thị cho khách hàng.`)) return;
+
+    setActionError("");
+    setDeletingServiceId(service._id);
+    try {
+      await api.delete(`/services/${service._id}`);
+      await reload();
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setDeletingServiceId("");
+    }
   };
 
   const submitEdit = async (event) => {
@@ -145,7 +157,7 @@ const AdminServicesPage = () => {
         </div>
       </div>
 
-      {loadError ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{loadError}</p> : null}
+      {loadError || actionError ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{loadError || actionError}</p> : null}
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -244,8 +256,13 @@ const AdminServicesPage = () => {
                         <Button variant="muted" className="min-h-8 px-2.5 text-xs" onClick={() => setSelectedService(service)}>
                           Chi tiết
                         </Button>
-                        <Button variant="danger" className="min-h-8 px-2.5 text-xs" onClick={() => disable(service._id)}>
-                          Ẩn dịch vụ
+                        <Button
+                          variant="danger"
+                          className="min-h-8 px-2.5 text-xs"
+                          onClick={() => disable(service)}
+                          disabled={deletingServiceId === service._id}
+                        >
+                          {deletingServiceId === service._id ? "Đang ẩn..." : "Ẩn dịch vụ"}
                         </Button>
                       </div>
                     </td>

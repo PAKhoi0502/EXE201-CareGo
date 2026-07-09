@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client.js";
 import AdminDetailModal, { DetailGrid, DetailItem } from "../../components/AdminDetailModal.jsx";
+import AdminPagination from "../../components/AdminPagination.jsx";
 import { Button, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime } from "../../utils/format.js";
@@ -38,20 +39,27 @@ const OnlineBadge = ({ status }) => (
 );
 
 const AdminUsersPage = () => {
-  const { data, loading, error, reload } = useAsync(() => api.get("/admin/users"), []);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState(null);
   const [onlineStatuses, setOnlineStatuses] = useState({});
   const [actionError, setActionError] = useState("");
+  const [processingUserId, setProcessingUserId] = useState("");
+  const deferredQuery = useDeferredValue(query.trim());
+  const { data, loading, error, reload } = useAsync(() => {
+    const params = new URLSearchParams({ page: String(page), limit: "25", role: "customer" });
+    if (deferredQuery) params.set("search", deferredQuery);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    return api.get(`/admin/users?${params.toString()}`);
+  }, [page, deferredQuery, statusFilter]);
 
   const customers = useMemo(
-    () => (data?.users || []).filter((user) => user.role === "customer"),
+    () => data?.users || [],
     [data?.users],
   );
-  const activeCustomers = customers.filter((user) => user.isActive);
-  const suspendedCustomers = customers.filter((user) => !user.isActive);
-  const verifiedCustomers = customers.filter((user) => user.isEmailVerified);
+  const summary = data?.summary || {};
+  const pagination = data?.pagination || { page, limit: 25, total: 0, totalPages: 1 };
   const getOnlineStatus = (id) => onlineStatuses[id] || null;
 
   useEffect(() => {
@@ -69,18 +77,14 @@ const AdminUsersPage = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const filteredCustomers = customers.filter((user) => {
-    const text = `${user.name || ""} ${user.email || ""} ${user.phone || ""}`.toLowerCase();
-    const matchesQuery = text.includes(query.trim().toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && user.isActive) ||
-      (statusFilter === "suspended" && !user.isActive);
-    return matchesQuery && matchesStatus;
-  });
+  const filteredCustomers = customers;
 
   const toggleUserStatus = async (user) => {
+    const actionLabel = user.isActive ? "khóa" : "mở khóa";
+    if (!window.confirm(`Xác nhận ${actionLabel} tài khoản ${user.name || user.email}?`)) return;
+
     setActionError("");
+    setProcessingUserId(user._id);
     try {
       const response = await api.patch(`/admin/users/${user._id}/status`, {
         isActive: !user.isActive,
@@ -91,6 +95,8 @@ const AdminUsersPage = () => {
       );
     } catch (updateError) {
       setActionError(updateError.message);
+    } finally {
+      setProcessingUserId("");
     }
   };
 
@@ -106,7 +112,10 @@ const AdminUsersPage = () => {
         <div className="relative w-full lg:w-96">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
             placeholder="Tìm tên, email, số điện thoại..."
             className="min-h-11 w-full rounded-xl border border-transparent bg-slate-100 px-4 pl-10 text-sm outline-none transition focus:border-teal-300 focus:bg-white focus:ring-2 focus:ring-teal-100"
           />
@@ -121,19 +130,19 @@ const AdminUsersPage = () => {
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Tổng khách hàng</span>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{customers.length}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{summary.total || 0}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Tài khoản hoạt động</span>
-          <p className="mt-2 text-2xl font-bold text-emerald-700">{activeCustomers.length}</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-700">{summary.active || 0}</p>
         </div>
         <div className="rounded-xl border-l-4 border-rose-500 bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <span className="block text-xs font-medium text-rose-600">Tài khoản tạm khóa</span>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{suspendedCustomers.length}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{summary.suspended || 0}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Email đã xác thực</span>
-          <p className="mt-2 text-2xl font-bold text-blue-600">{verifiedCustomers.length}</p>
+          <p className="mt-2 text-2xl font-bold text-blue-600">{summary.verified || 0}</p>
         </div>
       </div>
 
@@ -146,7 +155,10 @@ const AdminUsersPage = () => {
           <select
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-teal-100"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setPage(1);
+            }}
           >
             <option value="all">Trạng thái: Tất cả</option>
             <option value="active">Hoạt động</option>
@@ -207,8 +219,11 @@ const AdminUsersPage = () => {
                         variant={user.isActive ? "danger" : "secondary"}
                         className="min-h-8 px-2.5 text-xs"
                         onClick={() => toggleUserStatus(user)}
+                        disabled={processingUserId === user._id}
                       >
-                        {user.isActive ? "Khóa" : "Mở khóa"}
+                        {processingUserId === user._id
+                          ? "Đang xử lý..."
+                          : user.isActive ? "Khóa" : "Mở khóa"}
                       </Button>
                     </div>
                   </td>
@@ -225,9 +240,12 @@ const AdminUsersPage = () => {
           </table>
         </div>
 
-        <div className="border-t border-slate-100 bg-slate-50/50 p-4 text-xs font-medium text-slate-500">
-          Hiển thị {filteredCustomers.length} khách hàng
-        </div>
+        <AdminPagination
+          pagination={pagination}
+          loading={loading}
+          onPageChange={setPage}
+          itemLabel="khách hàng"
+        />
       </section>
 
       {selectedUser ? (

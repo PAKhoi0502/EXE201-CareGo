@@ -11,6 +11,7 @@ import {
 import CompanionProfile from "../models/companion-profile.models.js";
 import ElderProfile from "../models/elder-profile.models.js";
 import Payment from "../models/payment.models.js";
+import { toPaymentDto } from "../dto/payment.dto.js";
 import Review from "../models/review.models.js";
 import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
@@ -46,6 +47,7 @@ import {
   parseBookingAvailabilityWindow,
   parseInstantBookingAvailabilityWindow,
 } from "../utils/companion-availability.js";
+import { buildPagination, parsePagination } from "../utils/pagination.js";
 
 const populateBooking = [
   { path: "customerId", select: "name email phone" },
@@ -61,6 +63,61 @@ const toIdString = (value) => {
 
   return (value._id || value).toString();
 };
+
+export const normalizeBookingIdempotencyKey = (value) => String(value || "").trim();
+
+export const buildBookingIdempotencyFingerprint = (payload = {}) => {
+  const addressLocation = payload.addressLocation || {};
+  const canonicalPayload = {
+    elderProfileId: toIdString(payload.elderProfileId),
+    serviceId: toIdString(payload.serviceId),
+    companionId: toIdString(payload.companionId),
+    startTime: String(payload.startTime || ""),
+    durationHours: Number(payload.durationHours),
+    address: String(payload.address || "").trim(),
+    addressLocation: {
+      lat: Number(addressLocation.lat),
+      lng: Number(addressLocation.lng),
+      displayName: String(addressLocation.displayName || "").trim(),
+    },
+    note: String(payload.note || ""),
+    bookingMode: payload.bookingMode === undefined ? "scheduled" : String(payload.bookingMode).trim(),
+  };
+
+  return crypto.createHash("sha256").update(JSON.stringify(canonicalPayload)).digest("hex");
+};
+
+const toBookingResponse = (booking) => {
+  const payload = typeof booking?.toObject === "function" ? booking.toObject() : { ...booking };
+  delete payload.idempotencyKey;
+  delete payload.idempotencyFingerprint;
+  return payload;
+};
+
+const findIdempotentBooking = ({ customerId, idempotencyKey }) =>
+  Booking.findOne({ customerId, idempotencyKey }).select("+idempotencyFingerprint");
+
+const sendIdempotentBookingResponse = ({ res, booking, fingerprint }) => {
+  if (booking.idempotencyFingerprint !== fingerprint) {
+    return res.status(409).json({
+      message: "Khóa chống trùng đã được sử dụng cho một yêu cầu đặt lịch khác.",
+      code: "IDEMPOTENCY_KEY_REUSED",
+    });
+  }
+
+  return res.status(200).json({
+    message: "Yêu cầu đặt lịch này đã được xử lý trước đó.",
+    booking: toBookingResponse(booking),
+    idempotentReplay: true,
+  });
+};
+
+const isIdempotencyDuplicateError = (error) =>
+  error?.code === 11000 && (
+    Boolean(error?.keyPattern?.idempotencyKey) ||
+    Boolean(error?.keyValue?.idempotencyKey) ||
+    String(error?.message || "").includes("idempotencyKey")
+  );
 
 const customerBookingLink = (bookingId) => `/customer/bookings/${toIdString(bookingId)}`;
 const companionBookingLink = (bookingId) => `/companion/bookings/${toIdString(bookingId)}`;
@@ -766,6 +823,7 @@ const updateCompanionRatingStats = async ({ companionId, ratingValue }) => {
 
 export const createBooking = async (req, res) => {
   const bookingLocks = [];
+  let idempotencyContext = null;
 
   try {
     const {
@@ -778,9 +836,11 @@ export const createBooking = async (req, res) => {
       addressLocation,
       note,
       bookingMode,
+      idempotencyKey: submittedIdempotencyKey,
     } = req.body;
     const cleanAddress = String(address || "").trim();
     const normalizedBookingMode = bookingMode === undefined ? "scheduled" : String(bookingMode).trim();
+    const idempotencyKey = normalizeBookingIdempotencyKey(submittedIdempotencyKey);
 
     if (!["scheduled", "instant"].includes(normalizedBookingMode)) {
       return res.status(400).json({ message: "Hình thức đặt lịch không hợp lệ." });
@@ -789,6 +849,43 @@ export const createBooking = async (req, res) => {
     if (!elderProfileId || !serviceId || !companionId || !startTime || !durationHours || !cleanAddress) {
       return res.status(400).json({
         message: "Vui lòng chọn người thân, dịch vụ, người đồng hành, thời gian, thời lượng và địa chỉ.",
+      });
+    }
+
+    if (!/^[A-Za-z0-9._:-]{16,100}$/.test(idempotencyKey)) {
+      return res.status(400).json({
+        message: "Khóa chống trùng booking không hợp lệ. Vui lòng tải lại trang và thử lại.",
+        code: "INVALID_IDEMPOTENCY_KEY",
+      });
+    }
+
+    const normalizedAddressLocation = normalizeAddressLocation(addressLocation);
+    if (!normalizedAddressLocation) {
+      return res.status(400).json({ message: "Vui lòng ghim vị trí có vĩ độ và kinh độ hợp lệ." });
+    }
+
+    const idempotencyFingerprint = buildBookingIdempotencyFingerprint({
+      elderProfileId,
+      serviceId,
+      companionId,
+      startTime,
+      durationHours,
+      address: cleanAddress,
+      addressLocation: normalizedAddressLocation,
+      note,
+      bookingMode: normalizedBookingMode,
+    });
+    idempotencyContext = { idempotencyKey, idempotencyFingerprint };
+
+    const existingIdempotentBooking = await findIdempotentBooking({
+      customerId: req.user.userId,
+      idempotencyKey,
+    });
+    if (existingIdempotentBooking) {
+      return sendIdempotentBookingResponse({
+        res,
+        booking: existingIdempotentBooking,
+        fingerprint: idempotencyFingerprint,
       });
     }
 
@@ -812,11 +909,6 @@ export const createBooking = async (req, res) => {
 
     if (parsedStartTime <= now) {
       return res.status(400).json({ message: "Thời gian bắt đầu sai, quý khách vui lòng chọn lại." });
-    }
-
-    const normalizedAddressLocation = normalizeAddressLocation(addressLocation);
-    if (!normalizedAddressLocation) {
-      return res.status(400).json({ message: "Vui lòng ghim vị trí có vĩ độ và kinh độ hợp lệ." });
     }
 
     if (toIdString(companionId) === req.user.userId) {
@@ -862,6 +954,7 @@ export const createBooking = async (req, res) => {
     const elder = await ElderProfile.findOne({
       _id: elderProfileId,
       customerId: req.user.userId,
+      isArchived: { $ne: true },
     });
     if (!elder) {
       return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
@@ -909,6 +1002,35 @@ export const createBooking = async (req, res) => {
 
     bookingLocks.push(await acquireCompanionBookingLock(companionId));
 
+    const bookingCreatedWhileWaiting = await findIdempotentBooking({
+      customerId: req.user.userId,
+      idempotencyKey,
+    });
+    if (bookingCreatedWhileWaiting) {
+      return sendIdempotentBookingResponse({
+        res,
+        booking: bookingCreatedWhileWaiting,
+        fingerprint: idempotencyFingerprint,
+      });
+    }
+
+    const duplicateCustomerBooking = await Booking.findOne({
+      customerId: req.user.userId,
+      elderProfileId,
+      serviceId,
+      companionId,
+      startTime: parsedStartTime,
+      durationHours: parsedDurationHours,
+      status: { $in: ["pending", ...CONFIRMED_BOOKING_STATUSES] },
+    }).select("_id status");
+    if (duplicateCustomerBooking) {
+      return res.status(409).json({
+        message: "Bạn đã có một booking trùng người thân, dịch vụ, người đồng hành và thời gian.",
+        code: "DUPLICATE_BOOKING",
+        bookingId: duplicateCustomerBooking._id,
+      });
+    }
+
     const conflictingBooking = await findCompanionTimeConflict({
       companionId,
       startTime: parsedStartTime,
@@ -938,6 +1060,8 @@ export const createBooking = async (req, res) => {
 
     const booking = await Booking.create({
       customerId: req.user.userId,
+      idempotencyKey,
+      idempotencyFingerprint,
       elderProfileId,
       serviceId,
       companionId,
@@ -980,9 +1104,23 @@ export const createBooking = async (req, res) => {
       message: normalizedBookingMode === "instant"
         ? "Đã gửi yêu cầu đặt ngay. Người đồng hành có 5 phút để phản hồi."
         : "Tạo lịch chăm sóc thành công.",
-      booking,
+      booking: toBookingResponse(booking),
     });
   } catch (error) {
+    if (isIdempotencyDuplicateError(error) && idempotencyContext) {
+      const existingBooking = await findIdempotentBooking({
+        customerId: req.user.userId,
+        idempotencyKey: idempotencyContext.idempotencyKey,
+      });
+      if (existingBooking) {
+        return sendIdempotentBookingResponse({
+          res,
+          booking: existingBooking,
+          fingerprint: idempotencyContext.idempotencyFingerprint,
+        });
+      }
+    }
+
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({
       message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
@@ -991,6 +1129,92 @@ export const createBooking = async (req, res) => {
   } finally {
     await Promise.all(bookingLocks.map((lock) => releaseCompanionBookingLock(lock)));
   }
+};
+
+const BOOKING_LIST_STATUSES = new Set(["pending", "accepted", "in_progress", "completed", "paid", "cancelled"]);
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const parseBookingListDate = (value, { endOfDay = false } = {}) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return { date: null };
+
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(rawValue)
+    ? new Date(`${rawValue}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}+07:00`)
+    : new Date(rawValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return { error: "Ngày lọc lịch không hợp lệ." };
+  }
+
+  return { date };
+};
+
+const buildBookingSearchConditions = async ({ perspective, search }) => {
+  const trimmedSearch = String(search || "").trim();
+  if (!trimmedSearch) return [];
+
+  const regex = new RegExp(escapeRegex(trimmedSearch), "i");
+  const [elderIds, serviceIds, userIds] = await Promise.all([
+    ElderProfile.find({ fullName: regex }).distinct("_id"),
+    Service.find({ name: regex }).distinct("_id"),
+    User.find({ name: regex }).distinct("_id"),
+  ]);
+
+  const conditions = [
+    { address: regex },
+    { note: regex },
+  ];
+
+  if (elderIds.length) {
+    conditions.push({ elderProfileId: { $in: elderIds } });
+  }
+  if (serviceIds.length) {
+    conditions.push({ serviceId: { $in: serviceIds } });
+  }
+  if (userIds.length) {
+    conditions.push(perspective === "companion"
+      ? { customerId: { $in: userIds } }
+      : { companionId: { $in: userIds } });
+  }
+
+  return conditions;
+};
+
+const buildMyBookingsFilter = async ({ req, perspective }) => {
+  const filter = perspective === "companion"
+    ? { companionId: req.user.userId }
+    : { customerId: req.user.userId };
+
+  const status = String(req.query.status || "all").trim();
+  if (status && status !== "all") {
+    if (!BOOKING_LIST_STATUSES.has(status)) {
+      return { error: "Trạng thái lịch chăm sóc không hợp lệ." };
+    }
+    filter.status = status;
+  }
+
+  const dateFrom = parseBookingListDate(req.query.dateFrom || req.query.from);
+  if (dateFrom.error) return { error: dateFrom.error };
+
+  const dateTo = parseBookingListDate(req.query.dateTo || req.query.to, { endOfDay: true });
+  if (dateTo.error) return { error: dateTo.error };
+
+  if (dateFrom.date || dateTo.date) {
+    filter.startTime = {};
+    if (dateFrom.date) filter.startTime.$gte = dateFrom.date;
+    if (dateTo.date) filter.startTime.$lte = dateTo.date;
+  }
+
+  const searchConditions = await buildBookingSearchConditions({
+    perspective,
+    search: req.query.search,
+  });
+  if (searchConditions.length) {
+    filter.$or = searchConditions;
+  }
+
+  return { filter };
 };
 
 export const getMyBookings = async (req, res) => {
@@ -1004,12 +1228,30 @@ export const getMyBookings = async (req, res) => {
       return;
     }
 
-    const filter = perspective === "companion"
-      ? { companionId: req.user.userId }
-      : { customerId: req.user.userId };
+    const paginationParams = parsePagination(req.query, { defaultLimit: 10, maxLimit: 50 });
+    if (paginationParams.error) {
+      return res.status(400).json({ message: paginationParams.error });
+    }
 
-    const bookings = await Booking.find(filter).populate(populateBooking).sort({ createdAt: -1 });
-    return res.status(200).json({ bookings, perspective });
+    const { filter, error: filterError } = await buildMyBookingsFilter({ req, perspective });
+    if (filterError) {
+      return res.status(400).json({ message: filterError });
+    }
+
+    const [total, bookings] = await Promise.all([
+      Booking.countDocuments(filter),
+      Booking.find(filter)
+        .populate(populateBooking)
+        .sort({ createdAt: -1 })
+        .skip(paginationParams.skip)
+        .limit(paginationParams.limit),
+    ]);
+
+    return res.status(200).json({
+      bookings,
+      perspective,
+      pagination: buildPagination(paginationParams, total),
+    });
   } catch (error) {
     return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
@@ -1049,7 +1291,15 @@ export const getBookingById = async (req, res) => {
       ? await User.findById(toIdString(booking.companionId)).select("name email phone")
       : null;
 
-    return res.status(200).json({ booking, shiftLog, payment, review, perspective, companionContact });
+    const paymentRole = req.user.role === "admin" ? "admin" : perspective;
+    return res.status(200).json({
+      booking,
+      shiftLog,
+      payment: toPaymentDto(payment, paymentRole),
+      review,
+      perspective,
+      companionContact,
+    });
   } catch (error) {
     return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
@@ -1683,7 +1933,7 @@ export const payBooking = async (req, res) => {
 
     paymentLock = await acquireBookingPaymentLock(booking._id);
 
-    const existingPayment = await Payment.findOne({ bookingId: booking._id });
+    const existingPayment = await Payment.findOne({ bookingId: booking._id }).select("+checkoutUrl");
     if (existingPayment?.status === "paid") {
       return res.status(400).json({ message: "Lịch chăm sóc đã được thanh toán." });
     }
@@ -1703,7 +1953,7 @@ export const payBooking = async (req, res) => {
         return res.status(200).json({
           message: "Liên kết thanh toán đã sẵn sàng.",
           checkoutUrl: reusablePayment.checkoutUrl,
-          payment: reusablePayment,
+          payment: toPaymentDto(reusablePayment, "customer"),
           booking,
           baseAmount,
           penaltyAmount,
@@ -1795,7 +2045,7 @@ export const payBooking = async (req, res) => {
       return res.status(200).json({
         message: "Tạo liên kết thanh toán thành công.",
         checkoutUrl: payment.checkoutUrl,
-        payment,
+        payment: toPaymentDto(payment, "customer"),
         booking,
         baseAmount,
         penaltyAmount,

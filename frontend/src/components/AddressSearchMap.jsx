@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl.js";
-import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
 import { api } from "../api/client.js";
+import { loadVietmap } from "../utils/loadVietmap.js";
 import { DEFAULT_MAP_CENTER, getVietmapStyleUrl, hasVietmapMapKey } from "../utils/mapProvider.js";
 import { Button, Input } from "./Ui.jsx";
 
@@ -62,6 +61,8 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
   const addressRef = useRef(address);
   const initialViewRef = useRef({ center, hasLocation: Boolean(location) });
   const hasMapKey = hasVietmapMapKey();
+  const [vietmapgl, setVietmapgl] = useState(null);
+  const [mapLoadError, setMapLoadError] = useState("");
 
   useEffect(() => {
     onPickRef.current = onPick;
@@ -72,7 +73,24 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
   }, [address]);
 
   useEffect(() => {
-    if (!containerRef.current || !hasMapKey) return undefined;
+    if (!hasMapKey) return undefined;
+
+    let active = true;
+    loadVietmap()
+      .then((library) => {
+        if (active) setVietmapgl(library);
+      })
+      .catch(() => {
+        if (active) setMapLoadError("Không thể tải bản đồ. Vui lòng thử lại sau.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [hasMapKey]);
+
+  useEffect(() => {
+    if (!containerRef.current || !hasMapKey || !vietmapgl) return undefined;
 
     const map = new vietmapgl.Map({
       container: containerRef.current,
@@ -99,7 +117,7 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
       map.remove();
       mapRef.current = null;
     };
-  }, [hasMapKey]);
+  }, [hasMapKey, vietmapgl]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -151,12 +169,28 @@ const AddressPickerMap = ({ center, location, address, onPick }) => {
     markerRef.current
       .setLngLat(lngLat)
       .setPopup(new vietmapgl.Popup({ offset: 28 }).setText(popupText));
-  }, [address, location]);
+  }, [address, location, vietmapgl]);
 
   if (!hasMapKey) {
     return (
       <div className="grid h-full place-items-center bg-slate-50 p-5 text-center text-sm font-semibold text-slate-500">
         Cần cấu hình VITE_VIETMAP_TILE_API_KEY để hiển thị bản đồ Vietmap.
+      </div>
+    );
+  }
+
+  if (mapLoadError) {
+    return (
+      <div className="grid h-full place-items-center bg-rose-50 p-5 text-center text-sm font-semibold text-rose-600">
+        {mapLoadError}
+      </div>
+    );
+  }
+
+  if (!vietmapgl) {
+    return (
+      <div className="grid h-full place-items-center bg-slate-50 p-5 text-center text-sm font-semibold text-slate-500">
+        Đang tải bản đồ...
       </div>
     );
   }

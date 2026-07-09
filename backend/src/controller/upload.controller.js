@@ -14,7 +14,7 @@ const isPrivateImageFolder = (folder) => {
 export const uploadImageController = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: "Vui lÃ²ng chá»n áº£nh cáº§n táº£i lÃªn." });
+      return res.status(400).json({ message: "Vui lòng chọn ảnh cần tải lên." });
     }
 
     if (
@@ -22,7 +22,7 @@ export const uploadImageController = async (req, res) => {
       !process.env.CLOUDINARY_API_KEY?.trim() ||
       !process.env.CLOUDINARY_API_SECRET?.trim()
     ) {
-      return res.status(500).json({ message: "Dá»‹ch vá»¥ lÆ°u trá»¯ áº£nh chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh." });
+      return res.status(500).json({ message: "Dịch vụ lưu trữ ảnh chưa được cấu hình." });
     }
 
     const folder = req.body.folder || "carego";
@@ -45,14 +45,14 @@ export const uploadImageController = async (req, res) => {
       : result.secure_url;
 
     return res.status(201).json({
-      message: "Táº£i áº£nh lÃªn thÃ nh cÃ´ng.",
+      message: "Tải ảnh lên thành công.",
       url,
       storageRef,
       publicId: result.public_id,
     });
   } catch (error) {
     return res.status(500).json({
-      message: "Táº£i áº£nh lÃªn khÃ´ng thÃ nh cÃ´ng. Vui lÃ²ng thá»­ láº¡i.",
+      message: "Tải ảnh lên không thành công. Vui lòng thử lại.",
       error: error.message,
     });
   }

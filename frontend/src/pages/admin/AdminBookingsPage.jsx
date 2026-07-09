@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client.js";
 import AdminDetailModal, { DetailGrid, DetailItem } from "../../components/AdminDetailModal.jsx";
+import AdminPagination from "../../components/AdminPagination.jsx";
 import { Button, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime, money } from "../../utils/format.js";
@@ -50,27 +51,34 @@ const adminStatusActions = {
 const adminCancellableStatuses = ["pending", "accepted", "in_progress"];
 
 const AdminBookingsPage = () => {
-  const { data, setData, loading, error } = useAsync(() => api.get("/admin/bookings"), []);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [serviceFilter, setServiceFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [actionLoading, setActionLoading] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [replacementCompanions, setReplacementCompanions] = useState([]);
   const [replacementCompanionId, setReplacementCompanionId] = useState("");
+  const deferredQuery = useDeferredValue(query.trim());
+  const { data, setData, loading, error } = useAsync(() => {
+    const params = new URLSearchParams({ page: String(page), limit: "25" });
+    if (deferredQuery) params.set("search", deferredQuery);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (serviceFilter !== "all") params.set("serviceId", serviceFilter);
+    return api.get(`/admin/bookings?${params.toString()}`);
+  }, [page, deferredQuery, statusFilter, serviceFilter]);
   const bookings = useMemo(() => data?.bookings || [], [data?.bookings]);
+  const summary = data?.summary || {};
+  const pagination = data?.pagination || { page, limit: 25, total: 0, totalPages: 1 };
   const selectedStatusActions = selectedBooking ? adminStatusActions[selectedBooking.status] || [] : [];
   const canCancelSelectedBooking = selectedBooking
     ? adminCancellableStatuses.includes(selectedBooking.status) && selectedBooking.payment?.status !== "paid"
     : false;
   const hasReportedIncident = selectedBooking?.incident?.status === "reported";
 
-  const services = useMemo(() => {
-    const values = bookings.map((booking) => booking.serviceId?.name).filter(Boolean);
-    return ["all", ...new Set(values)];
-  }, [bookings]);
+  const services = data?.filterOptions?.services || [];
 
   useEffect(() => {
     const loadReplacementCompanions = async () => {
@@ -98,22 +106,13 @@ const AdminBookingsPage = () => {
     loadReplacementCompanions();
   }, [selectedBooking]);
 
-  const filteredBookings = bookings.filter((booking) => {
-    const text =
-      `${booking.customerId?.name} ${booking.customerId?.email} ${booking.companionId?.name} ${booking.companionId?.email} ${booking.elderProfileId?.fullName} ${booking.serviceId?.name} ${booking.address}`.toLowerCase();
-    const matchesQuery = text.includes(query.toLowerCase());
-    const matchesStatus = statusFilter === "all" || booking.status === statusFilter;
-    const matchesService = serviceFilter === "all" || booking.serviceId?.name === serviceFilter;
-    return matchesQuery && matchesStatus && matchesService;
-  });
-
-  const runningCount = bookings.filter((booking) => ["accepted", "in_progress"].includes(booking.status)).length;
-  const paidBookings = bookings.filter((booking) => booking.status === "paid");
-  const paidRevenue = paidBookings.reduce((sum, booking) => sum + getPaidAmount(booking), 0);
-  const penaltyRevenue = paidBookings.reduce((sum, booking) => sum + getPenaltyAmount(booking), 0);
-  const platformFee = paidBookings.reduce((sum, booking) => sum + getPlatformFee(booking), 0);
-  const careGoRevenue = paidBookings.reduce((sum, booking) => sum + getCareGoRevenue(booking), 0);
-  const gpsReadyCount = bookings.filter((booking) => booking.addressLocation?.lat).length;
+  const filteredBookings = bookings;
+  const runningCount = Number(summary.running || 0);
+  const paidRevenue = Number(summary.paidRevenue || 0);
+  const penaltyRevenue = Number(summary.penaltyRevenue || 0);
+  const platformFee = Number(summary.platformFee || 0);
+  const careGoRevenue = Number(summary.careGoRevenue || 0);
+  const gpsReadyCount = Number(summary.gpsReady || 0);
 
   const updateBookingInView = (bookingId, updates) => {
     setData((current) => ({
@@ -177,7 +176,7 @@ const AdminBookingsPage = () => {
     if (!selectedBooking) return;
 
     if (resolution === "reassign" && !replacementCompanionId) {
-      setActionError("Vui lÃ²ng chá»n companion thay tháº¿.");
+      setActionError("Vui lòng chọn người đồng hành thay thế.");
       return;
     }
 
@@ -196,10 +195,10 @@ const AdminBookingsPage = () => {
       });
       setActionMessage(
         resolution === "resume"
-          ? "ÄÃ£ cho booking tiáº¿p tá»¥c sau sá»± cá»‘."
+          ? "Đã cho lịch chăm sóc tiếp tục sau sự cố."
           : resolution === "cancel"
-            ? "ÄÃ£ há»§y booking sau sá»± cá»‘."
-            : "ÄÃ£ chuyá»ƒn booking vá» chá» companion thay tháº¿ xÃ¡c nháº­n.",
+            ? "Đã hủy lịch chăm sóc sau sự cố."
+            : "Đã chuyển lịch chăm sóc sang chờ người đồng hành thay thế xác nhận.",
       );
     } catch (err) {
       setActionError(err.message);
@@ -226,7 +225,10 @@ const AdminBookingsPage = () => {
         <div className="relative w-full xl:w-96">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
             placeholder="Tìm booking, khách hàng, companion..."
             className="min-h-11 w-full rounded-xl border border-transparent bg-slate-100 px-4 pl-10 text-sm outline-none transition focus:border-teal-300 focus:bg-white focus:ring-2 focus:ring-teal-100"
           />
@@ -239,7 +241,7 @@ const AdminBookingsPage = () => {
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Tổng booking</span>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{bookings.length}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{summary.total || 0}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="block text-xs font-medium text-slate-400">Ca đang chạy</span>
@@ -268,18 +270,25 @@ const AdminBookingsPage = () => {
             <select
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-teal-100"
               value={serviceFilter}
-              onChange={(event) => setServiceFilter(event.target.value)}
+              onChange={(event) => {
+                setServiceFilter(event.target.value);
+                setPage(1);
+              }}
             >
+              <option value="all">Dịch vụ: Tất cả</option>
               {services.map((service) => (
-                <option key={service} value={service}>
-                  {service === "all" ? "Dịch vụ: Tất cả" : service}
+                <option key={service._id} value={service._id}>
+                  {service.name}
                 </option>
               ))}
             </select>
             <select
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-teal-100"
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
             >
               {statusOptions.map((status) => (
                 <option key={status} value={status}>
@@ -391,10 +400,15 @@ const AdminBookingsPage = () => {
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 p-4 text-xs">
-          <span className="font-medium text-slate-500">Hiển thị {filteredBookings.length} booking</span>
-          <span className="font-semibold text-slate-500">CareGo đã thu: {money(careGoRevenue)} | Phí nền tảng: {money(platformFee)}</span>
+        <div className="border-t border-slate-100 bg-slate-50/50 px-4 pt-4 text-right text-xs font-semibold text-slate-500">
+          CareGo đã thu: {money(careGoRevenue)} | Phí nền tảng: {money(platformFee)}
         </div>
+        <AdminPagination
+          pagination={pagination}
+          loading={loading}
+          onPageChange={setPage}
+          itemLabel="lịch chăm sóc"
+        />
       </section>
 
       {selectedBooking ? (
@@ -458,12 +472,12 @@ const AdminBookingsPage = () => {
               <section className="rounded-xl border border-rose-100 bg-rose-50 p-4">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h3 className="font-bold text-rose-700">Sá»± cá»‘ companion Ä‘Ã£ bÃ¡o</h3>
+                    <h3 className="font-bold text-rose-700">Sự cố do người đồng hành báo</h3>
                     <p className="mt-2 text-sm font-semibold text-rose-700">
-                      LÃ½ do: {selectedBooking.incident?.reason || "KhÃ´ng rÃµ"}
+                      Lý do: {selectedBooking.incident?.reason || "Không rõ"}
                     </p>
                     <p className="mt-2 whitespace-pre-wrap text-sm text-rose-700">
-                      {selectedBooking.incident?.details || "KhÃ´ng cÃ³ mÃ´ táº£."}
+                      {selectedBooking.incident?.details || "Không có mô tả."}
                     </p>
                   </div>
                   <div className="grid gap-2 sm:min-w-72">
@@ -474,32 +488,32 @@ const AdminBookingsPage = () => {
                           onChange={(event) => setReplacementCompanionId(event.target.value)}
                           className="min-h-10 rounded-lg border border-rose-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-rose-100"
                         >
-                          <option value="">Chá»n companion thay tháº¿</option>
+                          <option value="">Chọn người đồng hành thay thế</option>
                           {replacementCompanions.map((companion) => (
                             <option key={companion.userId} value={companion.userId}>
-                              {companion.fullName} - {companion.serviceAreas?.join(", ") || "KhÃ´ng rÃµ khu vá»±c"}
+                              {companion.fullName} - {companion.serviceAreas?.join(", ") || "Không rõ khu vực"}
                             </option>
                           ))}
                         </select>
                         <div className="flex flex-wrap gap-2">
                           <Button type="button" variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("resume")} disabled={Boolean(actionLoading)}>
-                            {actionLoading === "incident:resume" ? "Äang xá»­ lÃ½..." : "Cho tiáº¿p tá»¥c"}
+                            {actionLoading === "incident:resume" ? "Đang xử lý..." : "Cho tiếp tục"}
                           </Button>
                           <Button type="button" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("reassign")} disabled={Boolean(actionLoading) || !replacementCompanionId}>
-                            {actionLoading === "incident:reassign" ? "Äang Ä‘iá»u phá»‘i..." : "Äá»•i companion"}
+                            {actionLoading === "incident:reassign" ? "Đang điều phối..." : "Đổi người đồng hành"}
                           </Button>
                           <Button type="button" variant="danger" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("cancel")} disabled={Boolean(actionLoading)}>
-                            {actionLoading === "incident:cancel" ? "Äang há»§y..." : "Há»§y booking"}
+                            {actionLoading === "incident:cancel" ? "Đang hủy..." : "Hủy lịch chăm sóc"}
                           </Button>
                         </div>
                       </>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         <Button type="button" variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("resume")} disabled={Boolean(actionLoading)}>
-                          {actionLoading === "incident:resume" ? "Äang xá»­ lÃ½..." : "Cho tiáº¿p tá»¥c"}
+                          {actionLoading === "incident:resume" ? "Đang xử lý..." : "Cho tiếp tục"}
                         </Button>
                         <Button type="button" variant="danger" className="min-h-9 px-3 text-xs" onClick={() => handleResolveIncident("cancel")} disabled={Boolean(actionLoading)}>
-                          {actionLoading === "incident:cancel" ? "Äang há»§y..." : "Há»§y booking"}
+                          {actionLoading === "incident:cancel" ? "Đang hủy..." : "Hủy lịch chăm sóc"}
                         </Button>
                       </div>
                     )}

@@ -148,6 +148,7 @@ const AdminCompanionsPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [areaFilter, setAreaFilter] = useState("all");
   const [selectedCompanion, setSelectedCompanion] = useState(null);
+  const [processingAction, setProcessingAction] = useState("");
   const [gpsStatuses, setGpsStatuses] = useState({});
   const [onlineStatuses, setOnlineStatuses] = useState({});
   const companions = useMemo(() => data?.companions || [], [data?.companions]);
@@ -224,6 +225,7 @@ const AdminCompanionsPage = () => {
   };
 
   const updateStatus = async (id, vettingStatus) => {
+    const currentCompanion = companions.find((item) => item._id === id);
     const payload = { vettingStatus };
     if (vettingStatus === "rejected") {
       const rejectionReason = window.prompt("Nhập lý do từ chối hồ sơ người đồng hành:");
@@ -231,7 +233,17 @@ const AdminCompanionsPage = () => {
       payload.rejectionReason = rejectionReason.trim();
     }
 
+    const confirmationMessages = {
+      approved: currentCompanion?.vettingStatus === "suspended"
+        ? "Mở khóa người đồng hành này?"
+        : "Duyệt hồ sơ người đồng hành này?",
+      rejected: "Xác nhận từ chối hồ sơ với lý do đã nhập?",
+      suspended: "Tạm khóa người đồng hành này? Họ sẽ không thể nhận lịch chăm sóc mới.",
+    };
+    if (confirmationMessages[vettingStatus] && !window.confirm(confirmationMessages[vettingStatus])) return;
+
     setSubmitError("");
+    setProcessingAction(`${id}:${vettingStatus}`);
     try {
       const response = await api.patch(`/companions/${id}/status`, payload);
       await reload();
@@ -242,6 +254,8 @@ const AdminCompanionsPage = () => {
       }
     } catch (err) {
       setSubmitError(err.message);
+    } finally {
+      setProcessingAction("");
     }
   };
 
@@ -413,8 +427,11 @@ const AdminCompanionsPage = () => {
                         variant={item.vettingStatus === "suspended" ? "secondary" : "danger"}
                         className="min-h-8 px-2.5 text-xs"
                         onClick={() => updateStatus(item._id, item.vettingStatus === "suspended" ? "approved" : "suspended")}
+                        disabled={processingAction.startsWith(`${item._id}:`)}
                       >
-                        {item.vettingStatus === "suspended" ? "Mở khóa" : "Tạm khóa"}
+                        {processingAction.startsWith(`${item._id}:`)
+                          ? "Đang xử lý..."
+                          : item.vettingStatus === "suspended" ? "Mở khóa" : "Tạm khóa"}
                       </Button>
                     ) : null}
                   </td>
@@ -613,16 +630,22 @@ const AdminCompanionsPage = () => {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" className="min-h-9 px-3 text-xs" onClick={() => updateStatus(selectedCompanion._id, "approved")}>
-                      Duyệt hồ sơ
+                    <Button
+                      type="button"
+                      className="min-h-9 px-3 text-xs"
+                      onClick={() => updateStatus(selectedCompanion._id, "approved")}
+                      disabled={processingAction.startsWith(`${selectedCompanion._id}:`)}
+                    >
+                      {processingAction === `${selectedCompanion._id}:approved` ? "Đang duyệt..." : "Duyệt hồ sơ"}
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
                       className="min-h-9 px-3 text-xs"
                       onClick={() => updateStatus(selectedCompanion._id, "rejected")}
+                      disabled={processingAction.startsWith(`${selectedCompanion._id}:`)}
                     >
-                      Từ chối
+                      {processingAction === `${selectedCompanion._id}:rejected` ? "Đang xử lý..." : "Từ chối"}
                     </Button>
                   </div>
                 </div>

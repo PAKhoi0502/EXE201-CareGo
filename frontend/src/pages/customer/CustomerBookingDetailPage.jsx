@@ -100,6 +100,135 @@ const ShiftPhoto = ({ label, url, onPreview }) => {
 const OVERDUE_PAYMENT_PENALTY_AMOUNT = 50000;
 const waitingPaymentStatuses = ["pending", "accepted", "in_progress"];
 const BOOKING_CHAT_AFTER_COMPLETION_MS = 3 * 60 * 60 * 1000;
+const HOTLINE_PHONE_LABEL = "033 610 8492";
+const HOTLINE_PHONE_HREF = "tel:0336108492";
+
+const toTelHref = (phone) => {
+  const normalizedPhone = String(phone || "").replace(/[^\d+]/g, "");
+  return normalizedPhone ? `tel:${normalizedPhone}` : "";
+};
+
+const BOOKING_STATUS_CONTENT = {
+  pending: {
+    text: "Chờ xác nhận",
+    heroDescription: "Đơn đã được tạo và đang chờ người đồng hành xác nhận. Bạn có thể theo dõi trạng thái, nhắn tin nếu là đặt ngay hoặc hủy trước khi đơn được nhận.",
+    progressLabel: "Đang chờ phản hồi",
+    steps: [
+      { label: "Đặt lịch", state: "done" },
+      { label: "Chờ xác nhận", state: "active" },
+      { label: "Di chuyển", state: "waiting" },
+      { label: "Hoàn thành", state: "waiting" },
+    ],
+    timeline: [
+      { title: "Đơn đã được tạo", description: "Mã đơn đã được ghi nhận trên CareGo.", state: "done" },
+      { title: "Đang chờ người đồng hành xác nhận", description: "Bạn sẽ thấy thông tin liên hệ và GPS sau khi đơn được nhận.", state: "active" },
+      { title: "Chưa bắt đầu di chuyển", description: "GPS realtime sẽ mở khi ca chăm sóc sẵn sàng.", state: "waiting" },
+    ],
+  },
+  accepted: {
+    text: "Đã xác nhận",
+    heroDescription: "Người đồng hành đã nhận đơn. Bạn có thể theo dõi thông tin liên hệ, chat và GPS khi ca chăm sóc bắt đầu.",
+    progressLabel: "Đã có người nhận",
+    steps: [
+      { label: "Đặt lịch", state: "done" },
+      { label: "Xác nhận", state: "done" },
+      { label: "Chuẩn bị", state: "active" },
+      { label: "Hoàn thành", state: "waiting" },
+    ],
+    timeline: [
+      { title: "Đơn đã được tạo", description: "Mã đơn đã được ghi nhận trên CareGo.", state: "done" },
+      { title: "Người đồng hành đã xác nhận", description: "Bạn có thể liên hệ hoặc nhắn tin để trao đổi thêm.", state: "done" },
+      { title: "Chuẩn bị di chuyển", description: "GPS sẽ cập nhật khi người đồng hành bắt đầu gửi vị trí.", state: "active" },
+    ],
+  },
+  in_progress: {
+    text: "Đang diễn ra",
+    heroDescription: "Ca chăm sóc đang diễn ra. Bạn có thể theo dõi GPS realtime, checklist và nhật ký ca làm.",
+    progressLabel: "Đang chăm sóc",
+    steps: [
+      { label: "Đặt lịch", state: "done" },
+      { label: "Xác nhận", state: "done" },
+      { label: "Đang chăm sóc", state: "active" },
+      { label: "Hoàn thành", state: "waiting" },
+    ],
+    timeline: [
+      { title: "Đơn đã được tạo", description: "Mã đơn đã được ghi nhận trên CareGo.", state: "done" },
+      { title: "Người đồng hành đã xác nhận", description: "Ca chăm sóc đã được nhận.", state: "done" },
+      { title: "Ca chăm sóc đang diễn ra", description: "GPS và checklist được cập nhật theo thời gian thực.", state: "active" },
+    ],
+  },
+  completed: {
+    text: "Hoàn thành",
+    heroDescription: "Ca chăm sóc đã hoàn thành. Bạn có thể xem nhật ký, ảnh check-out và thanh toán dịch vụ.",
+    progressLabel: "Chờ thanh toán",
+    steps: [
+      { label: "Đặt lịch", state: "done" },
+      { label: "Xác nhận", state: "done" },
+      { label: "Chăm sóc", state: "done" },
+      { label: "Thanh toán", state: "active" },
+    ],
+    timeline: [
+      { title: "Đơn đã được tạo", description: "Mã đơn đã được ghi nhận trên CareGo.", state: "done" },
+      { title: "Ca chăm sóc đã hoàn thành", description: "Bạn có thể xem lại nhật ký và ảnh ca làm.", state: "done" },
+      { title: "Chờ thanh toán", description: "Thanh toán để hoàn tất đơn và mở phần đánh giá.", state: "active" },
+    ],
+  },
+  paid: {
+    text: "Đã thanh toán",
+    heroDescription: "Đơn đã hoàn tất và được thanh toán. Bạn có thể xem lại nhật ký hoặc gửi đánh giá cho người đồng hành.",
+    progressLabel: "Đã hoàn tất",
+    steps: [
+      { label: "Đặt lịch", state: "done" },
+      { label: "Xác nhận", state: "done" },
+      { label: "Hoàn thành", state: "done" },
+      { label: "Đã thanh toán", state: "done" },
+    ],
+    timeline: [
+      { title: "Đơn đã được tạo", description: "Mã đơn đã được ghi nhận trên CareGo.", state: "done" },
+      { title: "Ca chăm sóc đã hoàn thành", description: "Nhật ký ca làm đã được cập nhật.", state: "done" },
+      { title: "Đơn đã thanh toán", description: "Bạn có thể đánh giá trải nghiệm chăm sóc.", state: "done" },
+    ],
+  },
+  cancelled: {
+    text: "Đã hủy",
+    heroDescription: "Đơn đã bị hủy. GPS, liên hệ người đồng hành và thanh toán không còn khả dụng cho booking này.",
+    progressLabel: "Đơn đã hủy",
+    steps: [
+      { label: "Đặt lịch", state: "done" },
+      { label: "Đã hủy", state: "cancelled" },
+    ],
+    timeline: [
+      { title: "Đơn đã được tạo", description: "Mã đơn đã được ghi nhận trên CareGo.", state: "done" },
+      { title: "Đơn đã hủy", description: "Bạn có thể tạo booking mới nếu vẫn cần hỗ trợ.", state: "cancelled" },
+    ],
+  },
+};
+
+const progressStepClassName = (state) => {
+  const styles = {
+    done: "border-teal-600 bg-teal-700 text-white",
+    active: "border-sky-300 bg-sky-50 text-sky-700",
+    waiting: "border-teal-100 bg-[#f7fffe] text-slate-400",
+    cancelled: "border-rose-300 bg-rose-50 text-rose-700",
+  };
+  return styles[state] || styles.waiting;
+};
+
+const timelineIconClassName = (state) => {
+  const styles = {
+    done: "bg-emerald-50 text-emerald-600",
+    active: "bg-sky-50 text-sky-600",
+    waiting: "bg-slate-100 text-slate-400",
+    cancelled: "bg-rose-50 text-rose-600",
+  };
+  return styles[state] || styles.waiting;
+};
+
+const timelineIcon = (state) => {
+  if (state === "done") return "✓";
+  if (state === "cancelled") return "!";
+  return "•";
+};
 
 const getRemainingMinutes = (value, now) => {
   if (!value) return 0;
@@ -116,8 +245,9 @@ const CustomerBookingDetailPage = () => {
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [liveLocations, setLiveLocations] = useState([]);
   const [previewPhoto, setPreviewPhoto] = useState(null);
-  const [showCompanionPhone, setShowCompanionPhone] = useState(false);
-  const [showHotline, setShowHotline] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   const booking = data?.booking;
   const companionContact = data?.companionContact;
@@ -138,16 +268,23 @@ const CustomerBookingDetailPage = () => {
     [shiftLog?.locations, liveLocations],
   );
   const latestLocation = allLocations[allLocations.length - 1];
-  const statusText = {
-    pending: "Chờ xác nhận",
-    accepted: "Đã xác nhận",
-    in_progress: "Đang diễn ra",
-    completed: "Hoàn thành",
-    cancelled: "Đã hủy",
-    paid: "Đã thanh toán",
-  }[booking?.status] || "Đang cập nhật";
-  const statusSteps = ["Đặt lịch", "Xác nhận", "Di chuyển", "Hoàn thành"];
-  const statusIndex = Math.max(0, ["pending", "accepted", "in_progress", "completed"].indexOf(booking?.status));
+  const statusContent = BOOKING_STATUS_CONTENT[booking?.status] || {
+    text: "Đang cập nhật",
+    heroDescription: "CareGo đang cập nhật trạng thái mới nhất của đơn chăm sóc.",
+    progressLabel: "Đang cập nhật",
+    steps: [
+      { label: "Đặt lịch", state: "done" },
+      { label: "Cập nhật", state: "active" },
+    ],
+    timeline: [
+      { title: "Đang cập nhật trạng thái", description: "Vui lòng tải lại trang sau ít phút nếu trạng thái chưa thay đổi.", state: "active" },
+    ],
+  };
+  const statusText = statusContent.text;
+  const statusSteps = statusContent.steps;
+  const highlightedStepCount = statusSteps.filter((step) => ["done", "active", "cancelled"].includes(step.state)).length;
+  const progressPercent = statusSteps.length ? (highlightedStepCount / statusSteps.length) * 100 : 0;
+  const companionPhoneHref = toTelHref(companionContact?.phone);
   const paymentDueAt = booking?.paymentDueAt ? new Date(booking.paymentDueAt) : null;
   const hasValidPaymentDueAt = paymentDueAt && !Number.isNaN(paymentDueAt.getTime());
   const isPaymentOverdue = Boolean(booking?.status === "completed" && hasValidPaymentDueAt && paymentDueAt < currentTime);
@@ -155,6 +292,7 @@ const CustomerBookingDetailPage = () => {
   const payableAmount = Number(booking?.totalAmount || 0) + penaltyAmount;
   const canPay = booking?.status === "completed";
   const canReview = booking?.status === "paid";
+  const canCancel = ["pending", "accepted"].includes(booking?.status);
   const instantOfferActive = Boolean(
     booking?.bookingMode === "instant" &&
     booking?.status === "pending" &&
@@ -301,6 +439,22 @@ const CustomerBookingDetailPage = () => {
     }
   };
 
+  const cancelBooking = async () => {
+    if (!canCancel || cancelLoading) return;
+
+    setCancelError("");
+    setCancelLoading(true);
+    try {
+      await api.patch(`/bookings/${id}/cancel`, {});
+      setShowCancelDialog(false);
+      await reload();
+    } catch (err) {
+      setCancelError(err.message);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   if (loading) return <p>Đang tải...</p>;
   if (error) return <p className="text-sm text-rose-600">{error}</p>;
   if (!booking) return null;
@@ -317,7 +471,7 @@ const CustomerBookingDetailPage = () => {
               Theo dõi đơn chăm sóc <span className="text-teal-700">CareGo</span>
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-8 text-slate-500">
-              Người đồng hành đã nhận đơn. Bạn có thể theo dõi GPS realtime, nhật ký ca làm và thanh toán dịch vụ.
+              {statusContent.heroDescription}
             </p>
           </div>
           <div className="min-w-[260px] rounded-[24px] border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/10">
@@ -373,24 +527,21 @@ const CustomerBookingDetailPage = () => {
               <div className="mt-6 rounded-[22px] border border-teal-100 bg-[#fbfffe] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <strong>Tiến trình đơn</strong>
-                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">ETA: đang cập nhật</span>
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">{statusContent.progressLabel}</span>
                 </div>
                 <div className="mt-3 h-2 rounded-full bg-teal-50">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-teal-600 to-emerald-500"
-                    style={{ width: `${((statusIndex + 1) / statusSteps.length) * 100}%` }}
+                    style={{ width: `${progressPercent}%` }}
                   />
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                  {statusSteps.map((label, index) => (
+                  {statusSteps.map((step) => (
                     <div
-                      key={label}
-                      className={`rounded-[14px] border px-3 py-2 text-center text-xs font-black ${index <= statusIndex
-                        ? "border-teal-600 bg-teal-700 text-white"
-                        : "border-teal-100 bg-[#f7fffe] text-slate-400"
-                        }`}
+                      key={step.label}
+                      className={`rounded-[14px] border px-3 py-2 text-center text-xs font-black ${progressStepClassName(step.state)}`}
                     >
-                      {label}
+                      {step.label}
                     </div>
                   ))}
                 </div>
@@ -554,27 +705,19 @@ const CustomerBookingDetailPage = () => {
               </div>
 
               <div className="mt-5 grid gap-3 text-sm">
-                <div className="flex gap-3">
-                  <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-50 font-black text-emerald-600">✓</div>
-                  <div>
-                    <strong className="block text-slate-900">Đơn đã được tạo</strong>
-                    <p className="text-slate-500">Mã đơn {booking._id} đã được ghi nhận.</p>
+                {statusContent.timeline.map((item) => (
+                  <div key={item.title} className="flex gap-3">
+                    <div className={`grid h-8 w-8 place-items-center rounded-full font-black ${timelineIconClassName(item.state)}`}>
+                      {timelineIcon(item.state)}
+                    </div>
+                    <div>
+                      <strong className="block text-slate-900">{item.title}</strong>
+                      <p className="text-slate-500">
+                        {item.description.replace("Mã đơn", `Mã đơn ${booking._id}`)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-50 font-black text-emerald-600">✓</div>
-                  <div>
-                    <strong className="block text-slate-900">Người đồng hành đã xác nhận</strong>
-                    <p className="text-slate-500">Đang chuẩn bị di chuyển tới điểm đón.</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 font-black text-slate-400">•</div>
-                  <div>
-                    <strong className="block text-slate-900">Đang di chuyển</strong>
-                    <p className="text-slate-500">GPS đang cập nhật theo thời gian thực.</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </Card>
 
@@ -592,17 +735,29 @@ const CustomerBookingDetailPage = () => {
                 </div>
               ) : null}
               <div className="mt-4 grid gap-3">
+                {canCancel ? (
+                  <Button
+                    variant="danger"
+                    type="button"
+                    onClick={() => {
+                      setCancelError("");
+                      setShowCancelDialog(true);
+                    }}
+                  >
+                    Hủy booking
+                  </Button>
+                ) : null}
                 <Button
                   variant="secondary"
                   type="button"
-                  onClick={() => setShowCompanionPhone((current) => !current)}
-                  disabled={!companionContact?.phone}
+                  onClick={() => {
+                    if (companionPhoneHref) window.location.href = companionPhoneHref;
+                  }}
+                  disabled={!companionPhoneHref}
                 >
-                  {showCompanionPhone
-                    ? companionContact?.phone || "Chưa cập nhật số điện thoại"
-                    : companionContact?.phone
-                      ? "Gọi người đồng hành"
-                      : "Số điện thoại mở sau khi nhận lịch"}
+                  {companionContact?.phone
+                    ? `Gọi người đồng hành (${companionContact.phone})`
+                    : "Số điện thoại mở sau khi nhận lịch"}
                 </Button>
                 <Button
                   variant="secondary"
@@ -631,9 +786,11 @@ const CustomerBookingDetailPage = () => {
                 <Button
                   className="bg-[#12312f] text-white hover:bg-[#0b1f1d]"
                   type="button"
-                  onClick={() => setShowHotline((current) => !current)}
+                  onClick={() => {
+                    window.location.href = HOTLINE_PHONE_HREF;
+                  }}
                 >
-                  {showHotline ? "033 610 8492" : "Gọi tổng đài CareGo"}
+                  Gọi tổng đài CareGo ({HOTLINE_PHONE_LABEL})
                 </Button>
               </div>
             </Card>
@@ -653,6 +810,60 @@ const CustomerBookingDetailPage = () => {
             className="max-h-[92vh] max-w-[94vw] rounded-2xl object-contain shadow-2xl shadow-slate-950/50"
             onClick={(event) => event.stopPropagation()}
           />
+        </div>
+      ) : null}
+      {showCancelDialog ? (
+        <div
+          className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-booking-title"
+          onClick={() => {
+            if (!cancelLoading) setShowCancelDialog(false);
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-[28px] border border-rose-100 bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-xl font-black text-rose-600">
+              !
+            </div>
+            <h2 id="cancel-booking-title" className="mt-4 text-2xl font-black text-slate-950">
+              Xác nhận hủy booking?
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Booking {booking.serviceId?.name || "chăm sóc"} vào {dateTime(booking.startTime)} sẽ được hủy và không thể khôi phục.
+            </p>
+            {booking.status === "accepted" ? (
+              <p className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+                Người đồng hành đã nhận lịch. Vui lòng chỉ hủy khi thực sự cần thiết.
+              </p>
+            ) : null}
+            {cancelError ? (
+              <p className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 p-3 text-sm font-semibold text-rose-700">
+                {cancelError}
+              </p>
+            ) : null}
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <Button
+                variant="secondary"
+                type="button"
+                disabled={cancelLoading}
+                onClick={() => setShowCancelDialog(false)}
+              >
+                Giữ booking
+              </Button>
+              <Button
+                variant="danger"
+                type="button"
+                disabled={cancelLoading || !canCancel}
+                onClick={cancelBooking}
+              >
+                {cancelLoading ? "Đang hủy..." : "Xác nhận hủy"}
+              </Button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

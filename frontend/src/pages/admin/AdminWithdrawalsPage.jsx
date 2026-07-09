@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { api } from "../../api/client";
+import AdminPagination from "../../components/AdminPagination.jsx";
 import { useAsync } from "../../hooks/useAsync";
 
 const statusOptions = [
-  ["pending", "Chá» xá»­ lÃ½"],
-  ["approved", "ÄÃ£ duyá»‡t"],
-  ["paid", "ÄÃ£ chuyá»ƒn tiá»n"],
-  ["rejected", "Tá»« chá»‘i"],
+  ["pending", "Chờ xử lý"],
+  ["approved", "Đã duyệt"],
+  ["paid", "Đã chuyển tiền"],
+  ["rejected", "Từ chối"],
 ];
 
 const statusLabels = Object.fromEntries(statusOptions);
@@ -58,7 +59,7 @@ const getRequests = (data) => {
 const getCompanion = (request) => request.companion || request.companionId || {};
 const getCompanionName = (request) => {
   const companion = getCompanion(request);
-  return companion.fullName || companion.name || request.companionName || "NgÆ°á»i Ä‘á»“ng hÃ nh";
+  return companion.fullName || companion.name || request.companionName || "Người đồng hành";
 };
 const getProcessorName = (request) => {
   const processor = request.processedBy || {};
@@ -67,32 +68,59 @@ const getProcessorName = (request) => {
 const getMaskedBankAccountNumber = (request) =>
   request.bankAccountNumberMasked || request.bankAccountNumber || "-";
 const getFullBankAccountNumber = (request) =>
-  request.bankAccountNumberFull || request.bankAccountNumberMasked || request.bankAccountNumber || "-";
+  request.bankAccountNumberFull || "";
 
 export default function AdminWithdrawalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [processingId, setProcessingId] = useState("");
+  const [actionError, setActionError] = useState("");
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const { data, loading, error, reload } = useAsync(() => api.get("/withdrawals/admin"), []);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const { data, loading, error, reload } = useAsync(() => {
+    const params = new URLSearchParams({ page: String(page), limit: "25" });
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    return api.get(`/withdrawals/admin?${params.toString()}`);
+  }, [page, statusFilter]);
 
   const requests = useMemo(() => getRequests(data), [data]);
-  const filteredRequests = useMemo(() => {
-    if (statusFilter === "all") return requests;
-    return requests.filter((item) => item.status === statusFilter);
-  }, [requests, statusFilter]);
+  const filteredRequests = requests;
+  const stats = data?.summary || { total: 0, pending: 0, approved: 0, paid: 0, rejected: 0 };
+  const pagination = data?.pagination || { page, limit: 25, total: 0, totalPages: 1 };
 
-  const stats = useMemo(() => requests.reduce(
-    (acc, item) => {
-      const amount = Number(item.amount || 0);
-      acc.total += amount;
-      acc[item.status] = (acc[item.status] || 0) + amount;
-      return acc;
-    },
-    { total: 0, pending: 0, approved: 0, paid: 0, rejected: 0 },
-  ), [requests]);
+  const openRequestDetail = async (request) => {
+    setSelectedRequest(request);
+    setDetailLoading(true);
+    setDetailError("");
+    try {
+      const result = await api.get(`/withdrawals/admin/${request._id}`);
+      setSelectedRequest((current) =>
+        current?._id === request._id ? { ...current, ...result.withdrawal } : current,
+      );
+    } catch (err) {
+      setDetailError(err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeRequestDetail = () => {
+    setSelectedRequest(null);
+    setDetailError("");
+    setDetailLoading(false);
+  };
 
   const updateStatus = async (id, status) => {
+    const confirmationMessages = {
+      approved: "Duyệt yêu cầu rút tiền này?",
+      paid: "Xác nhận đã chuyển tiền cho người đồng hành? Thao tác này không thể hoàn tác.",
+      rejected: "Từ chối yêu cầu rút tiền này?",
+    };
+    if (confirmationMessages[status] && !window.confirm(confirmationMessages[status])) return;
+
     try {
+      setActionError("");
       setProcessingId(`${id}-${status}`);
       const result = await api.patch(`/withdrawals/admin/${id}/status`, { status });
       await reload();
@@ -107,6 +135,8 @@ export default function AdminWithdrawalsPage() {
             }
           : current,
       );
+    } catch (err) {
+      setActionError(err.message);
     } finally {
       setProcessingId("");
     }
@@ -117,26 +147,26 @@ export default function AdminWithdrawalsPage() {
   return (
     <div className="space-y-6">
       <section className="rounded-[28px] border border-teal-100 bg-gradient-to-br from-teal-700 to-teal-400 p-6 text-white shadow-xl shadow-teal-100">
-        <p className="text-sm font-black uppercase tracking-wide text-teal-100">Quáº£n lÃ½ vÃ­ ngÆ°á»i Ä‘á»“ng hÃ nh</p>
+        <p className="text-sm font-black uppercase tracking-wide text-teal-100">Quản lý ví người đồng hành</p>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-black">YÃªu cáº§u rÃºt tiá»n</h1>
+            <h1 className="text-3xl font-black">Yêu cầu rút tiền</h1>
             <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-teal-50">
-              Danh sÃ¡ch bÃªn dÆ°á»›i Ä‘ang hiá»ƒn thá»‹ sá»‘ tÃ i khoáº£n Ä‘Ã£ che. Khi cáº§n xá»­ lÃ½ chuyá»ƒn khoáº£n, admin xem sá»‘ Ä‘áº§y Ä‘á»§ trong popup chi tiáº¿t.
+              Danh sách bên dưới đang hiển thị số tài khoản đã che. Khi cần xử lý chuyển khoản, admin xem số đầy đủ trong popup chi tiết.
             </p>
           </div>
           <button type="button" onClick={reload} className="rounded-full bg-white px-5 py-3 text-sm font-black text-teal-700 shadow-lg shadow-teal-800/10 transition hover:-translate-y-0.5">
-            LÃ m má»›i
+            Làm mới
           </button>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
         {[
-          ["Tá»•ng yÃªu cáº§u", currency(stats.total)],
-          ["Chá» xá»­ lÃ½", currency(stats.pending)],
-          ["ÄÃ£ duyá»‡t", currency(stats.approved)],
-          ["ÄÃ£ chuyá»ƒn", currency(stats.paid)],
+          ["Tổng yêu cầu", currency(stats.total)],
+          ["Chờ xử lý", currency(stats.pending)],
+          ["Đã duyệt", currency(stats.approved)],
+          ["Đã chuyển", currency(stats.paid)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-3xl border border-teal-100 bg-white p-5 shadow-lg shadow-teal-50">
             <p className="text-sm font-bold text-slate-500">{label}</p>
@@ -148,16 +178,19 @@ export default function AdminWithdrawalsPage() {
       <section className="rounded-[28px] border border-teal-100 bg-white p-5 shadow-xl shadow-teal-50">
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-2xl font-black text-slate-950">Danh sÃ¡ch yÃªu cáº§u</h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">{filteredRequests.length} yÃªu cáº§u Ä‘ang hiá»ƒn thá»‹</p>
+            <h2 className="text-2xl font-black text-slate-950">Danh sách yêu cầu</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{pagination.total || 0} yêu cầu phù hợp</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {[["all", "Táº¥t cáº£"], ...statusOptions].map(([value, label]) => (
+            {[["all", "Tất cả"], ...statusOptions].map(([value, label]) => (
               <button
                 key={value}
                 type="button"
-                onClick={() => setStatusFilter(value)}
+                onClick={() => {
+                  setStatusFilter(value);
+                  setPage(1);
+                }}
                 className={`rounded-full px-4 py-2 text-xs font-black transition ${statusFilter === value ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700"}`}
               >
                 {label}
@@ -166,25 +199,25 @@ export default function AdminWithdrawalsPage() {
           </div>
         </div>
 
-        {error ? (
-          <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{error}</div>
+        {error || actionError ? (
+          <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{error || actionError}</div>
         ) : null}
 
         {loading ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">Äang táº£i yÃªu cáº§u rÃºt tiá»n...</div>
+          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">Đang tải yêu cầu rút tiền...</div>
         ) : filteredRequests.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">ChÆ°a cÃ³ yÃªu cáº§u rÃºt tiá»n.</div>
+          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center font-bold text-slate-500">Chưa có yêu cầu rút tiền.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-xs font-black uppercase tracking-wide text-slate-400">
-                  <th className="px-4 py-3">NgÆ°á»i Ä‘á»“ng hÃ nh</th>
-                  <th className="px-4 py-3">Sá»‘ tiá»n</th>
-                  <th className="px-4 py-3">NgÃ¢n hÃ ng</th>
-                  <th className="px-4 py-3">Thá»i gian</th>
-                  <th className="px-4 py-3">Tráº¡ng thÃ¡i</th>
-                  <th className="px-4 py-3 text-right">Thao tÃ¡c</th>
+                  <th className="px-4 py-3">Người đồng hành</th>
+                  <th className="px-4 py-3">Số tiền</th>
+                  <th className="px-4 py-3">Ngân hàng</th>
+                  <th className="px-4 py-3">Thời gian</th>
+                  <th className="px-4 py-3">Trạng thái</th>
+                  <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,19 +235,19 @@ export default function AdminWithdrawalsPage() {
                       <td className="px-4 py-4">
                         <p className="font-bold text-slate-800">{request.bankName || "-"}</p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {getMaskedBankAccountNumber(request)} Â· {request.bankAccountName || "-"}
+                          {getMaskedBankAccountNumber(request)} · {request.bankAccountName || "-"}
                         </p>
                       </td>
                       <td className="px-4 py-4 font-semibold text-slate-500">{dateTime(request.createdAt)}</td>
                       <td className="px-4 py-4">
                         <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClasses[request.status] || statusClasses.pending}`}>
-                          {statusLabels[request.status] || "Chá» xá»­ lÃ½"}
+                          {statusLabels[request.status] || "Chờ xử lý"}
                         </span>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => setSelectedRequest(request)} className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-teal-50 hover:text-teal-700">
-                            Chi tiáº¿t
+                          <button type="button" onClick={() => openRequestDetail(request)} className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-teal-50 hover:text-teal-700">
+                            Chi tiết
                           </button>
                           <select
                             value={request.status || "pending"}
@@ -226,6 +259,9 @@ export default function AdminWithdrawalsPage() {
                               <option key={value} value={value}>{label}</option>
                             ))}
                           </select>
+                          {processingId.startsWith(`${request._id}-`) ? (
+                            <span className="self-center text-xs font-black text-teal-700">Đang xử lý...</span>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -235,31 +271,37 @@ export default function AdminWithdrawalsPage() {
             </table>
           </div>
         )}
+        <AdminPagination
+          pagination={pagination}
+          loading={loading}
+          onPageChange={setPage}
+          itemLabel="yêu cầu"
+        />
       </section>
 
       {selectedRequest ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4" onClick={() => setSelectedRequest(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4" onClick={closeRequestDetail}>
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[30px] border border-teal-100 bg-white p-6 shadow-2xl shadow-slate-950/20" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase tracking-wide text-teal-700">Chi tiáº¿t yÃªu cáº§u rÃºt tiá»n</p>
+                <p className="text-sm font-black uppercase tracking-wide text-teal-700">Chi tiết yêu cầu rút tiền</p>
                 <h2 className="mt-2 text-2xl font-black text-slate-950">{currency(selectedRequest.amount)}</h2>
               </div>
-              <button type="button" onClick={() => setSelectedRequest(null)} className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-red-50 hover:text-red-600">
-                Ã—
+              <button type="button" onClick={closeRequestDetail} className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black text-slate-500 transition hover:bg-red-50 hover:text-red-600">
+                ×
               </button>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
-                <p className="text-xs font-black uppercase text-slate-400">NgÆ°á»i Ä‘á»“ng hÃ nh</p>
+                <p className="text-xs font-black uppercase text-slate-400">Người đồng hành</p>
                 <p className="mt-2 font-black text-slate-950">{getCompanionName(selectedRequest)}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-500">{getCompanion(selectedRequest).email || selectedRequest.email || "-"}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-500">{getCompanion(selectedRequest).phone || selectedRequest.phone || "-"}</p>
               </div>
 
               <div className="rounded-2xl border border-teal-100 bg-[#fbfffe] p-4">
-                <p className="text-xs font-black uppercase text-slate-400">Tráº¡ng thÃ¡i</p>
+                <p className="text-xs font-black uppercase text-slate-400">Trạng thái</p>
                 <select
                   value={selectedRequest.status || "pending"}
                   disabled={Boolean(processingId) || selectedStatusOptions.length <= 1}
@@ -270,34 +312,43 @@ export default function AdminWithdrawalsPage() {
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
-                <p className="mt-3 text-sm font-semibold text-slate-500">Táº¡o lÃºc: {dateTime(selectedRequest.createdAt)}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">Xá»­ lÃ½ lÃºc: {dateTime(selectedRequest.processedAt)}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">Xá»­ lÃ½ bá»Ÿi: {getProcessorName(selectedRequest)}</p>
+                <p className="mt-3 text-sm font-semibold text-slate-500">Tạo lúc: {dateTime(selectedRequest.createdAt)}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Xử lý lúc: {dateTime(selectedRequest.processedAt)}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Xử lý bởi: {getProcessorName(selectedRequest)}</p>
+                {processingId ? <p className="mt-2 text-xs font-black text-teal-700">Đang cập nhật trạng thái...</p> : null}
               </div>
             </div>
 
+            {detailError ? (
+              <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+                {detailError}
+              </div>
+            ) : null}
+
             <div className="mt-4 rounded-2xl border border-teal-100 bg-white p-4">
-              <p className="text-xs font-black uppercase text-slate-400">ThÃ´ng tin ngÃ¢n hÃ ng</p>
+              <p className="text-xs font-black uppercase text-slate-400">Thông tin ngân hàng</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-400">NgÃ¢n hÃ ng</p>
+                  <p className="text-xs font-bold text-slate-400">Ngân hàng</p>
                   <p className="mt-1 font-black text-slate-950">{selectedRequest.bankName || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400">Sá»‘ tÃ i khoáº£n Ä‘áº§y Ä‘á»§</p>
-                  <p className="mt-1 font-black text-slate-950">{getFullBankAccountNumber(selectedRequest)}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-400">Hiá»ƒn thá»‹ chung: {getMaskedBankAccountNumber(selectedRequest)}</p>
+                  <p className="text-xs font-bold text-slate-400">Số tài khoản đầy đủ</p>
+                  <p className="mt-1 font-black text-slate-950">
+                    {detailLoading ? "Đang tải..." : getFullBankAccountNumber(selectedRequest) || "Không thể tải số tài khoản."}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">Hiển thị chung: {getMaskedBankAccountNumber(selectedRequest)}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400">Chá»§ tÃ i khoáº£n</p>
+                  <p className="text-xs font-bold text-slate-400">Chủ tài khoản</p>
                   <p className="mt-1 font-black text-slate-950">{selectedRequest.bankAccountName || "-"}</p>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-xs font-black uppercase text-slate-400">Ghi chÃº ngÆ°á»i Ä‘á»“ng hÃ nh</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">{selectedRequest.note || "KhÃ´ng cÃ³ ghi chÃº."}</p>
+              <p className="text-xs font-black uppercase text-slate-400">Ghi chú người đồng hành</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">{selectedRequest.note || "Không có ghi chú."}</p>
             </div>
           </div>
         </div>

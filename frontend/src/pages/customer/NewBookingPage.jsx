@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { api } from "../../api/client.js";
 import AddressSearchMap from "../../components/AddressSearchMap.jsx";
 import { Button, Select, Textarea } from "../../components/Ui.jsx";
@@ -143,9 +143,27 @@ const getDateOptions = () =>
     };
   });
 
+const createIdempotencyKey = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+
+const buildBookingFingerprint = (form) => JSON.stringify({
+  elderProfileId: form.elderProfileId,
+  serviceId: form.serviceId,
+  companionId: form.companionId,
+  startTime: form.startTime,
+  durationHours: Number(form.durationHours),
+  address: form.address.trim(),
+  addressLocation: form.addressLocation,
+  note: form.note,
+  bookingMode: form.bookingMode,
+});
+
 const NewBookingPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const serviceIdFromQuery = searchParams.get("serviceId") || "";
   const { data: elderData, loading: elderLoading } = useAsync(() => api.get("/elders/my"), []);
   const { data: serviceData, loading: serviceLoading } = useAsync(() => api.get("/services"), []);
   const [onlineStatuses, setOnlineStatuses] = useState({});
@@ -156,7 +174,7 @@ const NewBookingPage = () => {
   const [detailReviewsError, setDetailReviewsError] = useState("");
   const [form, setForm] = useState({
     elderProfileId: "",
-    serviceId: "",
+    serviceId: serviceIdFromQuery,
     companionId: "",
     startTime: "",
     durationHours: 2,
@@ -167,6 +185,9 @@ const NewBookingPage = () => {
   });
   const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const idempotencyRef = useRef(null);
   const companionAvailabilityQuery = useMemo(() => {
     if (!form.startTime || !form.durationHours) return "";
     const params = new URLSearchParams({
@@ -354,8 +375,30 @@ const NewBookingPage = () => {
     }));
   };
 
+  const chooseElderProfile = (elderProfileId) => {
+    setForm((current) => {
+      const currentElder = elders.find((item) => item._id === current.elderProfileId);
+      const nextElder = elders.find((item) => item._id === elderProfileId);
+      const currentAddress = current.address.trim();
+      const currentElderAddress = currentElder?.address?.trim() || "";
+      const nextElderAddress = nextElder?.address?.trim() || "";
+      const shouldAutofillAddress = Boolean(
+        nextElderAddress &&
+        (!currentAddress || currentAddress === currentElderAddress),
+      );
+
+      return {
+        ...current,
+        elderProfileId,
+        address: shouldAutofillAddress ? nextElderAddress : current.address,
+        addressLocation: shouldAutofillAddress ? null : current.addressLocation,
+      };
+    });
+  };
+
   const submit = async (event) => {
     event.preventDefault();
+    if (submittingRef.current) return;
     setError("");
     if (!form.addressLocation?.lat || !form.addressLocation?.lng) {
       setError("Vui lòng tìm địa chỉ trên bản đồ hoặc bấm vào bản đồ để ghim vị trí trước khi đặt lịch.");
@@ -374,15 +417,29 @@ const NewBookingPage = () => {
       }
     }
 
+    const bookingFingerprint = buildBookingFingerprint(form);
+    if (idempotencyRef.current?.fingerprint !== bookingFingerprint) {
+      idempotencyRef.current = {
+        fingerprint: bookingFingerprint,
+        key: createIdempotencyKey(),
+      };
+    }
+
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
       const data = await api.post("/bookings", {
         ...form,
         durationHours: Number(form.durationHours),
         addressLocation: form.addressLocation,
+        idempotencyKey: idempotencyRef.current.key,
       });
       navigate(`/customer/bookings/${data.booking._id}`);
     } catch (err) {
       setError(err.message);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -475,7 +532,7 @@ const NewBookingPage = () => {
                 <Select
                   label="Hồ sơ người thân"
                   value={form.elderProfileId}
-                  onChange={(event) => setForm({ ...form, elderProfileId: event.target.value })}
+                  onChange={(event) => chooseElderProfile(event.target.value)}
                   required
                   className="rounded-[18px] border-teal-100 bg-[#fbfffe] px-4"
                 >
@@ -487,6 +544,11 @@ const NewBookingPage = () => {
                   ))}
                 </Select>
               )}
+              {selectedElder?.address ? (
+                <p className="self-end rounded-[18px] border border-teal-100 bg-teal-50/60 p-3 text-sm font-semibold leading-6 text-teal-700">
+                  Đã tự điền địa chỉ từ hồ sơ: {selectedElder.address}. Vui lòng tìm hoặc ghim vị trí trên bản đồ để lưu tọa độ chính xác.
+                </p>
+              ) : null}
               <div className="grid gap-4 md:col-span-2">
                 <div>
                   <span className="mb-2 block text-sm font-bold text-slate-700">Hình thức đặt lịch</span>
@@ -798,9 +860,13 @@ const NewBookingPage = () => {
 
             <Button
               className="min-h-12 w-full rounded-[18px] text-base"
-              disabled={!form.elderProfileId || !form.serviceId || !form.startTime || !form.durationHours || !form.companionId}
+              disabled={submitting || !form.elderProfileId || !form.serviceId || !form.startTime || !form.durationHours || !form.companionId}
             >
-              {form.bookingMode === "instant" ? "Gửi yêu cầu đặt ngay" : "Xác nhận đặt lịch"}
+              {submitting
+                ? "Đang tạo booking..."
+                : form.bookingMode === "instant"
+                  ? "Gửi yêu cầu đặt ngay"
+                  : "Xác nhận đặt lịch"}
             </Button>
           </div>
         </aside>

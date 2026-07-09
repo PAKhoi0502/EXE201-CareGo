@@ -1,5 +1,6 @@
+import { Link } from "react-router";
 import { api } from "../../api/client.js";
-import { Card, EmptyState, PageHeader } from "../../components/Ui.jsx";
+import { Button, Card, EmptyState, PageHeader } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { money } from "../../utils/format.js";
 
@@ -32,6 +33,11 @@ const CustomerServicesPage = () => {
                 ))}
               </div>
             ) : null}
+            <div className="mt-5">
+              <Link to={`/customer/bookings/new?serviceId=${encodeURIComponent(service._id)}`}>
+                <Button className="w-full">Đặt dịch vụ này</Button>
+              </Link>
+            </div>
           </Card>
         ))}
       </div>

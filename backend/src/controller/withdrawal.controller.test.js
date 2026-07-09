@@ -3,7 +3,13 @@ import test, { afterEach } from "node:test";
 import Payment from "../models/payment.models.js";
 import WithdrawalCompanionLock from "../models/withdrawal-companion-lock.models.js";
 import WithdrawalRequest from "../models/withdrawal-request.models.js";
-import { createWithdrawalRequest, getMyEarnings } from "./withdrawal.controller.js";
+import {
+  createWithdrawalRequest,
+  getAdminWithdrawalRequestDetail,
+  getAdminWithdrawalRequests,
+  getMyEarnings,
+  updateWithdrawalStatus,
+} from "./withdrawal.controller.js";
 
 const originalEncryptionKey = process.env.CAREGO_DATA_ENCRYPTION_KEY;
 const originalJwtSecret = process.env.JWT_SECRET_KEY;
@@ -48,6 +54,15 @@ const createLeanQuery = (value) => ({
     return this;
   },
   lean: async () => value,
+});
+
+const createPopulateQuery = (value) => ({
+  populate() {
+    return this;
+  },
+  then(resolve, reject) {
+    return Promise.resolve(value).then(resolve, reject);
+  },
 });
 
 afterEach(() => {
@@ -101,7 +116,7 @@ test("createWithdrawalRequest stores encrypted bank data and returns masked hist
   assert.match(requests[0].bankAccountName, /^enc:v1:/);
   assert.equal(res.body.requests[0].bankAccountNumberMasked, "******7890");
   assert.equal(res.body.requests[0].bankAccountNumber, "******7890");
-  assert.equal(res.body.requests[0].bankAccountNumberFull, "1234567890");
+  assert.equal(res.body.requests[0].bankAccountNumberFull, undefined);
   assert.equal(res.body.requests[0].bankAccountName, "Nguyen Van A");
   assert.equal(res.body.availableBalance, 380000);
 });
@@ -170,4 +185,129 @@ test("getMyEarnings returns ledger entries and summary from paid payments", { co
   assert.equal(res.body.entries[0].paidAt.toISOString(), "2026-07-07T09:15:00.000Z");
   assert.equal(res.body.entries[0].payment.companionEarning, 180000);
   assert.equal(res.body.entries[0].booking.updatedAt.toISOString(), "2026-06-01T00:00:00.000Z");
+});
+
+test("getAdminWithdrawalRequests paginates before serializing the response", { concurrency: false }, async () => {
+  let skipped = null;
+  let limited = null;
+  const requests = [{
+    _id: "withdrawal-1",
+    amount: 120000,
+    status: "pending",
+    bankAccountNumber: "1234567890",
+    bankAccountName: "Nguyen Van A",
+  }];
+
+  mockMethod(WithdrawalRequest, "find", () => ({
+    populate() { return this; },
+    sort() { return this; },
+    skip(value) { skipped = value; return this; },
+    limit(value) { limited = value; return this; },
+    lean: async () => requests,
+  }));
+  mockMethod(WithdrawalRequest, "countDocuments", async () => 26);
+  mockMethod(WithdrawalRequest, "aggregate", async () => [{
+    total: 500000,
+    pending: 120000,
+    approved: 80000,
+    paid: 300000,
+    rejected: 0,
+  }]);
+
+  const res = createResponse();
+  await getAdminWithdrawalRequests({ query: { page: "2", limit: "25" } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(skipped, 25);
+  assert.equal(limited, 25);
+  assert.deepEqual(res.body.pagination, { page: 2, limit: 25, total: 26, totalPages: 2 });
+  assert.equal(res.body.requests[0].bankAccountNumber, "******7890");
+  assert.equal(res.body.requests[0].bankAccountNumberFull, undefined);
+  assert.equal(res.body.summary.total, 500000);
+});
+
+test("getAdminWithdrawalRequestDetail is the only admin response exposing the full account number", { concurrency: false }, async () => {
+  const request = {
+    _id: "withdrawal-1",
+    amount: 120000,
+    status: "pending",
+    bankAccountNumber: "1234567890",
+    bankAccountName: "Nguyen Van A",
+    companionId: { _id: "companion-1", name: "Nguyen Van A" },
+  };
+  mockMethod(WithdrawalRequest, "findById", () => ({
+    populate() { return this; },
+    lean: async () => request,
+  }));
+
+  const res = createResponse();
+  await getAdminWithdrawalRequestDetail({ params: { id: "withdrawal-1" } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.withdrawal.bankAccountNumber, "******7890");
+  assert.equal(res.body.withdrawal.bankAccountNumberFull, "1234567890");
+});
+
+test("updateWithdrawalStatus preserves adminNote when it is omitted", { concurrency: false }, async () => {
+  let capturedUpdates = null;
+
+  mockMethod(WithdrawalRequest, "findById", () => ({
+    select: async () => ({ status: "pending" }),
+  }));
+  mockMethod(WithdrawalRequest, "findOneAndUpdate", (_filter, updates) => {
+    capturedUpdates = updates;
+    return createPopulateQuery({
+      _id: "withdrawal-1",
+      status: "approved",
+      adminNote: "Ghi chú cần được giữ nguyên",
+      bankAccountNumber: "",
+      bankAccountName: "",
+    });
+  });
+
+  const req = {
+    user: { userId: "admin-1", role: "admin" },
+    params: { id: "withdrawal-1" },
+    body: { status: "approved" },
+  };
+  const res = createResponse();
+
+  await updateWithdrawalStatus(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(Object.hasOwn(capturedUpdates, "adminNote"), false);
+  assert.equal(capturedUpdates.status, "approved");
+  assert.equal(res.body.withdrawal.adminNote, "Ghi chú cần được giữ nguyên");
+  assert.equal(res.body.withdrawal.bankAccountNumberFull, undefined);
+});
+
+test("updateWithdrawalStatus updates adminNote when it is explicitly provided", { concurrency: false }, async () => {
+  let capturedUpdates = null;
+
+  mockMethod(WithdrawalRequest, "findById", () => ({
+    select: async () => ({ status: "pending" }),
+  }));
+  mockMethod(WithdrawalRequest, "findOneAndUpdate", (_filter, updates) => {
+    capturedUpdates = updates;
+    return createPopulateQuery({
+      _id: "withdrawal-1",
+      status: "pending",
+      adminNote: updates.adminNote,
+      bankAccountNumber: "",
+      bankAccountName: "",
+    });
+  });
+
+  const req = {
+    user: { userId: "admin-1", role: "admin" },
+    params: { id: "withdrawal-1" },
+    body: { status: "pending", adminNote: "  Đã kiểm tra thông tin  " },
+  };
+  const res = createResponse();
+
+  await updateWithdrawalStatus(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(capturedUpdates.adminNote, "Đã kiểm tra thông tin");
+  assert.equal(Object.hasOwn(capturedUpdates, "status"), false);
 });

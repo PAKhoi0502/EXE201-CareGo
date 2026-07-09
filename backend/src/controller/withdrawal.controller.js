@@ -8,6 +8,7 @@ import {
   encryptSensitiveValue,
   maskBankAccountNumber,
 } from "../utils/field-encryption.js";
+import { buildPagination, parsePagination } from "../utils/pagination.js";
 
 const WITHDRAWAL_CREATE_LOCK_TTL_MS = 10 * 1000;
 const WITHDRAWAL_CREATE_LOCK_WAIT_MS = 1200;
@@ -126,21 +127,24 @@ const startOfWeek = (date) => {
 
 const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 
-const serializeWithdrawalRequest = (request) => {
+const serializeWithdrawalRequest = (request, { includeFullBankAccount = false } = {}) => {
   const payload = request?.toObject ? request.toObject() : request;
   const bankAccountNumberFull = decryptSensitiveValue(payload?.bankAccountNumber);
   const bankAccountName = decryptSensitiveValue(payload?.bankAccountName);
   const bankAccountNumberMasked = maskBankAccountNumber(bankAccountNumberFull);
   const companion = payload?.companion || payload?.companionId || null;
 
-  return {
+  const serialized = {
     ...payload,
     bankAccountNumber: bankAccountNumberMasked,
     bankAccountNumberMasked,
-    bankAccountNumberFull,
     bankAccountName: bankAccountName || normalizeText(payload?.bankAccountName),
     companion,
   };
+  if (includeFullBankAccount) {
+    serialized.bankAccountNumberFull = bankAccountNumberFull;
+  }
+  return serialized;
 };
 
 const getTotalPaidCompanionEarnings = async (companionId) => {
@@ -391,11 +395,38 @@ export const createWithdrawalRequest = async (req, res) => {
 
 export const getAdminWithdrawalRequests = async (req, res) => {
   try {
-    const requests = await WithdrawalRequest.find()
-      .populate("companionId", "name fullName email phone avatar")
-      .populate("processedBy", "name fullName email")
-      .sort({ createdAt: -1 })
-      .lean();
+    const pagination = parsePagination(req.query);
+    if (pagination.error) {
+      return res.status(400).json({ message: pagination.error });
+    }
+
+    const filter = {};
+    if (Object.hasOwn(WITHDRAWAL_STATUS_TRANSITIONS, req.query?.status)) {
+      filter.status = req.query.status;
+    }
+
+    const [requests, total, summaryRows] = await Promise.all([
+      WithdrawalRequest.find(filter)
+        .populate("companionId", "name fullName email phone avatar")
+        .populate("processedBy", "name fullName email")
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(pagination.skip)
+        .limit(pagination.limit)
+        .lean(),
+      WithdrawalRequest.countDocuments(filter),
+      WithdrawalRequest.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+            pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, "$amount", 0] } },
+            approved: { $sum: { $cond: [{ $eq: ["$status", "approved"] }, "$amount", 0] } },
+            paid: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$amount", 0] } },
+            rejected: { $sum: { $cond: [{ $eq: ["$status", "rejected"] }, "$amount", 0] } },
+          },
+        },
+      ]),
+    ]);
 
     const normalizedRequests = requests.map((request) =>
       serializeWithdrawalRequest({
@@ -408,6 +439,30 @@ export const getAdminWithdrawalRequests = async (req, res) => {
       requests: normalizedRequests,
       withdrawals: normalizedRequests,
       withdrawalRequests: normalizedRequests,
+      summary: summaryRows[0] || { total: 0, pending: 0, approved: 0, paid: 0, rejected: 0 },
+      pagination: buildPagination(pagination, total),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
+  }
+};
+
+export const getAdminWithdrawalRequestDetail = async (req, res) => {
+  try {
+    const request = await WithdrawalRequest.findById(req.params.id)
+      .populate("companionId", "name fullName email phone avatar")
+      .populate("processedBy", "name fullName email")
+      .lean();
+
+    if (!request) {
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu rút tiền." });
+    }
+
+    return res.status(200).json({
+      withdrawal: serializeWithdrawalRequest(
+        { ...request, companion: request.companionId },
+        { includeFullBankAccount: true },
+      ),
     });
   } catch (error) {
     return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
@@ -434,9 +489,11 @@ export const updateWithdrawalStatus = async (req, res) => {
       return res.status(409).json({ message: "Không thể đổi trạng thái rút tiền theo luồng này." });
     }
 
-    const statusUpdates = {
-      adminNote: normalizeText(adminNote),
-    };
+    const statusUpdates = {};
+
+    if (adminNote !== undefined) {
+      statusUpdates.adminNote = normalizeText(adminNote);
+    }
 
     if (currentStatus !== nextStatus) {
       statusUpdates.status = nextStatus;

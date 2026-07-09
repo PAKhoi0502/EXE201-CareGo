@@ -92,7 +92,7 @@ export default function SupportFloatingButton() {
           <header className="flex items-center justify-between gap-3 bg-gradient-to-br from-teal-700 to-cyan-500 px-4 py-3 text-white">
             <div>
               <p className="text-xs font-black uppercase tracking-wide text-teal-100">CareGo Support</p>
-              <h2 className="mt-0.5 font-black">Chat trực tiếp với Admin</h2>
+              <h2 className="mt-0.5 font-black">Trò chuyện với CareGo</h2>
             </div>
             <div className="flex items-center gap-2">
               <Link
@@ -126,7 +126,7 @@ export default function SupportFloatingButton() {
           ) : (
             <form onSubmit={createConversation} className="grid gap-3 p-4">
               <div className="rounded-2xl border border-teal-100 bg-teal-50/70 p-3 text-sm leading-6 text-slate-600">
-                Bạn chưa có cuộc trò chuyện đang mở. Hãy gửi nội dung để bắt đầu chat với Admin.
+                Bạn chưa có cuộc trò chuyện đang mở. Hãy gửi nội dung để CareGo hỗ trợ bạn.
               </div>
               <input
                 value={form.subject}
@@ -168,7 +168,7 @@ export default function SupportFloatingButton() {
         </svg>
         <span className="hidden text-left sm:block">
           <span className="block text-sm font-black">Hỗ trợ</span>
-          <span className="block text-[10px] font-semibold text-white/70">Chat với Admin</span>
+          <span className="block text-[10px] font-semibold text-white/70">Trò chuyện với CareGo</span>
         </span>
       </button>
     </div>

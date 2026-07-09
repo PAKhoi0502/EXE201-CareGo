@@ -4,6 +4,7 @@ import { Button, Input } from "../../components/Ui.jsx";
 import { useAuth } from "../../context/useAuth.js";
 import AuthShell from "./AuthShell.jsx";
 import ConsentChecklist from "../../components/legal/ConsentChecklist.jsx";
+import { isStrongPassword, PASSWORD_POLICY_HINT, PASSWORD_POLICY_MESSAGE } from "../../utils/passwordPolicy.js";
 
 const RegisterPage = () => {
   const { registerCustomer } = useAuth();
@@ -26,6 +27,10 @@ const RegisterPage = () => {
     setError("");
     if (form.password !== form.confirmPassword) {
       setError("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    if (!isStrongPassword(form.password)) {
+      setError(PASSWORD_POLICY_MESSAGE);
       return;
     }
     if (!form.legalAcceptances.length || form.legalAcceptances.some((item) => !item.accepted)) {
@@ -90,19 +95,24 @@ const RegisterPage = () => {
           <Input
             label="Mật khẩu"
             type="password"
+            minLength={8}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             className="min-h-14 rounded-2xl border-teal-100"
-            placeholder="Nhập mật khẩu"
+            placeholder="Nhập mật khẩu mạnh"
+            required
           />
           <Input
             label="Xác nhận mật khẩu"
             type="password"
+            minLength={8}
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             className="min-h-14 rounded-2xl border-teal-100"
             placeholder="Nhập lại mật khẩu"
+            required
           />
+          <p className="text-xs font-semibold text-slate-500">{PASSWORD_POLICY_HINT}</p>
         </div>
         <div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold leading-6 text-teal-800">
           Sau khi đăng ký, CareGo sẽ gửi mã OTP về email để xác thực tài khoản trước khi đặt lịch.

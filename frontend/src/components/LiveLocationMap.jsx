@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl.js";
-import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
+import { loadVietmap } from "../utils/loadVietmap.js";
 import { DEFAULT_MAP_CENTER, getVietmapStyleUrl, hasVietmapMapKey } from "../utils/mapProvider.js";
 
 const ROUTE_SOURCE_ID = "carego-live-route";
@@ -59,6 +58,8 @@ const LiveLocationMap = ({ location, locations = [], height = "360px", markerVar
   const markerRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const hasMapKey = hasVietmapMapKey();
+  const [vietmapgl, setVietmapgl] = useState(null);
+  const [mapLoadError, setMapLoadError] = useState("");
   const position = location
     ? { lat: Number(location.lat), lng: Number(location.lng) }
     : DEFAULT_MAP_CENTER;
@@ -72,7 +73,24 @@ const LiveLocationMap = ({ location, locations = [], height = "360px", markerVar
   );
 
   useEffect(() => {
-    if (!containerRef.current || !hasMapKey) return undefined;
+    if (!hasMapKey) return undefined;
+
+    let active = true;
+    loadVietmap()
+      .then((library) => {
+        if (active) setVietmapgl(library);
+      })
+      .catch(() => {
+        if (active) setMapLoadError("Không thể tải bản đồ. Vui lòng thử lại sau.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [hasMapKey]);
+
+  useEffect(() => {
+    if (!containerRef.current || !hasMapKey || !vietmapgl) return undefined;
 
     const map = new vietmapgl.Map({
       container: containerRef.current,
@@ -93,7 +111,7 @@ const LiveLocationMap = ({ location, locations = [], height = "360px", markerVar
       map.remove();
       mapRef.current = null;
     };
-  }, [hasMapKey, initialPosition.lat, initialPosition.lng]);
+  }, [hasMapKey, initialPosition.lat, initialPosition.lng, vietmapgl]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -133,7 +151,7 @@ const LiveLocationMap = ({ location, locations = [], height = "360px", markerVar
     markerRef.current
       .setLngLat(lngLat)
       .setPopup(new vietmapgl.Popup({ offset: markerVariant === "person" ? 24 : 28 }).setText(popupText));
-  }, [location, markerVariant]);
+  }, [location, markerVariant, vietmapgl]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -166,8 +184,16 @@ const LiveLocationMap = ({ location, locations = [], height = "360px", markerVar
 
   return (
     <div className="relative z-0 overflow-hidden rounded-lg border border-slate-200" style={{ height }}>
-      {hasMapKey ? (
+      {mapLoadError ? (
+        <div className="grid h-full place-items-center bg-rose-50 p-5 text-center text-sm font-semibold text-rose-600">
+          {mapLoadError}
+        </div>
+      ) : hasMapKey && vietmapgl ? (
         <div ref={containerRef} className="carego-vietmap-map h-full w-full" />
+      ) : hasMapKey ? (
+        <div className="grid h-full place-items-center bg-slate-50 p-5 text-center text-sm font-semibold text-slate-500">
+          Đang tải bản đồ...
+        </div>
       ) : (
         <div className="grid h-full place-items-center bg-slate-50 p-5 text-center text-sm font-semibold text-slate-500">
           Cần cấu hình VITE_VIETMAP_TILE_API_KEY để hiển thị bản đồ Vietmap.

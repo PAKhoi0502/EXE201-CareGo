@@ -1,6 +1,7 @@
 import { getPayOSPaymentLink, verifyPayOSWebhook } from "../config/payos.js";
 import Booking from "../models/booking.models.js";
 import Payment from "../models/payment.models.js";
+import { toPaymentDto } from "../dto/payment.dto.js";
 import {
   createCompanionPaymentSuccessNotification,
   createPaymentSuccessNotification,
@@ -179,7 +180,7 @@ export const syncPayOSPayment = async (req, res) => {
       message: "Đồng bộ thanh toán thành công.",
       paymentStatus: payment.status,
       bookingStatus: booking.status,
-      payment,
+      payment: toPaymentDto(payment, req.user.role === "admin" ? "admin" : "customer"),
       booking,
     });
   } catch (error) {

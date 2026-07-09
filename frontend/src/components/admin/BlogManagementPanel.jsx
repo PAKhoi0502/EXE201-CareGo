@@ -164,6 +164,7 @@ const BlogManagementPanel = ({ onChanged }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [actionLoading, setActionLoading] = useState("");
   const blogs = useMemo(() => data?.blogs || [], [data?.blogs]);
 
   const filteredBlogs = useMemo(() => {
@@ -223,24 +224,33 @@ const BlogManagementPanel = ({ onChanged }) => {
   };
 
   const togglePublish = async (blog) => {
+    const status = blog.status || (blog.isPublished ? "published" : "draft");
+    const nextAction = status === "published" ? "gỡ bài viết khỏi trang công khai" : "đăng bài viết này";
+    if (!window.confirm(`Xác nhận ${nextAction}?`)) return;
+
     setActionError("");
+    setActionLoading(`${blog._id}:publish`);
     try {
-      const status = blog.status || (blog.isPublished ? "published" : "draft");
       await api.patch(`/admin/blogs/${blog._id}/${status === "published" ? "unpublish" : "publish"}`, {});
       await refresh();
     } catch (requestError) {
       setActionError(requestError.message);
+    } finally {
+      setActionLoading("");
     }
   };
 
   const deleteBlog = async (blog) => {
     if (!window.confirm(`Xóa bài viết "${blog.title}"?`)) return;
     setActionError("");
+    setActionLoading(`${blog._id}:delete`);
     try {
       await api.delete(`/admin/blogs/${blog._id}`);
       await refresh();
     } catch (requestError) {
       setActionError(requestError.message);
+    } finally {
+      setActionLoading("");
     }
   };
 
@@ -305,10 +315,12 @@ const BlogManagementPanel = ({ onChanged }) => {
                   <td className="p-4">
                     <div className="flex flex-wrap justify-end gap-2">
                       <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => openEdit(blog)}>Sửa</Button>
-                      <Button type="button" variant="muted" className="min-h-8 px-3 text-xs" onClick={() => togglePublish(blog)}>
-                        {status === "published" ? "Gỡ đăng" : "Đăng bài"}
+                      <Button type="button" variant="muted" className="min-h-8 px-3 text-xs" onClick={() => togglePublish(blog)} disabled={actionLoading.startsWith(`${blog._id}:`)}>
+                        {actionLoading === `${blog._id}:publish` ? "Đang xử lý..." : status === "published" ? "Gỡ đăng" : "Đăng bài"}
                       </Button>
-                      <Button type="button" variant="danger" className="min-h-8 px-3 text-xs" onClick={() => deleteBlog(blog)}>Xóa</Button>
+                      <Button type="button" variant="danger" className="min-h-8 px-3 text-xs" onClick={() => deleteBlog(blog)} disabled={actionLoading.startsWith(`${blog._id}:`)}>
+                        {actionLoading === `${blog._id}:delete` ? "Đang xóa..." : "Xóa"}
+                      </Button>
                     </div>
                   </td>
                 </tr>

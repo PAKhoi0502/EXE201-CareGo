@@ -23,7 +23,7 @@ const CompanionBookingsPage = () => {
             </div>
             <h1 className="text-3xl font-black text-slate-950 sm:text-4xl">Quản lý ca chăm sóc</h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Theo dõi trạng thái, cập nhật checklist và ghi chú sức khỏe cho từng ca.
+              Theo dõi trạng thái, cập nhật các bước công việc và ghi chú sức khỏe cho từng ca.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

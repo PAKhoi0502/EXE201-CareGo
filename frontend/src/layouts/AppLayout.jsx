@@ -54,6 +54,13 @@ const companionCustomerNavItems = [
 
 const companionAllNavItems = [...companionWorkNavItems, ...companionCustomerNavItems];
 
+const companionStatusLabels = {
+  pending: "đang chờ duyệt",
+  approved: "đã được duyệt",
+  rejected: "cần bổ sung thông tin",
+  suspended: "đang tạm khóa",
+};
+
 const CompanionNavLink = ({ item, compact = false }) => (
   <NavLink
     to={item.to}
@@ -262,8 +269,8 @@ const AppLayout = () => {
 
       {user?.role === "companion" && vettingStatus !== "approved" ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Hồ sơ người đồng hành của bạn đang ở trạng thái <b>{vettingStatus || "pending"}</b>.
-          Bạn có thể theo dõi tài khoản, nhưng chỉ được nhận và cập nhật ca sau khi admin duyệt.
+          Hồ sơ người đồng hành của bạn <b>{companionStatusLabels[vettingStatus] || "đang được kiểm tra"}</b>.
+          Bạn có thể xem thông tin tài khoản, nhưng chỉ được nhận và cập nhật ca sau khi CareGo duyệt hồ sơ.
         </div>
       ) : null}
 

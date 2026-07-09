@@ -3,6 +3,7 @@ import { api, uploadImage } from "../../api/client.js";
 import { useAuth } from "../../context/useAuth.js";
 import { Button, Card, Input, PageHeader } from "../../components/Ui.jsx";
 import { dateTime } from "../../utils/format.js";
+import { isStrongPassword, PASSWORD_POLICY_HINT, PASSWORD_POLICY_MESSAGE } from "../../utils/passwordPolicy.js";
 
 const getInitials = (name = "CG") =>
   name
@@ -89,6 +90,11 @@ const CustomerProfilePage = () => {
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordError("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+      return;
+    }
+
+    if (!isStrongPassword(passwordForm.newPassword)) {
+      setPasswordError(PASSWORD_POLICY_MESSAGE);
       return;
     }
 
@@ -310,20 +316,22 @@ const CustomerProfilePage = () => {
             <Input
               label="Mật khẩu mới"
               type="password"
-              minLength="6"
+              minLength={8}
               value={passwordForm.newPassword}
               onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })}
+              placeholder={PASSWORD_POLICY_HINT}
               required
             />
             <Input
               label="Nhập lại mật khẩu mới"
               type="password"
-              minLength="6"
+              minLength={8}
               value={passwordForm.confirmPassword}
               onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })}
               required
             />
           </div>
+          <p className="text-xs font-semibold text-slate-500">{PASSWORD_POLICY_HINT}</p>
 
           {passwordOtpSent ? (
             <div className="rounded-[18px] border border-emerald-100 bg-emerald-50 p-4">

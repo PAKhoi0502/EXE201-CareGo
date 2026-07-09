@@ -62,6 +62,7 @@ const WithdrawalRequestSchema = new mongoose.Schema(
 );
 
 WithdrawalRequestSchema.index({ companionId: 1, status: 1, createdAt: -1 });
+WithdrawalRequestSchema.index({ status: 1, createdAt: -1 });
 
 const WithdrawalRequest = mongoose.model("withdrawalRequest", WithdrawalRequestSchema);
 export default WithdrawalRequest;

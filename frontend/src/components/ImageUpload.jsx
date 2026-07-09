@@ -96,12 +96,12 @@ const ImageUpload = ({
         <div>
           <p className="text-sm font-medium text-slate-700">{label}</p>
           <p className="text-xs text-slate-500">
-            {locked ? "áº¢nh Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n vÃ  khÃ´ng thá»ƒ thay Ä‘á»•i." : "Chá»¥p áº£nh báº±ng Ä‘iá»‡n thoáº¡i hoáº·c táº£i áº£nh tá»« mÃ¡y. CÃ³ thá»ƒ upload nhiá»u áº£nh."}
+            {locked ? "Ảnh đã được xác nhận và không thể thay đổi." : "Chụp ảnh bằng điện thoại hoặc tải ảnh từ máy. Có thể upload nhiều ảnh."}
           </p>
         </div>
         {!locked ? (
           <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={uploading}>
-            {uploading ? "Äang táº£i áº£nh lÃªn..." : "Chá»n/chá»¥p áº£nh"}
+            {uploading ? "Đang tải ảnh lên..." : "Chọn/chụp ảnh"}
           </Button>
         ) : null}
       </div>
@@ -138,7 +138,7 @@ const ImageUpload = ({
                   className="absolute -right-2 -top-2 w-fit rounded-full px-2 text-xs"
                   onClick={() => removeImage(index)}
                 >
-                  XÃ³a
+                  Xóa
                 </Button>
               ) : null}
             </div>

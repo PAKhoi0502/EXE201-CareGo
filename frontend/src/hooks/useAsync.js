@@ -6,21 +6,43 @@ export const useAsync = (loader, deps = []) => {
   const [error, setError] = useState("");
   const loaderRef = useRef(loader);
   const depsRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+      depsRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     loaderRef.current = loader;
   });
 
   const reload = useCallback(async () => {
+    if (!mountedRef.current) return undefined;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     setLoading(true);
     setError("");
     try {
       const result = await loaderRef.current();
-      setData(result);
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setData(result);
+      }
+      return result;
     } catch (err) {
-      setError(err.message);
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setError(err.message);
+      }
+      return undefined;
     } finally {
-      setLoading(false);
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 

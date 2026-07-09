@@ -11,20 +11,20 @@ import { dateTime, money } from "../../utils/format.js";
 const statusCopy = {
   pending: {
     badge: "Lịch đặt mới từ khách hàng",
-    title: "Nhận đơn chăm sóc cùng CareGo",
-    desc: "Kiểm tra thông tin người cao tuổi, địa điểm, lưu ý sức khỏe và GPS trước khi nhận ca.",
-    state: "Chờ nhận booking",
+    title: "Nhận ca chăm sóc cùng CareGo",
+    desc: "Kiểm tra thông tin người cần chăm sóc, địa điểm và các lưu ý sức khỏe trước khi nhận ca.",
+    state: "Chờ nhận ca",
   },
   accepted: {
-    badge: "Đã nhận booking",
-    title: "Theo dõi đường đi đến điểm đón",
-    desc: "GPS thời gian thực đang được bật để gia đình theo dõi vị trí của bạn trên bản đồ.",
+    badge: "Đã nhận ca",
+    title: "Di chuyển đến điểm hẹn",
+    desc: "Vị trí của bạn đang được chia sẻ để gia đình theo dõi trên bản đồ.",
     state: "Đang di chuyển",
   },
   in_progress: {
-    badge: "Đã check-in",
+    badge: "Đã đến nơi",
     title: "Cập nhật hoạt động trong ca làm",
-    desc: "Cập nhật checklist, ảnh xác nhận và ghi chú quan trọng để gia đình theo dõi.",
+    desc: "Cập nhật các bước công việc, ảnh xác nhận và ghi chú quan trọng để gia đình theo dõi.",
     state: "Đang hỗ trợ",
   },
   completed: {
@@ -40,18 +40,18 @@ const statusCopy = {
     state: "Đã thanh toán",
   },
   cancelled: {
-    badge: "Booking đã hủy",
+    badge: "Lịch chăm sóc đã hủy",
     title: "Ca làm không còn hiệu lực",
-    desc: "Booking đã bị hủy hoặc từ chối. Bạn không thể mở chỉ đường hay tiếp tục thao tác ca làm này.",
+    desc: "Lịch chăm sóc đã bị hủy hoặc từ chối. Bạn không thể mở chỉ đường hay tiếp tục ca này.",
     state: "Đã hủy",
   },
 };
 
 const flowSteps = [
-  ["Nhận booking", "accepted"],
+  ["Nhận ca", "accepted"],
   ["Đang di chuyển", "accepted"],
-  ["Check-in", "in_progress"],
-  ["Checklist", "in_progress"],
+  ["Đến nơi", "in_progress"],
+  ["Công việc", "in_progress"],
   ["Hoàn thành", "completed"],
 ];
 
@@ -62,19 +62,19 @@ const appendLiveLocation = (locations, location) =>
   [...locations, location].slice(-MAX_LIVE_LOCATION_POINTS);
 
 const shiftRequirementMessages = {
-  checkInPhotoUrl: "ảnh check-in",
-  gpsLocationNearAddress: "GPS gần địa chỉ đặt lịch",
-  checklist: "checklist đã hoàn tất",
+  checkInPhotoUrl: "ảnh xác nhận đã đến",
+  gpsLocationNearAddress: "vị trí gần địa chỉ chăm sóc",
+  checklist: "các bước công việc đã hoàn tất",
   companionNote: "ghi chú trong ca",
   checkOutPhotoUrl: "ảnh sau ca",
 };
 
 const incidentReasonOptions = [
-  { value: "health", label: "Sá»©c khá»e" },
-  { value: "transport", label: "Di chuyá»ƒn / xe cá»™" },
-  { value: "family_emergency", label: "Viá»‡c gia Ä‘Ã¬nh kháº©n" },
-  { value: "safety", label: "An toÃ n" },
-  { value: "other", label: "KhÃ¡c" },
+  { value: "health", label: "Sức khỏe" },
+  { value: "transport", label: "Di chuyển / xe cộ" },
+  { value: "family_emergency", label: "Việc gia đình khẩn" },
+  { value: "safety", label: "An toàn" },
+  { value: "other", label: "Khác" },
 ];
 
 const formatShiftError = (err) => {
@@ -85,17 +85,17 @@ const formatShiftError = (err) => {
   }
 
   if (err?.message === "Vị trí GPS hiện tại quá xa địa chỉ chăm sóc.") {
-    return "GPS hiện tại đang quá xa địa chỉ đặt lịch. Vui lòng đến đúng vị trí rồi thử lại.";
+    return "Vị trí hiện tại đang quá xa địa chỉ chăm sóc. Vui lòng đến đúng điểm hẹn rồi thử lại.";
   }
 
   return err?.message || "Không thể cập nhật ca làm. Vui lòng thử lại.";
 };
 
 const getGeolocationErrorMessage = (error) => {
-  if (error?.code === 1) return "Bạn chưa cấp quyền truy cập vị trí. Vui lòng bật quyền GPS và thử lại.";
-  if (error?.code === 2) return "Không xác định được vị trí hiện tại. Vui lòng kiểm tra GPS và thử lại.";
+  if (error?.code === 1) return "Bạn chưa cho phép CareGo truy cập vị trí. Vui lòng cấp quyền và thử lại.";
+  if (error?.code === 2) return "Không xác định được vị trí hiện tại. Vui lòng kiểm tra cài đặt vị trí và thử lại.";
   if (error?.code === 3) return "Quá thời gian chờ lấy vị trí. Vui lòng thử lại.";
-  return "Không thể lấy vị trí hiện tại. Vui lòng kiểm tra GPS và thử lại.";
+  return "Không thể lấy vị trí hiện tại. Vui lòng kiểm tra cài đặt vị trí và thử lại.";
 };
 
 const InfoMini = ({ label, value }) => (
@@ -218,7 +218,7 @@ const CompanionBookingDetailPage = () => {
       Promise.resolve().then(() => {
         if (!active) return;
         setGpsReady(false);
-        setGpsError("Trình duyệt không hỗ trợ GPS");
+        setGpsError("Trình duyệt không hỗ trợ định vị");
       });
       return () => {
         active = false;
@@ -234,7 +234,7 @@ const CompanionBookingDetailPage = () => {
           companionId: companionUserId,
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          note: "GPS thời gian thực",
+          note: "Cập nhật vị trí trong ca chăm sóc",
           recordedAt: new Date().toISOString(),
         };
 
@@ -309,14 +309,14 @@ const CompanionBookingDetailPage = () => {
 
   const ensureGps = (area = "global") => {
     if (gpsReady) return true;
-    setActionError("Bạn cần bật GPS và cấp quyền vị trí để thao tác ca làm.", area);
+    setActionError("Bạn cần cho phép CareGo truy cập vị trí để cập nhật ca làm.", area);
     return false;
   };
 
   const getCurrentLocation = () =>
     new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error("Trình duyệt không hỗ trợ GPS"));
+        reject(new Error("Trình duyệt không hỗ trợ định vị"));
         return;
       }
 
@@ -362,16 +362,16 @@ const CompanionBookingDetailPage = () => {
     return true;
   };
 
-  const saveCurrentLocation = async (note = "Check-in GPS", { errorArea = "global" } = {}) => {
+  const saveCurrentLocation = async (note = "Xác nhận vị trí khi đến nơi", { errorArea = "global" } = {}) => {
     if (!ensureGps(errorArea)) return false;
 
     const location = await getCurrentLocation();
     return saveShiftLocation(location, note);
   };
 
-  const saveDemoLocation = async (note = "Demo GPS - chỉ dùng để kiểm thử", { errorArea = "global" } = {}) => {
+  const saveDemoLocation = async (note = "Vị trí thử nghiệm tại điểm hẹn", { errorArea = "global" } = {}) => {
     if (!serviceLocation) {
-      setActionError("Đơn này chưa có tọa độ điểm hẹn để dùng GPS demo.", errorArea);
+      setActionError("Lịch chăm sóc này chưa có vị trí điểm hẹn để thử quy trình.", errorArea);
       return false;
     }
 
@@ -497,7 +497,7 @@ const CompanionBookingDetailPage = () => {
 
   const reportIncident = async () => {
     if (!incidentDetails.trim()) {
-      setIncidentFeedback({ tone: "error", message: "Vui lÃ²ng mÃ´ táº£ ngáº¯n gá»n tÃ¬nh tráº¡ng báº­n hoáº·c sá»± cá»‘." });
+      setIncidentFeedback({ tone: "error", message: "Vui lòng mô tả ngắn gọn tình trạng bận hoặc sự cố." });
       return;
     }
 
@@ -518,11 +518,11 @@ const CompanionBookingDetailPage = () => {
       );
       setIncidentFeedback({
         tone: "success",
-        message: "ÄÃ£ gá»­i bÃ¡o sá»± cá»‘ cho admin. CareGo sáº½ liÃªn há»‡ vÃ  xá»­ lÃ½ phÆ°Æ¡ng Ã¡n phÃ¹ há»£p.",
+        message: "Đã gửi thông tin sự cố đến CareGo. Bộ phận hỗ trợ sẽ liên hệ và đưa ra phương án phù hợp.",
       });
       setIncidentDetails("");
     } catch (err) {
-      setIncidentFeedback({ tone: "error", message: err.message || "KhÃ´ng gá»­i Ä‘Æ°á»£c bÃ¡o sá»± cá»‘." });
+      setIncidentFeedback({ tone: "error", message: err.message || "Không gửi được báo sự cố." });
     } finally {
       setIncidentSubmitting(false);
     }
@@ -540,8 +540,8 @@ const CompanionBookingDetailPage = () => {
     setCheckInError("");
     try {
       const locationSaved = useDemoLocation
-        ? await saveDemoLocation("Demo GPS check-in - chỉ dùng để kiểm thử", { errorArea: "checkIn" })
-        : await saveCurrentLocation("Check-in GPS", { errorArea: "checkIn" });
+        ? await saveDemoLocation("Vị trí thử nghiệm tại điểm hẹn", { errorArea: "checkIn" })
+        : await saveCurrentLocation("Xác nhận vị trí khi đến nơi", { errorArea: "checkIn" });
       if (!locationSaved) return;
 
       const saved = await updateShift(checklist, shift, { errorArea: "checkIn", requireGps: !useDemoLocation });
@@ -608,9 +608,9 @@ const CompanionBookingDetailPage = () => {
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-500">{copy.desc}</p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              <InfoMini label="Khoảng cách" value={latestLocation && serviceLocation ? "GPS đang tính" : "Chờ GPS"} />
+              <InfoMini label="Khoảng cách" value={latestLocation && serviceLocation ? "Đang tính" : "Chờ cập nhật vị trí"} />
               <InfoMini
-                label="GPS thời gian thực"
+                label="Chia sẻ vị trí"
                 value={canTrackLiveLocation ? (gpsReady ? "Đang bật" : "Cần cấp quyền") : "Bật sau khi nhận ca"}
               />
               <InfoMini label="Thu nhập dự kiến" value={money(earning)} />
@@ -622,7 +622,7 @@ const CompanionBookingDetailPage = () => {
             <div className="relative">
               <h2 className="text-2xl font-black">Tình trạng ca làm</h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Quy trình người đồng hành gồm: nhận booking, di chuyển với GPS, check-in ảnh, checklist, báo cáo sau ca và chờ khách xác nhận.
+                Các bước thực hiện gồm: nhận ca, đến điểm hẹn, xác nhận bằng ảnh, cập nhật công việc và gửi báo cáo sau ca.
               </p>
               <div className="mt-5 flex items-center justify-between gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
                 <span className="text-sm font-bold">Trạng thái hiện tại</span>
@@ -647,8 +647,8 @@ const CompanionBookingDetailPage = () => {
         <section className="grid gap-6">
           {canTrackLiveLocation && !gpsReady ? (
             <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-              Bạn cần bật GPS và cho phép trình duyệt truy cập vị trí. Nếu không bật GPS, bạn sẽ không thể check-in hay cập nhật checklist.
-              {gpsError ? <p className="mt-1">Lỗi GPS: {gpsError}</p> : null}
+              Bạn cần cho phép trình duyệt truy cập vị trí. Nếu chưa cấp quyền, bạn sẽ không thể xác nhận đã đến hoặc cập nhật công việc.
+              {gpsError ? <p className="mt-1">Lỗi định vị: {gpsError}</p> : null}
             </div>
           ) : null}
           {submitError ? <p className="rounded-3xl bg-rose-50 p-4 text-sm font-semibold text-rose-700">{submitError}</p> : null}
@@ -657,38 +657,38 @@ const CompanionBookingDetailPage = () => {
             <Card className="rounded-[30px] border-rose-100 bg-white/95 p-6 shadow-xl shadow-rose-900/5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="text-2xl font-black">Báº­n hoáº·c cÃ³ sá»± cá»‘ sau khi Ä‘Ã£ nháº­n ca</h2>
+                  <h2 className="text-2xl font-black">Bận hoặc có sự cố sau khi đã nhận ca</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Náº¿u khÃ´ng thá»ƒ tiáº¿p tá»¥c ca, hÃ£y gá»­i báº£n tin cho admin Ä‘á»ƒ Ä‘iá»u phá»‘i. Admin cÃ³ thá»ƒ cho tiáº¿p tá»¥c, há»§y ca hoáº·c Ä‘á»•i companion khi booking chÆ°a báº¯t Ä‘áº§u.
+                    Nếu không thể tiếp tục ca, hãy báo cho CareGo để được hỗ trợ. CareGo có thể cho tiếp tục, hủy ca hoặc sắp xếp người đồng hành khác khi ca chưa bắt đầu.
                   </p>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-black ${incidentStatus === "reported" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
-                  {incidentStatus === "reported" ? "Äang chá» admin xá»­ lÃ½" : "ChÆ°a bÃ¡o sá»± cá»‘"}
+                  {incidentStatus === "reported" ? "Đang chờ CareGo xử lý" : "Chưa báo sự cố"}
                 </span>
               </div>
 
               {canReportIncident ? (
                 <div className="mt-5 grid gap-4">
-                  <Select label="LÃ½ do" value={incidentReason} onChange={(event) => setIncidentReason(event.target.value)}>
+                  <Select label="Lý do" value={incidentReason} onChange={(event) => setIncidentReason(event.target.value)}>
                     {incidentReasonOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </Select>
-                  <Textarea label="MÃ´ táº£" value={incidentDetails} onChange={(event) => setIncidentDetails(event.target.value)} maxLength="1000" placeholder="VÃ­ dá»¥: xe há»ng, sá»©c khá»e khÃ´ng á»•n, khÃ´ng ká»‹p Ä‘áº¿n Ä‘iá»ƒm Ä‘Ã³n..." />
+                  <Textarea label="Mô tả" value={incidentDetails} onChange={(event) => setIncidentDetails(event.target.value)} maxLength="1000" placeholder="Ví dụ: xe hỏng, sức khỏe không ổn, không kịp đến điểm đón..." />
                   {incidentFeedback ? (
                     <p className={`rounded-2xl px-4 py-3 text-sm font-semibold ${incidentFeedback.tone === "success" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
                       {incidentFeedback.message}
                     </p>
                   ) : null}
                   <Button type="button" variant="danger" onClick={reportIncident} disabled={incidentSubmitting}>
-                    {incidentSubmitting ? "Äang gá»­i..." : "BÃ¡o báº­n / sá»± cá»‘"}
+                    {incidentSubmitting ? "Đang gửi..." : "Báo bận / sự cố"}
                   </Button>
                 </div>
               ) : (
                 <div className="mt-5 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
                   {incidentStatus === "reported"
-                    ? "Báº¡n Ä‘Ã£ gá»­i báº£n tin sá»± cá»‘. Vui lÃ²ng chá» admin xá»­ lÃ½ vÃ  liÃªn há»‡ láº¡i náº¿u cáº§n bá»• sung thÃ´ng tin."
-                    : "Booking nÃ y hiá»‡n khÃ´ng náº±m trong tráº¡ng thÃ¡i cÃ³ thá»ƒ bÃ¡o sá»± cá»‘."}
+                    ? "Bạn đã gửi thông tin sự cố. Vui lòng chờ CareGo xử lý; chúng tôi sẽ liên hệ nếu cần thêm thông tin."
+                    : "Lịch chăm sóc này hiện không thể báo sự cố."}
                 </div>
               )}
             </Card>
@@ -873,7 +873,7 @@ const CompanionBookingDetailPage = () => {
           <Card id="checklistSection" className="scroll-mt-24 rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-2xl font-black">Check-in tại điểm đón</h2>
+                <h2 className="text-2xl font-black">Xác nhận đã đến điểm hẹn</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">Chụp ảnh xác nhận trước ca, sau đó bấm Đã đến nơi để chuyển sang trong ca làm.</p>
               </div>
               <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">Ảnh trước ca</span>
@@ -888,11 +888,11 @@ const CompanionBookingDetailPage = () => {
             <div className={`rounded-3xl bg-[#fbfffe] p-5 ${hasSavedCheckInPhoto ? "border border-teal-100" : "border-2 border-dashed border-teal-200"}`}>
               {booking.status === "pending" ? (
                 <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                  Bạn cần nhận đơn trước khi chụp hoặc tải ảnh check-in.
+                  Bạn cần nhận ca trước khi chụp hoặc tải ảnh xác nhận.
                 </div>
               ) : null}
               <ImageUpload
-                label="Ảnh check-in"
+                label="Ảnh xác nhận đã đến"
                 folder="carego/check-in"
                 value={shift.checkInPhotoUrl}
                 onUploaded={(url) => {
@@ -906,19 +906,19 @@ const CompanionBookingDetailPage = () => {
 
             {hasSavedCheckInPhoto ? (
               <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
-                Ảnh check-in đã được lưu. Bạn có thể bấm Đã đến nơi để bắt đầu ca làm.
+                Ảnh xác nhận đã được lưu. Bạn có thể bấm Đã đến nơi để bắt đầu ca làm.
               </div>
             ) : shift.checkInPhotoUrl.length > 0 ? (
               <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                Ảnh đã tải tạm thời. Hãy bấm Lưu ảnh check-in để lưu vào ca làm trước.
+                Ảnh đã được tải lên. Hãy bấm Lưu ảnh xác nhận để lưu vào ca làm.
               </div>
             ) : null}
 
             {isDevDemoMode ? (
               <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                <strong className="block font-black">Chế độ demo cho kiểm thử</strong>
+                <strong className="block font-black">Chế độ thử nghiệm vị trí</strong>
                 <p className="mt-1 font-semibold">
-                  Đây là GPS chế độ demo, chỉ dùng để kiểm thử. Khi bật chế độ này, GPS sẽ trả về tọa độ điểm hẹn của khách hàng thay vì vị trí thực tế của bạn. Chế độ này chỉ nên dùng khi bạn đang ở xa điểm hẹn và muốn kiểm thử quy trình check-in.
+                  Tính năng này dùng vị trí điểm hẹn thay cho vị trí thực tế để thử quy trình. Chỉ sử dụng trong môi trường kiểm thử.
                 </p>
                 {hasSavedCheckInPhoto && booking.status === "accepted" ? (
                   <Button
@@ -928,7 +928,7 @@ const CompanionBookingDetailPage = () => {
                     onClick={() => checkInShift({ useDemoLocation: true })}
                     disabled={!canUseDemoCheckInGps}
                   >
-                    Dùng GPS demo để test
+                    Dùng vị trí điểm hẹn
                   </Button>
                 ) : null}
               </div>
@@ -937,12 +937,12 @@ const CompanionBookingDetailPage = () => {
             <div className={`mt-5 grid gap-3 ${hasSavedCheckInPhoto ? "sm:grid-cols-2" : ""}`}>
               {!hasSavedCheckInPhoto ? (
                 <Button className="min-h-12 rounded-full font-black" variant="secondary" onClick={() => updateShift(checklist, shift, { errorArea: "checkIn", requireGps: !canUseDemoCheckInGps })} disabled={(!gpsReady && !canUseDemoCheckInGps) || shift.checkInPhotoUrl.length === 0}>
-                  Lưu ảnh check-in
+                  Lưu ảnh xác nhận
                 </Button>
               ) : null}
               {hasSavedCheckInPhoto ? (
                 <Button className="min-h-12 rounded-full font-black" onClick={checkInShift} disabled={!gpsReady || booking.status !== "accepted"}>
-                  {booking.status === "accepted" ? "Đã đến nơi" : "Đã check-in"}
+                  {booking.status === "accepted" ? "Đã đến nơi" : "Đã xác nhận đến nơi"}
                 </Button>
               ) : null}
               {hasSavedCheckInPhoto && savedCheckInPhotoUrls.length > 0 ? (
@@ -956,8 +956,8 @@ const CompanionBookingDetailPage = () => {
           <Card id="reportSection" className="scroll-mt-24 rounded-[30px] border-teal-100 bg-white/95 p-6 shadow-xl shadow-teal-900/5">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-2xl font-black">Checklist trong ca làm</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Checklist được gạt theo thứ tự. Gia đình sẽ thấy tiến trình cập nhật theo thời gian thực.</p>
+                <h2 className="text-2xl font-black">Các bước công việc trong ca</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Thực hiện từng bước theo thứ tự để gia đình theo dõi tiến độ chăm sóc.</p>
               </div>
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Theo thứ tự</span>
             </div>
@@ -977,9 +977,9 @@ const CompanionBookingDetailPage = () => {
                       <p className="font-black text-[#12312f]">Bước {index + 1}: {item.label}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
                         {!hasSavedCheckInPhoto
-                          ? "Cần lưu ảnh check-in trước ca"
+                          ? "Cần lưu ảnh xác nhận trước ca"
                           : !canUseChecklist
-                            ? "Cần bấm Đã đến nơi trước khi chọn checklist"
+                            ? "Cần bấm Đã đến nơi trước khi cập nhật công việc"
                             : !previousDone
                               ? "Hoàn thành bước trước để mở bước này"
                               : item.done
@@ -998,7 +998,7 @@ const CompanionBookingDetailPage = () => {
                   </div>
                 );
               }) : (
-                <p className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-500">Dịch vụ này chưa có checklist mặc định.</p>
+                <p className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-500">Dịch vụ này chưa có danh sách công việc.</p>
               )}
             </div>
           </Card>
@@ -1015,7 +1015,7 @@ const CompanionBookingDetailPage = () => {
             ) : null}
             {booking.status !== "pending" && !isChecklistDone ? (
               <div className="mb-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                Bạn cần hoàn thành toàn bộ checklist trước khi nhập ghi chú thời gian thực.
+                Bạn cần hoàn thành toàn bộ công việc trong ca trước khi nhập ghi chú.
               </div>
             ) : null}
             {realtimeNoteFeedback ? (
@@ -1144,7 +1144,7 @@ const CompanionBookingDetailPage = () => {
                   <strong>{money(earning)}</strong>
                 </div>
                 <div className="rounded-2xl border border-white/20 bg-white/15 p-3">
-                  <small className="block text-white/70">Check-in</small>
+                  <small className="block text-white/70">Đến nơi</small>
                   <strong>{hasCheckInPhoto ? "Đã có ảnh" : "Chưa có"}</strong>
                 </div>
                 <div className="rounded-2xl border border-white/20 bg-white/15 p-3">

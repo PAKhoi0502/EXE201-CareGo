@@ -12,6 +12,8 @@ import { createCustomerWelcomeNotification } from "../utils/notifications.js";
 import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
 import { recordAuditLogLater } from "../utils/audit-log.js";
 import { emitAdminCustomerCreatedAlert } from "../utils/admin-alerts.js";
+import { toUserSelfDto, USER_SELF_PROJECTION } from "../dto/user.dto.js";
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from "../utils/password-policy.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -53,14 +55,6 @@ const recordAuthAudit = (req, user, action, outcome, statusCode) => {
   });
 };
 
-const isStrongPassword = (value) =>
-  typeof value === "string" &&
-  value.length >= 8 &&
-  /[a-z]/.test(value) &&
-  /[A-Z]/.test(value) &&
-  /\d/.test(value) &&
-  /[^A-Za-z0-9]/.test(value);
-
 const getCompanionContext = async (user) => {
   if (user.role === "companion") {
     return {
@@ -97,6 +91,12 @@ const getClearRefreshTokenCookieOptions = () => {
   return options;
 };
 
+const rotateRefreshTokenSession = (res, user) => {
+  const refreshToken = generateRefreshToken(user);
+  user.refreshToken = refreshToken;
+  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, getRefreshTokenCookieOptions());
+};
+
 export const attachEmailOtp = async (user) => {
   const otp = generateOtp();
   user.emailOtpHash = await hashOtp(otp);
@@ -124,6 +124,9 @@ export const signupController = async (req, res) => {
       return res.status(400).json({
         message: "Vui lòng nhập đầy đủ họ tên, email và mật khẩu.",
       });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
     const consentValidation = validateLegalAcceptances({
       acceptances: req.body.legalAcceptances,
@@ -179,7 +182,7 @@ export const loginController = async (req, res) => {
   const { email, password } = req.body;
   try {
     const normalizedEmail = String(email || "").trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail }).select("+password");
     // console.log("tìm trong db", user);
     if (!user) {
       return res.status(400).json({ message: "Email hoặc mật khẩu không đúng." });
@@ -265,7 +268,7 @@ export const verifyEmailOtpController = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail }).select("+emailOtpHash +emailOtpExpires");
     if (!user) {
       const pending = await PendingRegistration.findOne({ email: normalizedEmail });
       if (!pending) {
@@ -483,15 +486,17 @@ export const refreshTokenController = async (req, res) => {
 export const getCurrentUser = async (req, res) => {
   const userId = req.user.userId;
   try {
-    const user = await User.findById(userId).select(
-      "-password -refreshToken -__v",
-    ); // loại bỏ trường password và refreshToken khỏi kết quả
+    const user = await User.findById(userId).select(USER_SELF_PROJECTION);
     if (!user) {
       return res.status(400).json({ message: "Không tìm thấy tài khoản." });
     }
     const { companionProfile, companionApplication } = await getCompanionContext(user);
 
-    return res.status(200).json({ user, companionProfile, companionApplication });
+    return res.status(200).json({
+      user: toUserSelfDto(user),
+      companionProfile,
+      companionApplication,
+    });
   } catch (error) {
     return res
       .status(500)
@@ -525,7 +530,7 @@ export const updateCurrentUser = async (req, res) => {
     const user = await User.findByIdAndUpdate(userId, updates, {
       new: true,
       runValidators: true,
-    }).select("-password -refreshToken -__v");
+    }).select(USER_SELF_PROJECTION);
 
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy tài khoản." });
@@ -533,7 +538,12 @@ export const updateCurrentUser = async (req, res) => {
 
     const { companionProfile, companionApplication } = await getCompanionContext(user);
 
-    return res.status(200).json({ message: "Cập nhật hồ sơ thành công.", user, companionProfile, companionApplication });
+    return res.status(200).json({
+      message: "Cập nhật hồ sơ thành công.",
+      user: toUserSelfDto(user),
+      companionProfile,
+      companionApplication,
+    });
   } catch (error) {
     return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
   }
@@ -548,11 +558,11 @@ export const requestCurrentUserPasswordOtp = async (req, res) => {
       return res.status(400).json({ message: "Vui lòng nhập mật khẩu hiện tại và mật khẩu mới." });
     }
 
-    if (String(newPassword).length < 6) {
-      return res.status(400).json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự." });
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("+password");
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
@@ -560,6 +570,11 @@ export const requestCurrentUserPasswordOtp = async (req, res) => {
     const isMatched = await bcrypt.compare(currentPassword, user.password);
     if (!isMatched) {
       return res.status(400).json({ message: "Mật khẩu hiện tại không đúng." });
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({ message: "Mật khẩu mới phải khác mật khẩu hiện tại." });
     }
 
     const otpPayload = await createOtpPayload();
@@ -589,7 +604,9 @@ export const changeCurrentUserPassword = async (req, res) => {
       return res.status(400).json({ message: "Vui lòng nhập mã OTP." });
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select(
+      "+pendingPasswordHash +passwordChangeOtpHash +passwordChangeOtpExpires",
+    );
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
@@ -613,6 +630,7 @@ export const changeCurrentUserPassword = async (req, res) => {
     user.passwordChangeOtpExpires = undefined;
     user.mustChangePassword = false;
     user.temporaryPasswordExpiresAt = null;
+    rotateRefreshTokenSession(res, user);
     await user.save();
 
     return res.status(200).json({ message: "Đổi mật khẩu thành công." });
@@ -635,12 +653,10 @@ export const changeInitialPassword = async (req, res) => {
     }
 
     if (!isStrongPassword(newPassword)) {
-      return res.status(400).json({
-        message: "Mật khẩu mới phải có tối thiểu 8 ký tự, bao gồm chữ thường, chữ hoa, số và ký tự đặc biệt.",
-      });
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("+password");
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy tài khoản." });
     }
@@ -672,14 +688,15 @@ export const changeInitialPassword = async (req, res) => {
     user.pendingPasswordHash = undefined;
     user.passwordChangeOtpHash = undefined;
     user.passwordChangeOtpExpires = undefined;
+    rotateRefreshTokenSession(res, user);
     await user.save();
 
-    const nextUser = await User.findById(userId).select("-password -refreshToken -__v");
+    const nextUser = await User.findById(userId).select(USER_SELF_PROJECTION);
     const { companionProfile, companionApplication } = await getCompanionContext(nextUser);
 
     return res.status(200).json({
       message: "Đổi mật khẩu lần đầu thành công.",
-      user: nextUser,
+      user: toUserSelfDto(nextUser),
       companionProfile,
       companionApplication,
     });
@@ -739,14 +756,14 @@ export const resetPasswordController = async (req, res) => {
       return res.status(400).json({ message: "Vui lòng nhập mật khẩu." });
     }
 
-    if (String(password).length < 6) {
-      return res.status(400).json({ message: "Mật khẩu phải có ít nhất 6 ký tự." });
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpries: { $gt: Date.now() }, //kiểm tra token chưa hết hạn $gt là lớn hơn
-    });
+    }).select("+resetPasswordToken +resetPasswordExpries");
     if (!user) {
       return res.status(400).json({ message: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn." });
     }
@@ -760,7 +777,9 @@ export const resetPasswordController = async (req, res) => {
     user.pendingPasswordHash = undefined;
     user.passwordChangeOtpHash = undefined;
     user.passwordChangeOtpExpires = undefined;
+    user.refreshToken = null;
     await user.save();
+    res.clearCookie(REFRESH_TOKEN_COOKIE, getClearRefreshTokenCookieOptions());
     return res
       .status(200)
       .json({ message: "Đặt lại mật khẩu thành công." });

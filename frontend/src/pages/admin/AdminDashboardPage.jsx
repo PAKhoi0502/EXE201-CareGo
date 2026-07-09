@@ -111,20 +111,18 @@ const StatCard = ({ label, value, accent = "teal", hint, icon }) => {
 
 const AdminDashboardPage = () => {
   const { data, loading, error } = useAsync(() => api.get("/admin/dashboard"), []);
-  const { data: bookingsData } = useAsync(() => api.get("/admin/bookings"), []);
-  const { data: companionsData } = useAsync(
-    () => api.get("/companions/admin/all"),
-    [],
-  );
-
-  const bookings = bookingsData?.bookings || [];
-  const companions = companionsData?.companions || [];
-  const runningBookings = bookings.filter((booking) =>
-    ["accepted", "in_progress"].includes(booking.status),
-  );
-  const pendingCompanions = companions.filter((item) => item.vettingStatus === "pending");
-  const monthlyStats = getMonthlyStats(bookings);
-  const serviceShare = getServiceShare(bookings);
+  const bookings = data?.runningBookings || [];
+  const runningBookings = bookings;
+  const runningBookingCount = (data?.bookingsByStatus || [])
+    .filter((item) => ["accepted", "in_progress"].includes(item._id))
+    .reduce((sum, item) => sum + Number(item.count || 0), 0);
+  const pendingCompanions = data?.pendingCompanions || [];
+  const monthlyStats = data?.monthlyStats?.length
+    ? data.monthlyStats.map((item) => ({ ...item, label: monthLabel(`${item.key}-15`) }))
+    : getMonthlyStats(bookings);
+  const serviceShare = data?.serviceShare?.length
+    ? data.serviceShare.map((item) => [item.name, item.count])
+    : getServiceShare(bookings);
   const blogStats = data?.blogStats || [];
 
   const revenueChartData = {
@@ -259,7 +257,7 @@ const AdminDashboardPage = () => {
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Ca đang chạy"
-          value={`${runningBookings.length} ca`}
+          value={`${runningBookingCount} ca`}
           accent="teal"
           icon={
             <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">

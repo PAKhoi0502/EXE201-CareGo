@@ -26,6 +26,7 @@ const UserSchema = new mongoose.Schema(
     password: {
       type: String,
       require: true,
+      select: false,
     },
     role: {
       type: String,
@@ -64,28 +65,36 @@ const UserSchema = new mongoose.Schema(
     },
     emailOtpHash: {
       type: String,
+      select: false,
     },
     emailOtpExpires: {
       type: Date,
+      select: false,
     },
     passwordChangeOtpHash: {
       type: String,
+      select: false,
     },
     passwordChangeOtpExpires: {
       type: Date,
+      select: false,
     },
     pendingPasswordHash: {
       type: String,
+      select: false,
     },
     refreshToken: {
       type: String,
+      select: false,
     },
     resetPasswordToken: {
       //token dùng để đặt lại mật khẩu
       type: String,
+      select: false,
     },
     resetPasswordExpries: {
       type: Date,
+      select: false,
     },
     // isVeryfied: {
     //   type: Boolean,
@@ -96,5 +105,7 @@ const UserSchema = new mongoose.Schema(
     timestamps: true, // thằng này sẽ tự động tạo ra 2 tường createAt và updateAt
   },
 );
+UserSchema.index({ role: 1, createdAt: -1 });
+UserSchema.index({ role: 1, isActive: 1, createdAt: -1 });
 const User = mongoose.model("user", UserSchema);
 export default User;

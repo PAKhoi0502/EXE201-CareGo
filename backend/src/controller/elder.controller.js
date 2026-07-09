@@ -1,15 +1,21 @@
 import ElderProfile from "../models/elder-profile.models.js";
+import {
+  createElderDto,
+  formatElderValidationError,
+  updateElderDto,
+} from "../dto/elder.dto.js";
 import { saveConsentReceipts, validateLegalAcceptances } from "../utils/legal-consent.js";
 
 export const createElderProfile = async (req, res) => {
   try {
-    const { fullName, address } = req.body;
-    if (!fullName || !address) {
-      return res.status(400).json({ message: "Vui lòng nhập họ tên và địa chỉ của người thân." });
+    const { legalAcceptances, ...submittedElder } = req.body || {};
+    const validation = createElderDto.safeParse(submittedElder);
+    if (!validation.success) {
+      return res.status(400).json({ message: formatElderValidationError(validation.error) });
     }
 
     const consentValidation = validateLegalAcceptances({
-      acceptances: req.body.legalAcceptances,
+      acceptances: legalAcceptances,
       flow: "ELDER_PROFILE_CREATE",
       req,
     });
@@ -17,10 +23,8 @@ export const createElderProfile = async (req, res) => {
       return res.status(400).json({ message: consentValidation.error, code: "LEGAL_ACCEPTANCE_REQUIRED" });
     }
 
-    const { legalAcceptances, ...elderPayload } = req.body;
-
     const elder = await ElderProfile.create({
-      ...elderPayload,
+      ...validation.data,
       customerId: req.user.userId,
     });
 
@@ -44,7 +48,10 @@ export const createElderProfile = async (req, res) => {
 
 export const getMyElderProfiles = async (req, res) => {
   try {
-    const elders = await ElderProfile.find({ customerId: req.user.userId }).sort({
+    const elders = await ElderProfile.find({
+      customerId: req.user.userId,
+      isArchived: { $ne: true },
+    }).sort({
       createdAt: -1,
     });
     return res.status(200).json({ elders });
@@ -58,6 +65,7 @@ export const getElderProfileById = async (req, res) => {
     const elder = await ElderProfile.findOne({
       _id: req.params.id,
       customerId: req.user.userId,
+      isArchived: { $ne: true },
     });
     if (!elder) {
       return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
@@ -71,10 +79,19 @@ export const getElderProfileById = async (req, res) => {
 
 export const updateElderProfile = async (req, res) => {
   try {
+    const validation = updateElderDto.safeParse(req.body || {});
+    if (!validation.success) {
+      return res.status(400).json({ message: formatElderValidationError(validation.error) });
+    }
+
     const elder = await ElderProfile.findOneAndUpdate(
-      { _id: req.params.id, customerId: req.user.userId },
-      req.body,
-      { new: true },
+      {
+        _id: req.params.id,
+        customerId: req.user.userId,
+        isArchived: { $ne: true },
+      },
+      { $set: validation.data },
+      { new: true, runValidators: true },
     );
     if (!elder) {
       return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
@@ -88,10 +105,20 @@ export const updateElderProfile = async (req, res) => {
 
 export const deleteElderProfile = async (req, res) => {
   try {
-    const elder = await ElderProfile.findOneAndDelete({
-      _id: req.params.id,
-      customerId: req.user.userId,
-    });
+    const elder = await ElderProfile.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        customerId: req.user.userId,
+        isArchived: { $ne: true },
+      },
+      {
+        $set: {
+          isArchived: true,
+          archivedAt: new Date(),
+        },
+      },
+      { new: true, runValidators: true },
+    );
     if (!elder) {
       return res.status(404).json({ message: "Không tìm thấy hồ sơ người thân." });
     }

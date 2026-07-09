@@ -36,14 +36,17 @@ const PaymentSchema = new mongoose.Schema(
     paymentLinkId: {
       type: String,
       default: "",
+      select: false,
     },
     checkoutUrl: {
       type: String,
       default: "",
+      select: false,
     },
     qrCode: {
       type: String,
       default: "",
+      select: false,
     },
     baseAmount: {
       type: Number,
@@ -80,6 +83,7 @@ const PaymentSchema = new mongoose.Schema(
     },
     rawWebhook: {
       type: mongoose.Schema.Types.Mixed,
+      select: false,
     },
   },
   { timestamps: true },

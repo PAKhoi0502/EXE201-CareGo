@@ -67,6 +67,7 @@ const AdminBlogsPage = () => {
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState("");
+  const [commentActionId, setCommentActionId] = useState("");
   const { data, loading, error, reload } = useAsync(
     () => api.get(`/blogs/admin/stats?from=${dateRange.from}&to=${dateRange.to}`),
     [dateRange.from, dateRange.to],
@@ -107,25 +108,38 @@ const AdminBlogsPage = () => {
 
   const updateCommentStatus = async (comment, status) => {
     if (!commentBlog) return;
+    const message = status === "visible"
+      ? "Duyệt và hiển thị bình luận này?"
+      : "Ẩn bình luận này khỏi người dùng?";
+    if (!window.confirm(message)) return;
+
     setCommentsError("");
+    setCommentActionId(`${comment._id}:${status}`);
     try {
       const result = await api.patch(`/admin/blogs/${commentBlog._id}/comments/${comment._id}`, { status });
       setComments((current) => current.map((item) => (item._id === comment._id ? result.comment : item)));
       reload();
     } catch (err) {
       setCommentsError(err.message);
+    } finally {
+      setCommentActionId("");
     }
   };
 
   const deleteComment = async (comment) => {
     if (!commentBlog) return;
+    if (!window.confirm("Xóa vĩnh viễn bình luận này? Thao tác này không thể hoàn tác.")) return;
+
     setCommentsError("");
+    setCommentActionId(`${comment._id}:delete`);
     try {
       await api.delete(`/admin/blogs/${commentBlog._id}/comments/${comment._id}`);
       setComments((current) => current.filter((item) => item._id !== comment._id));
       reload();
     } catch (err) {
       setCommentsError(err.message);
+    } finally {
+      setCommentActionId("");
     }
   };
 
@@ -564,26 +578,29 @@ const AdminBlogsPage = () => {
                         <button
                           type="button"
                           onClick={() => updateCommentStatus(comment, "visible")}
-                          className="rounded-full bg-emerald-600 px-3 py-2 text-xs font-black text-white transition hover:bg-emerald-700"
+                          disabled={commentActionId.startsWith(`${comment._id}:`)}
+                          className="rounded-full bg-emerald-600 px-3 py-2 text-xs font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Duyệt
+                          {commentActionId === `${comment._id}:visible` ? "Đang duyệt..." : "Duyệt"}
                         </button>
                       ) : null}
                       {comment.status !== "hidden" ? (
                         <button
                           type="button"
                           onClick={() => updateCommentStatus(comment, "hidden")}
-                          className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200"
+                          disabled={commentActionId.startsWith(`${comment._id}:`)}
+                          className="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Ẩn
+                          {commentActionId === `${comment._id}:hidden` ? "Đang ẩn..." : "Ẩn"}
                         </button>
                       ) : null}
                       <button
                         type="button"
                         onClick={() => deleteComment(comment)}
-                        className="rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                        disabled={commentActionId.startsWith(`${comment._id}:`)}
+                        className="rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Xóa
+                        {commentActionId === `${comment._id}:delete` ? "Đang xóa..." : "Xóa"}
                       </button>
                     </div>
                   </div>
