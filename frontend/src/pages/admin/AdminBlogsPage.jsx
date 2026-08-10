@@ -68,22 +68,28 @@ const AdminBlogsPage = () => {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState("");
   const [commentActionId, setCommentActionId] = useState("");
+  const [managementRefreshKey, setManagementRefreshKey] = useState(0);
   const { data, loading, error, reload } = useAsync(
-    () => api.get(`/blogs/admin/stats?from=${dateRange.from}&to=${dateRange.to}`),
+    () => api.get(`/admin/blogs/stats?from=${dateRange.from}&to=${dateRange.to}`),
     [dateRange.from, dateRange.to],
   );
 
   const statsData = error ? null : data;
   const blogStats = statsData?.blogStats || [];
   const dailyViews = statsData?.dailyViews || [];
-  const categoryViews = statsData?.categoryViews || [];
+  const categoryViews = (statsData?.categoryViews || []).filter((item) => Number(item.views || 0) > 0);
+  const activeBlogStats = blogStats.filter((item) =>
+    Number(item.viewCount || 0) > 0
+    || Number(item.ratingCount || 0) > 0
+    || Number(item.commentCount || 0) > 0);
+  const viewedBlogStats = blogStats.filter((item) => Number(item.viewCount || 0) > 0);
   const totalViews = blogStats.reduce((sum, item) => sum + Number(item.viewCount || 0), 0);
   const totalRatings = blogStats.reduce((sum, item) => sum + Number(item.ratingCount || 0), 0);
   const totalComments = blogStats.reduce(
     (sum, item) => sum + Number(item.comments?.length || item.commentCount || 0),
     0,
   );
-  const bestPost = blogStats[0];
+  const bestPost = viewedBlogStats[0] || null;
 
   const openComments = async (blog) => {
     setCommentBlog(blog);
@@ -119,6 +125,7 @@ const AdminBlogsPage = () => {
       const result = await api.patch(`/admin/blogs/${commentBlog._id}/comments/${comment._id}`, { status });
       setComments((current) => current.map((item) => (item._id === comment._id ? result.comment : item)));
       reload();
+      setManagementRefreshKey((current) => current + 1);
     } catch (err) {
       setCommentsError(err.message);
     } finally {
@@ -136,6 +143,7 @@ const AdminBlogsPage = () => {
       await api.delete(`/admin/blogs/${commentBlog._id}/comments/${comment._id}`);
       setComments((current) => current.filter((item) => item._id !== comment._id));
       reload();
+      setManagementRefreshKey((current) => current + 1);
     } catch (err) {
       setCommentsError(err.message);
     } finally {
@@ -162,17 +170,17 @@ const AdminBlogsPage = () => {
   };
 
   const rankingData = {
-    labels: blogStats.map((item) =>
+    labels: viewedBlogStats.map((item) =>
       item.title?.length > 34 ? `${item.title.slice(0, 34)}...` : item.title,
     ),
     datasets: [
       {
         label: "Lượt xem",
-        data: blogStats.map((item) => item.viewCount || 0),
-        backgroundColor: blogStats.map((_, index) =>
+        data: viewedBlogStats.map((item) => item.viewCount || 0),
+        backgroundColor: viewedBlogStats.map((_, index) =>
           index === 0 ? "rgba(15, 118, 110, 0.95)" : "rgba(20, 184, 166, 0.56)",
         ),
-        borderColor: blogStats.map((_, index) =>
+        borderColor: viewedBlogStats.map((_, index) =>
           index === 0 ? "rgba(13, 148, 136, 1)" : "rgba(153, 246, 228, 1)",
         ),
         borderRadius: 10,
@@ -298,7 +306,11 @@ const AdminBlogsPage = () => {
         </Link>
       </div>
 
-      <BlogManagementPanel onChanged={reload} />
+      <BlogManagementPanel
+        onChanged={reload}
+        onManageComments={openComments}
+        refreshKey={managementRefreshKey}
+      />
 
       <Card className="overflow-hidden border-teal-100 bg-white/95 p-0 shadow-xl shadow-teal-900/5">
         <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-500 p-5 text-white">
@@ -383,15 +395,15 @@ const AdminBlogsPage = () => {
 
       <div className="grid gap-5 md:grid-cols-3">
         <Card className="border-teal-100 bg-white/95 shadow-xl shadow-teal-900/5">
-          <p className="text-sm font-semibold text-slate-400">Tổng lượt xem</p>
+          <p className="text-sm font-semibold text-slate-400">Lượt xem trong khoảng</p>
           <strong className="mt-2 block text-3xl font-black text-teal-700">{totalViews}</strong>
         </Card>
         <Card className="border-teal-100 bg-white/95 shadow-xl shadow-teal-900/5">
-          <p className="text-sm font-semibold text-slate-400">Lượt đánh giá</p>
+          <p className="text-sm font-semibold text-slate-400">Đánh giá trong khoảng</p>
           <strong className="mt-2 block text-3xl font-black text-amber-500">{totalRatings}</strong>
         </Card>
         <Card className="border-teal-100 bg-white/95 shadow-xl shadow-teal-900/5">
-          <p className="text-sm font-semibold text-slate-400">Bình luận</p>
+          <p className="text-sm font-semibold text-slate-400">Bình luận trong khoảng</p>
           <strong className="mt-2 block text-3xl font-black text-sky-600">{totalComments}</strong>
         </Card>
       </div>
@@ -479,11 +491,10 @@ const AdminBlogsPage = () => {
                 <th className="p-4 text-right">Đánh giá</th>
                 <th className="p-4 text-right">Bình luận</th>
                 <th className="p-4 text-right">Mở bài</th>
-                <th className="p-4 text-right">Quản lý</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {blogStats.map((item) => (
+              {activeBlogStats.map((item) => (
                 <tr key={item.slug}>
                   <td className="max-w-md p-4">
                     <p className="font-black text-slate-900">{item.title}</p>
@@ -505,20 +516,11 @@ const AdminBlogsPage = () => {
                       Xem
                     </Link>
                   </td>
-                  <td className="p-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openComments(item)}
-                      className="rounded-full border border-teal-100 px-3 py-2 text-xs font-black text-teal-700 transition hover:bg-teal-50"
-                    >
-                      Bình luận
-                    </button>
-                  </td>
                 </tr>
               ))}
-              {!blogStats.length && !loading ? (
+              {!activeBlogStats.length && !loading ? (
                 <tr>
-                  <td colSpan="7" className="p-6 text-center text-sm font-semibold text-slate-400">
+                  <td colSpan="6" className="p-6 text-center text-sm font-semibold text-slate-400">
                     Chưa có dữ liệu blog trong khoảng ngày này.
                   </td>
                 </tr>

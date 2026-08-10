@@ -29,6 +29,20 @@ const platformFeeRate = rawPlatformFeeRate > 1 ? rawPlatformFeeRate / 100 : rawP
 const demoDocumentImage =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
+export const legacyDemoCustomerJoinedAtByKey = {
+  customerVan: "2026-06-01T02:12:17.000Z",
+  customerMinhAn: "2026-06-03T07:36:42.000Z",
+  customerBao: "2026-06-04T04:21:33.000Z",
+  customerMaiPhuong: "2026-06-06T09:17:26.000Z",
+  customerThuHa: "2026-06-10T03:48:51.000Z",
+  customerQuocHuy: "2026-06-16T08:25:19.000Z",
+  customerNgocLan: "2026-06-24T05:52:38.000Z",
+  customerMinhKhang: "2026-07-04T02:31:44.000Z",
+  customerThanhTruc: "2026-07-16T07:14:29.000Z",
+  customerGiaHan: "2026-07-26T04:46:53.000Z",
+  customerDucLong: "2026-08-02T08:22:37.000Z",
+};
+
 const servicesSeed = [
 {
   name: "CareGo Hospital",
@@ -258,7 +272,10 @@ const usersSeed = [
     phone: "0897952483",
     role: "companion",
   },
-];
+].map((userData) => ({
+  ...userData,
+  joinedAt: userData.joinedAt || legacyDemoCustomerJoinedAtByKey[userData.key],
+}));
 
 export const elderProfilesSeed = [
   {
@@ -1423,11 +1440,25 @@ export const projectWeekBookingSeed = [
 ];
 
 const projectWeekBookingScenarios = {
+  "demo-booking-week5-02": {
+    status: "cancelled",
+    cancellationReason: "schedule_change",
+    cancellationDetails: "Gia đình báo lịch tái khám được bệnh viện dời sang tuần sau nên không còn nhu cầu đồng hành trong ngày.",
+    cancelledByRole: "customer",
+    cancellationLeadMinutes: 785,
+  },
   "demo-booking-week5-06": {
     status: "cancelled",
     cancellationReason: "customer_request",
     cancellationDetails: "Gia đình thay đổi lịch chăm sóc và sẽ đặt lại vào ngày phù hợp hơn.",
     cancelledByRole: "customer",
+  },
+  "demo-booking-week6-02": {
+    status: "cancelled",
+    cancellationReason: "admin_cancelled",
+    cancellationDetails: "Admin hủy lịch sau khi xác nhận địa chỉ thực hiện nằm ngoài khu vực phục vụ của companion trong ca này.",
+    cancelledByRole: "admin",
+    cancellationLeadMinutes: 1095,
   },
   "demo-booking-week7-04": {
     status: "cancelled",
@@ -1435,13 +1466,19 @@ const projectWeekBookingScenarios = {
     cancellationDetails: "Companion báo không thể tiếp tục nhận ca do có việc đột xuất.",
     cancelledByRole: "companion",
   },
-  "demo-booking-week9-03": {
-    status: "completed",
-    paymentStatus: "pending",
+  "demo-booking-week8-03": {
+    status: "cancelled",
+    cancellationReason: "customer_request",
+    cancellationDetails: "Người thân đã sắp xếp được người trong gia đình đi cùng nên chủ động hủy lịch trước giờ thực hiện.",
+    cancelledByRole: "customer",
+    cancellationLeadMinutes: 428,
   },
-  "demo-booking-week10-01": {
-    status: "completed",
-    paymentStatus: "expired",
+  "demo-booking-week9-02": {
+    status: "cancelled",
+    cancellationReason: "companion_unavailable",
+    cancellationDetails: "Companion báo sốt và không thể bảo đảm sức khỏe để thực hiện ca; gia đình chưa cần bố trí người thay thế.",
+    cancelledByRole: "companion",
+    cancellationLeadMinutes: 562,
   },
   "demo-booking-week12-02": {
     status: "cancelled",
@@ -1456,10 +1493,6 @@ const projectWeekBookingScenarios = {
       adminNote: "Đã liên hệ gia đình và thống nhất hủy ca.",
     },
   },
-  "demo-booking-week13-02": {
-    status: "completed",
-    paymentStatus: "failed",
-  },
   "demo-booking-week8-02": {
     status: "paid",
     incident: {
@@ -1470,12 +1503,18 @@ const projectWeekBookingScenarios = {
       adminNote: "Gia đình xác nhận sức khỏe đã ổn định và ca có thể tiếp tục.",
     },
   },
+  "demo-booking-week13-01": {
+    status: "cancelled",
+    cancellationReason: "other",
+    cancellationDetails: "Người cao tuổi cần nghỉ ngơi tại nhà theo lời khuyên của bác sĩ nên gia đình xin hủy buổi đồng hành.",
+    cancelledByRole: "customer",
+    cancellationLeadMinutes: 936,
+  },
 };
 
 export const getProjectWeekBookingScenario = (seedKey, index = 0) => ({
   status: "paid",
   paymentStatus: "paid",
-  paymentDelayHours: (Math.abs(Number(index) || 0) % 4) + 1,
   ...(projectWeekBookingScenarios[seedKey] || {}),
 });
 
@@ -1551,11 +1590,14 @@ const seedUsers = async () => {
       },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );
-    if (!existingUser && userData.joinedAt) {
-      await User.updateOne(
+    if (userData.joinedAt) {
+      const joinedAt = new Date(userData.joinedAt);
+      if (Number.isNaN(joinedAt.getTime())) {
+        throw new Error(`Invalid joinedAt for ${email}`);
+      }
+      await User.collection.updateOne(
         { _id: user._id },
-        { $set: { createdAt: new Date(userData.joinedAt) } },
-        { timestamps: false },
+        { $set: { createdAt: joinedAt } },
       );
     }
     users[userData.key] = user;
@@ -1706,7 +1748,22 @@ const upsertShiftLog = async ({ booking, service, status }) => {
   );
 };
 
-export const buildSeedPaymentTimes = ({ booking, status, paymentDelayHours = 0 }) => {
+export const getSeedPaymentTiming = (index = 0) => {
+  const normalizedIndex = Math.abs(Number(index) || 0);
+  return {
+    creationDelayMinutes: 7 + ((normalizedIndex * 13) % 23),
+    confirmationDelayMinutes: 47 + ((normalizedIndex * 37) % 173),
+    seconds: 11 + ((normalizedIndex * 17) % 43),
+  };
+};
+
+export const buildSeedPaymentTimes = ({
+  booking,
+  status,
+  paymentDelayHours = 0,
+  paymentDelayMinutes = 0,
+  paymentDelaySeconds = 0,
+}) => {
   if (status !== "paid") {
     return {
       paidAt: null,
@@ -1717,7 +1774,12 @@ export const buildSeedPaymentTimes = ({ booking, status, paymentDelayHours = 0 }
   }
 
   const completedAt = booking.completedAt || new Date();
-  const confirmedAt = new Date(completedAt.getTime() + Number(paymentDelayHours || 0) * 60 * 60 * 1000);
+  const delayMs = (
+    Number(paymentDelayHours || 0) * 60 * 60
+    + Number(paymentDelayMinutes || 0) * 60
+    + Number(paymentDelaySeconds || 0)
+  ) * 1000;
+  const confirmedAt = new Date(completedAt.getTime() + delayMs);
   return {
     paidAt: confirmedAt,
     transferredAt: null,
@@ -1726,10 +1788,23 @@ export const buildSeedPaymentTimes = ({ booking, status, paymentDelayHours = 0 }
   };
 };
 
-const upsertPayment = async ({ booking, status, paymentStatus, paymentDelayHours }) => {
+const upsertPayment = async ({
+  booking,
+  status,
+  paymentStatus,
+  paymentDelayHours,
+  paymentDelayMinutes,
+  paymentDelaySeconds,
+}) => {
   const baseAmount = Number(booking.totalAmount || 0);
   const platformFee = Number(booking.platformFee || 0);
-  const paymentTimes = buildSeedPaymentTimes({ booking, status, paymentDelayHours });
+  const paymentTimes = buildSeedPaymentTimes({
+    booking,
+    status,
+    paymentDelayHours,
+    paymentDelayMinutes,
+    paymentDelaySeconds,
+  });
   const normalizedPaymentStatus = status === "paid" ? "paid" : paymentStatus || "pending";
 
   await Payment.findOneAndUpdate(
@@ -1812,6 +1887,25 @@ const seedBookings = async ({ users, elders, services }) => {
       : ["completed", "paid"].includes(item.status)
         ? new Date(startTime.getTime() + item.durationHours * 60 * 60 * 1000)
         : null;
+    const seedPaymentTiming = getSeedPaymentTiming(seedIndex);
+    const paymentDelayMinutes = Number.isFinite(Number(item.paymentDelayMinutes))
+      ? Number(item.paymentDelayMinutes)
+      : Number.isFinite(Number(item.paymentDelayHours))
+        ? Number(item.paymentDelayHours) * 60 + seedPaymentTiming.confirmationDelayMinutes % 60
+        : seedPaymentTiming.confirmationDelayMinutes;
+    const paymentDelaySeconds = Number.isFinite(Number(item.paymentDelaySeconds))
+      ? Number(item.paymentDelaySeconds)
+      : seedPaymentTiming.seconds;
+    const cancellationLeadMinutes = Number.isFinite(Number(item.cancellationLeadMinutes))
+      ? Number(item.cancellationLeadMinutes)
+      : 240 + ((seedIndex * 71) % 1080);
+    const cancelledAt = item.status === "cancelled"
+      ? new Date(
+        startTime.getTime()
+        - cancellationLeadMinutes * 60 * 1000
+        - seedPaymentTiming.seconds * 1000,
+      )
+      : null;
     const availabilityWindow = parseBookingAvailabilityWindow({
       startTime,
       durationHours: item.durationHours,
@@ -1854,7 +1948,7 @@ const seedBookings = async ({ users, elders, services }) => {
         ? {
             reason: item.cancellationReason || "other",
             details: item.cancellationDetails || "",
-            cancelledAt: new Date(startTime.getTime() - 6 * 60 * 60 * 1000),
+            cancelledAt,
             cancelledBy: item.cancelledByRole === "customer"
               ? customerId
               : item.cancelledByRole === "companion"
@@ -1913,6 +2007,12 @@ const seedBookings = async ({ users, elders, services }) => {
       { $set: payload },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );
+    const paymentTimes = buildSeedPaymentTimes({
+      booking,
+      status: item.status,
+      paymentDelayMinutes,
+      paymentDelaySeconds,
+    });
 
     await upsertShiftLog({ booking, service, status: item.status });
 
@@ -1921,7 +2021,8 @@ const seedBookings = async ({ users, elders, services }) => {
         booking,
         status: item.status,
         paymentStatus: item.paymentStatus,
-        paymentDelayHours: item.paymentDelayHours,
+        paymentDelayMinutes,
+        paymentDelaySeconds,
       });
     } else {
       await Payment.deleteOne({ bookingId: booking._id });
@@ -1948,15 +2049,31 @@ const seedBookings = async ({ users, elders, services }) => {
       await Review.deleteOne({ bookingId: booking._id });
     }
 
-    const bookingCreatedAt = new Date(startTime.getTime() - ((seedIndex % 4) + 2) * 24 * 60 * 60 * 1000);
-    const bookingUpdatedAt = completedAt || bookingCreatedAt;
+    const bookingCreatedAt = new Date(
+      startTime.getTime()
+      - ((seedIndex % 4) + 2) * 24 * 60 * 60 * 1000
+      + (8 + ((seedIndex * 19) % 43)) * 60 * 1000
+      + (5 + ((seedIndex * 11) % 47)) * 1000,
+    );
+    const bookingUpdatedAt = item.status === "paid" && paymentTimes.confirmedAt
+      ? new Date(paymentTimes.confirmedAt.getTime() + (2 + (seedIndex % 6)) * 1000)
+      : item.status === "cancelled" && payload.cancellation.cancelledAt
+        ? new Date(payload.cancellation.cancelledAt.getTime() + (2 + (seedIndex % 6)) * 60 * 1000)
+        : completedAt
+          ? new Date(completedAt.getTime() + (3 + (seedIndex % 8)) * 60 * 1000)
+          : bookingCreatedAt;
     await setSeedDocumentTimestamps(Booking, { _id: booking._id }, bookingCreatedAt, bookingUpdatedAt);
     await setSeedDocumentTimestamps(ShiftLog, { bookingId: booking._id }, startTime, bookingUpdatedAt);
     if (["completed", "paid"].includes(item.status)) {
-      const paymentUpdatedAt = item.status === "paid"
-        ? new Date(bookingUpdatedAt.getTime() + Number(item.paymentDelayHours || 0) * 60 * 60 * 1000)
-        : bookingUpdatedAt;
-      await setSeedDocumentTimestamps(Payment, { bookingId: booking._id }, bookingUpdatedAt, paymentUpdatedAt);
+      const paymentCreatedAt = new Date(
+        completedAt.getTime()
+        + seedPaymentTiming.creationDelayMinutes * 60 * 1000
+        + seedPaymentTiming.seconds * 1000,
+      );
+      const paymentUpdatedAt = paymentTimes.confirmedAt
+        ? new Date(paymentTimes.confirmedAt.getTime() + (1 + (seedIndex % 5)) * 1000)
+        : paymentCreatedAt;
+      await setSeedDocumentTimestamps(Payment, { bookingId: booking._id }, paymentCreatedAt, paymentUpdatedAt);
     }
     if (item.review) {
       const reviewCreatedAt = new Date(bookingUpdatedAt.getTime() + ((seedIndex % 5) + 1) * 60 * 60 * 1000);

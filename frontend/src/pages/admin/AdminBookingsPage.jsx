@@ -573,8 +573,8 @@ const AdminBookingsPage = () => {
               {selectedPaymentTimestamps.map((item) => (
                 <DetailItem key={item.key} label={item.label} value={dateTime(item.value)} />
               ))}
-              <DetailItem label="Ngày tạo" value={dateTime(selectedBooking.createdAt)} />
-              <DetailItem label="Cập nhật lần cuối" value={dateTime(selectedBooking.updatedAt)} />
+              <DetailItem label="Booking được tạo lúc" value={dateTime(selectedBooking.createdAt)} />
+              <DetailItem label="Booking cập nhật lúc" value={dateTime(selectedBooking.updatedAt)} />
             </DetailGrid>
 
             <section className="rounded-xl border border-slate-100 p-4">

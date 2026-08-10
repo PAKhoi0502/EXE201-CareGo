@@ -12,30 +12,10 @@ const emptyForm = {
   excerpt: "",
   highlight: "",
   imageUrl: "",
-  contentText: "",
-  status: "draft",
+  content: [{ heading: "", body: "" }],
   isFeatured: false,
   displayOrder: 0,
 };
-
-const parseContentText = (value) =>
-  String(value || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [heading, ...bodyParts] = line.split("|");
-      return {
-        heading: String(heading || "").trim(),
-        body: bodyParts.join("|").trim(),
-      };
-    })
-    .filter((section) => section.heading && section.body);
-
-const stringifyContent = (content) =>
-  (content || [])
-    .map((section) => `${section.heading || ""} | ${section.body || ""}`)
-    .join("\n");
 
 const getFormFromBlog = (blog) => ({
   title: blog?.title || "",
@@ -46,8 +26,9 @@ const getFormFromBlog = (blog) => ({
   excerpt: blog?.excerpt || "",
   highlight: blog?.highlight || "",
   imageUrl: blog?.imageUrl || "",
-  contentText: stringifyContent(blog?.content),
-  status: blog?.status || (blog?.isPublished ? "published" : "draft"),
+  content: blog?.content?.length
+    ? blog.content.map((section) => ({ heading: section.heading || "", body: section.body || "" }))
+    : [{ heading: "", body: "" }],
   isFeatured: Boolean(blog?.isFeatured),
   displayOrder: blog?.displayOrder || 0,
 });
@@ -61,8 +42,7 @@ const buildPayload = (form) => ({
   excerpt: form.excerpt,
   highlight: form.highlight,
   imageUrl: form.imageUrl,
-  content: parseContentText(form.contentText),
-  status: form.status,
+  content: form.content.map((section) => ({ heading: section.heading, body: section.body })),
   isFeatured: form.isFeatured,
   displayOrder: Number(form.displayOrder || 0),
 });
@@ -70,12 +50,20 @@ const buildPayload = (form) => ({
 const statusLabels = {
   draft: "Bản nháp",
   published: "Đã đăng",
+  deleted: "Đã xóa",
+};
+
+const getBlogStatus = (blog) => {
+  if (blog?.isDeleted || blog?.status === "deleted") return "deleted";
+  return blog?.status || (blog?.isPublished ? "published" : "draft");
 };
 
 const BlogStatusBadge = ({ status }) => {
   const className = status === "published"
     ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : "bg-slate-100 text-slate-600 ring-slate-200";
+    : status === "deleted"
+      ? "bg-rose-50 text-rose-700 ring-rose-200"
+      : "bg-slate-100 text-slate-600 ring-slate-200";
 
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${className}`}>
@@ -90,7 +78,7 @@ const BlogFormModal = ({ title, form, setForm, error, saving, onClose, onSubmit,
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-5">
         <div>
           <h2 className="font-bold text-slate-900">{title}</h2>
-          <p className="mt-1 text-xs text-slate-400">Mỗi dòng nội dung theo dạng: Tiêu đề | Nội dung.</p>
+          <p className="mt-1 text-xs text-slate-400">Mỗi mục có tiêu đề và nội dung riêng; xuống dòng và bullet sẽ được giữ nguyên.</p>
         </div>
         <button
           className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200"
@@ -118,19 +106,62 @@ const BlogFormModal = ({ title, form, setForm, error, saving, onClose, onSubmit,
 
         <Textarea required label="Tóm tắt" value={form.excerpt} onChange={(event) => setForm({ ...form, excerpt: event.target.value })} />
         <Textarea label="Điểm chính" value={form.highlight} onChange={(event) => setForm({ ...form, highlight: event.target.value })} />
-        <Textarea
-          label="Nội dung"
-          className="min-h-52 font-mono"
-          value={form.contentText}
-          onChange={(event) => setForm({ ...form, contentText: event.target.value })}
-        />
+        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-black text-slate-800">Nội dung bài viết</p>
+              <p className="mt-1 text-xs text-slate-500">Có thể nhập nhiều đoạn hoặc danh sách trong từng mục.</p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-9 px-3 text-xs"
+              onClick={() => setForm({ ...form, content: [...form.content, { heading: "", body: "" }] })}
+            >
+              Thêm mục
+            </Button>
+          </div>
+          {form.content.map((section, index) => (
+            <div key={index} className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-wide text-teal-700">Mục {index + 1}</p>
+                {form.content.length > 1 ? (
+                  <button
+                    type="button"
+                    className="text-xs font-black text-rose-600 hover:underline"
+                    onClick={() => setForm({ ...form, content: form.content.filter((_, itemIndex) => itemIndex !== index) })}
+                  >
+                    Xóa mục
+                  </button>
+                ) : null}
+              </div>
+              <Input
+                required
+                label="Tiêu đề mục"
+                value={section.heading}
+                onChange={(event) => setForm({
+                  ...form,
+                  content: form.content.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, heading: event.target.value } : item),
+                })}
+              />
+              <Textarea
+                required
+                label="Nội dung mục"
+                className="min-h-36 whitespace-pre-wrap"
+                value={section.body}
+                onChange={(event) => setForm({
+                  ...form,
+                  content: form.content.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, body: event.target.value } : item),
+                })}
+              />
+            </div>
+          ))}
+        </div>
 
         <div className="grid gap-3 md:grid-cols-2">
           <Input label="Ảnh cover URL" value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
-          <Select label="Trạng thái" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
-            <option value="draft">Bản nháp</option>
-            <option value="published">Đã đăng</option>
-          </Select>
           <label className="flex min-h-10 items-center gap-3 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 md:col-span-2">
             <input
               type="checkbox"
@@ -139,6 +170,9 @@ const BlogFormModal = ({ title, form, setForm, error, saving, onClose, onSubmit,
             />
             Hiển thị ở trang chủ
           </label>
+          <p className="text-xs font-semibold text-slate-500 md:col-span-2">
+            Thay đổi nội dung không tự đăng bài. Hãy dùng nút Đăng bài hoặc Gỡ đăng ở danh sách sau khi lưu.
+          </p>
         </div>
 
         {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
@@ -154,8 +188,11 @@ const BlogFormModal = ({ title, form, setForm, error, saving, onClose, onSubmit,
   </div>
 );
 
-const BlogManagementPanel = ({ onChanged }) => {
-  const { data, loading, error: loadError, reload } = useAsync(() => api.get("/admin/blogs"), []);
+const BlogManagementPanel = ({ onChanged, onManageComments, refreshKey = 0 }) => {
+  const { data, loading, error: loadError, reload } = useAsync(
+    () => api.get("/admin/blogs?includeDeleted=true"),
+    [refreshKey],
+  );
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [form, setForm] = useState(emptyForm);
@@ -170,7 +207,7 @@ const BlogManagementPanel = ({ onChanged }) => {
   const filteredBlogs = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return blogs.filter((blog) => {
-      const status = blog.status || (blog.isPublished ? "published" : "draft");
+      const status = getBlogStatus(blog);
       const matchesStatus = statusFilter === "all" || status === statusFilter;
       const matchesQuery = !normalizedQuery
         || [blog.title, blog.slug, blog.category].some((value) => String(value || "").toLowerCase().includes(normalizedQuery));
@@ -224,7 +261,7 @@ const BlogManagementPanel = ({ onChanged }) => {
   };
 
   const togglePublish = async (blog) => {
-    const status = blog.status || (blog.isPublished ? "published" : "draft");
+    const status = getBlogStatus(blog);
     const nextAction = status === "published" ? "gỡ bài viết khỏi trang công khai" : "đăng bài viết này";
     if (!window.confirm(`Xác nhận ${nextAction}?`)) return;
 
@@ -254,8 +291,23 @@ const BlogManagementPanel = ({ onChanged }) => {
     }
   };
 
-  const publishedCount = blogs.filter((blog) => blog.status === "published" || blog.isPublished).length;
-  const featuredCount = blogs.filter((blog) => blog.isFeatured).length;
+  const restoreBlog = async (blog) => {
+    if (!window.confirm(`Khôi phục bài viết "${blog.title}" về bản nháp?`)) return;
+    setActionError("");
+    setActionLoading(`${blog._id}:restore`);
+    try {
+      await api.patch(`/admin/blogs/${blog._id}/restore`, {});
+      await refresh();
+    } catch (requestError) {
+      setActionError(requestError.message);
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  const publishedCount = blogs.filter((blog) => getBlogStatus(blog) === "published").length;
+  const featuredCount = blogs.filter((blog) => getBlogStatus(blog) !== "deleted" && blog.isFeatured).length;
+  const deletedCount = blogs.filter((blog) => getBlogStatus(blog) === "deleted").length;
 
   return (
     <Card className="overflow-hidden border-teal-100 bg-white/95 p-0 shadow-xl shadow-teal-900/5">
@@ -263,7 +315,9 @@ const BlogManagementPanel = ({ onChanged }) => {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-700">Quản trị nội dung</p>
           <h2 className="mt-1 text-xl font-black text-slate-900">Bài viết Blog</h2>
-          <p className="mt-1 text-sm text-slate-500">{blogs.length} bài viết, {publishedCount} đã đăng, {featuredCount} nổi bật.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {blogs.length - deletedCount} bài đang quản lý, {publishedCount} đã đăng, {featuredCount} nổi bật, {deletedCount} đã xóa.
+          </p>
         </div>
         <Button type="button" onClick={openCreate}>Tạo bài viết</Button>
       </div>
@@ -274,6 +328,7 @@ const BlogManagementPanel = ({ onChanged }) => {
           <option value="all">Tất cả</option>
           <option value="draft">Bản nháp</option>
           <option value="published">Đã đăng</option>
+          <option value="deleted">Đã xóa</option>
         </Select>
       </div>
 
@@ -295,9 +350,9 @@ const BlogManagementPanel = ({ onChanged }) => {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredBlogs.map((blog) => {
-              const status = blog.status || (blog.isPublished ? "published" : "draft");
+              const status = getBlogStatus(blog);
               return (
-                <tr key={blog._id}>
+                <tr key={blog._id} className={status === "deleted" ? "bg-rose-50/40" : ""}>
                   <td className="max-w-md p-4">
                     <p className="font-black text-slate-900">{blog.title}</p>
                     <p className="mt-1 text-xs text-slate-400">{blog.slug}</p>
@@ -314,13 +369,30 @@ const BlogManagementPanel = ({ onChanged }) => {
                   </td>
                   <td className="p-4">
                     <div className="flex flex-wrap justify-end gap-2">
-                      <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => openEdit(blog)}>Sửa</Button>
-                      <Button type="button" variant="muted" className="min-h-8 px-3 text-xs" onClick={() => togglePublish(blog)} disabled={actionLoading.startsWith(`${blog._id}:`)}>
-                        {actionLoading === `${blog._id}:publish` ? "Đang xử lý..." : status === "published" ? "Gỡ đăng" : "Đăng bài"}
-                      </Button>
-                      <Button type="button" variant="danger" className="min-h-8 px-3 text-xs" onClick={() => deleteBlog(blog)} disabled={actionLoading.startsWith(`${blog._id}:`)}>
-                        {actionLoading === `${blog._id}:delete` ? "Đang xóa..." : "Xóa"}
-                      </Button>
+                      {status === "deleted" ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-8 px-3 text-xs"
+                          onClick={() => restoreBlog(blog)}
+                          disabled={actionLoading.startsWith(`${blog._id}:`)}
+                        >
+                          {actionLoading === `${blog._id}:restore` ? "Đang khôi phục..." : "Khôi phục"}
+                        </Button>
+                      ) : (
+                        <>
+                          <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => openEdit(blog)}>Sửa</Button>
+                          <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => onManageComments?.(blog)}>
+                            Bình luận{blog.pendingCommentCount ? ` (${blog.pendingCommentCount})` : ""}
+                          </Button>
+                          <Button type="button" variant="muted" className="min-h-8 px-3 text-xs" onClick={() => togglePublish(blog)} disabled={actionLoading.startsWith(`${blog._id}:`)}>
+                            {actionLoading === `${blog._id}:publish` ? "Đang xử lý..." : status === "published" ? "Gỡ đăng" : "Đăng bài"}
+                          </Button>
+                          <Button type="button" variant="danger" className="min-h-8 px-3 text-xs" onClick={() => deleteBlog(blog)} disabled={actionLoading.startsWith(`${blog._id}:`)}>
+                            {actionLoading === `${blog._id}:delete` ? "Đang xóa..." : "Xóa"}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

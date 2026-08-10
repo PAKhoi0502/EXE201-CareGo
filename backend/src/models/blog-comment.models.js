@@ -14,6 +14,10 @@ const BlogCommentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    seedKey: {
+      type: String,
+      trim: true,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
@@ -56,6 +60,7 @@ const BlogCommentSchema = new mongoose.Schema(
 BlogCommentSchema.index({ postId: 1, createdAt: -1 });
 BlogCommentSchema.index({ slug: 1, createdAt: -1 });
 BlogCommentSchema.index({ postId: 1, status: 1, createdAt: -1 });
+BlogCommentSchema.index({ seedKey: 1 }, { unique: true, sparse: true });
 
 const BlogComment = mongoose.model("blogComment", BlogCommentSchema);
 export default BlogComment;

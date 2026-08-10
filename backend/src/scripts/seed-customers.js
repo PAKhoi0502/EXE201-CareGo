@@ -13,6 +13,30 @@ dotenv.config();
 const password = process.env.SEED_PASSWORD || "CareGo@123";
 const legacyCustomerSeedCount = 21;
 
+export const legacyCustomerJoinedAtByEmail = {
+  "hoanganh@gmail.com": "2026-06-02T03:18:21.000Z",
+  "minhchau@gmail.com": "2026-06-05T08:42:36.000Z",
+  "thanhbinh@gmail.com": "2026-06-08T02:27:49.000Z",
+  "thuhuong@gmail.com": "2026-06-11T09:13:24.000Z",
+  "quockhanh@gmail.com": "2026-06-14T04:56:31.000Z",
+  "ngocmai@gmail.com": "2026-06-17T07:34:18.000Z",
+  "ducanh@gmail.com": "2026-06-20T01:49:43.000Z",
+  "thuylinh@gmail.com": "2026-06-23T10:21:37.000Z",
+  "giabao@gmail.com": "2026-06-26T05:38:52.000Z",
+  "thanhtam@gmail.com": "2026-06-29T08:16:29.000Z",
+  "minhtuan@gmail.com": "2026-07-02T03:44:17.000Z",
+  "kimoanh@gmail.com": "2026-07-06T09:27:41.000Z",
+  "haidang@gmail.com": "2026-07-10T02:53:26.000Z",
+  "baongoc@gmail.com": "2026-07-14T07:19:48.000Z",
+  "quangvinh@gmail.com": "2026-07-18T04:36:33.000Z",
+  "khanhvy@gmail.com": "2026-07-23T10:08:22.000Z",
+  "thanhcong@gmail.com": "2026-07-28T05:47:39.000Z",
+  "myduyen@gmail.com": "2026-08-01T03:26:51.000Z",
+  "anhkhoa@gmail.com": "2026-08-03T08:14:27.000Z",
+  "ngocdiep@gmail.com": "2026-08-05T02:41:36.000Z",
+  "minhtri@gmail.com": "2026-08-07T09:32:18.000Z",
+};
+
 export const customersSeed = [
   { name: "Nguyễn Hoàng Anh", email: "hoanganh@gmail.com", phone: "0979502094" },
   { name: "Trần Minh Châu", email: "minhchau@gmail.com", phone: "0983647152" },
@@ -258,7 +282,10 @@ export const customersSeed = [
     phone: "0706419285",
     joinedAt: "2026-06-30T03:05:00.000Z",
   },
-];
+].map((customer) => ({
+  ...customer,
+  joinedAt: customer.joinedAt || legacyCustomerJoinedAtByEmail[customer.email],
+}));
 
 const obsoleteCustomersSeed = [
   { email: "thaonhi@gmail.com", sequence: "22" },
@@ -359,15 +386,14 @@ export const seedCustomerUsers = async () => {
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );
 
-    if (!existingUser && joinedAt) {
+    if (joinedAt) {
       const joinedAtDate = new Date(joinedAt);
       if (Number.isNaN(joinedAtDate.getTime())) {
         throw new Error(`Invalid joinedAt for ${email}`);
       }
-      await User.updateOne(
+      await User.collection.updateOne(
         { _id: user._id },
         { $set: { createdAt: joinedAtDate } },
-        { timestamps: false },
       );
     }
   }

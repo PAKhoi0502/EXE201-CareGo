@@ -61,12 +61,19 @@ const BlogPostSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    content: [
-      {
-        heading: String,
-        body: String,
+    content: {
+      type: [
+        {
+          heading: { type: String, required: true, trim: true },
+          body: { type: String, required: true, trim: true },
+        },
+      ],
+      validate: {
+        validator: (sections) => Array.isArray(sections) && sections.length > 0,
+        message: "Bài viết phải có ít nhất một mục nội dung.",
       },
-    ],
+      default: [],
+    },
     viewCount: {
       type: Number,
       default: 0,
@@ -93,7 +100,7 @@ const BlogPostSchema = new mongoose.Schema(
     comments: [BlogCommentSchema],
     isPublished: {
       type: Boolean,
-      default: true,
+      default: false,
       index: true,
     },
     isFeatured: {

@@ -1,10 +1,10 @@
 export const blogSeedPosts = [
   {
     slug: "khi-nao-can-nguoi-dong-hanh-di-kham",
-    viewCount: 48,
+    viewCount: 326,
     category: "Đi khám",
     readTime: "5 phút đọc",
-    date: "04/06/2026",
+    date: "01/06/2026",
     title: "Khi nào người cao tuổi cần người đồng hành đi khám?",
     excerpt:
       "Những dấu hiệu gia đình nên cân nhắc đặt người đồng hành để buổi khám diễn ra an toàn, đúng lịch và có ghi chú đầy đủ.",
@@ -29,10 +29,10 @@ export const blogSeedPosts = [
   },
   {
     slug: "5-luu-y-khi-dat-lich-cham-soc-ba-me",
-    viewCount: 31,
+    viewCount: 274,
     category: "Gia đình",
     readTime: "4 phút đọc",
-    date: "04/06/2026",
+    date: "02/06/2026",
     title: "5 lưu ý khi đặt lịch chăm sóc ba mẹ theo giờ",
     excerpt:
       "Chuẩn bị thông tin sức khỏe, địa chỉ, số liên hệ khẩn cấp và yêu cầu đặc biệt giúp ca chăm sóc diễn ra mượt hơn.",
@@ -57,10 +57,10 @@ export const blogSeedPosts = [
   },
   {
     slug: "quy-tac-an-toan-cho-nguoi-dong-hanh",
-    viewCount: 64,
+    viewCount: 301,
     category: "An toàn",
     readTime: "6 phút đọc",
-    date: "04/06/2026",
+    date: "02/06/2026",
     title: "Quy tắc an toàn cho người đồng hành CareGo",
     excerpt:
       "Người đồng hành cần tuân thủ nguyên tắc không tự ý cho thuốc, không thu tiền ngoài app và không đổi lộ trình khi chưa xác nhận.",
@@ -85,10 +85,10 @@ export const blogSeedPosts = [
   },
   {
     slug: "sinh-vien-y-duoc-ho-tro-nguoi-cao-tuoi",
-    viewCount: 23,
+    viewCount: 238,
     category: "Người đồng hành",
     readTime: "5 phút đọc",
-    date: "04/06/2026",
+    date: "03/06/2026",
     title: "Sinh viên Y Dược có thể hỗ trợ người cao tuổi như thế nào?",
     excerpt:
       "Từ nhắc lịch, hỗ trợ di chuyển đến ghi chú thông tin khám bệnh, sinh viên ngành sức khỏe có nhiều lợi thế khi đồng hành cùng người cao tuổi.",
@@ -113,7 +113,7 @@ export const blogSeedPosts = [
   },
   {
     slug: "vi-sao-dich-vu-cham-soc-tai-nha-ngay-cang-pho-bien",
-    viewCount: 17,
+    viewCount: 174,
     category: "Chăm sóc tại nhà",
     readTime: "6 phút đọc",
     date: "29/06/2026",
@@ -153,7 +153,7 @@ export const blogSeedPosts = [
   },
   {
     slug: "5-dau-hieu-nguoi-than-can-duoc-cham-soc-chuyen-nghiep",
-    viewCount: 9,
+    viewCount: 142,
     category: "Chăm sóc chuyên nghiệp",
     readTime: "6 phút đọc",
     date: "29/06/2026",
@@ -208,7 +208,7 @@ export const blogSeedPosts = [
   },
   {
     slug: "carego-khi-viec-cham-soc-khong-con-la-ganh-nang",
-    viewCount: 37,
+    viewCount: 116,
     category: "CareGo",
     readTime: "5 phút đọc",
     date: "29/06/2026",
@@ -253,7 +253,7 @@ export const blogSeedPosts = [
   },
   {
     slug: "carego-ban-dong-hanh-tai-benh-vien",
-    viewCount: 14,
+    viewCount: 72,
     category: "Đi khám",
     readTime: "6 phút đọc",
     date: "03/07/2026",
@@ -294,7 +294,7 @@ export const blogSeedPosts = [
   },
   {
     slug: "carego-giai-phap-cham-soc-nguoi-cao-tuoi-theo-gio-thoi-4-0",
-    viewCount: 22,
+    viewCount: 54,
     category: "Chăm sóc người cao tuổi",
     readTime: "8 phút đọc",
     date: "03/07/2026",
@@ -345,7 +345,7 @@ export const blogSeedPosts = [
   },
   {
     slug: "ban-ron-van-yeu-thuong-carego-mang-lai-su-an-tam-cho-gia-dinh-hien-dai",
-    viewCount: 18,
+    viewCount: 31,
     category: "Gia đình hiện đại",
     readTime: "7 phút đọc",
     date: "03/07/2026",

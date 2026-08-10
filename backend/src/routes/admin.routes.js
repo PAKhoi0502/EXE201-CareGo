@@ -14,7 +14,9 @@ import {
   deleteAdminBlog,
   getAdminBlogComments,
   getAdminBlogs,
+  getBlogStats,
   publishAdminBlog,
+  restoreAdminBlog,
   unpublishAdminBlog,
   updateAdminBlogCommentStatus,
   updateAdminBlog,
@@ -36,6 +38,7 @@ router.get("/gps-statuses", getAdminGpsStatuses);
 router.get("/online-statuses", getAdminOnlineStatuses);
 router.get("/audit-logs", getAdminAuditLogs);
 router.get("/blogs", getAdminBlogs);
+router.get("/blogs/stats", getBlogStats);
 router.post("/blogs", createAdminBlog);
 router.get("/blogs/:id/comments", getAdminBlogComments);
 router.patch("/blogs/:id/comments/:commentId", updateAdminBlogCommentStatus);
@@ -44,5 +47,6 @@ router.patch("/blogs/:id", updateAdminBlog);
 router.delete("/blogs/:id", deleteAdminBlog);
 router.patch("/blogs/:id/publish", publishAdminBlog);
 router.patch("/blogs/:id/unpublish", unpublishAdminBlog);
+router.patch("/blogs/:id/restore", restoreAdminBlog);
 
 export default router;

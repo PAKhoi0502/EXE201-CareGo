@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import slugify from "slugify";
 import BlogComment from "../models/blog-comment.models.js";
 import BlogPost from "../models/blog-post.models.js";
@@ -17,6 +18,8 @@ const BLOG_COMMENT_COOLDOWN_MS = getPositiveEnvNumber(
 const BLOG_STATS_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const BLOG_STATS_TIMEZONE = "Asia/Bangkok";
 const BLOG_STATS_TIMEZONE_OFFSET_MS = 7 * 60 * 60 * 1000;
+const BLOG_STATS_MAX_RANGE_DAYS = 366;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const blogActionCooldowns = new Map();
 
 const normalizeSlug = (value) =>
@@ -57,17 +60,18 @@ const buildBlogPayload = (body, existingPost) => {
   if ("imageUrl" in body || "coverImage" in body) {
     payload.imageUrl = String(body.imageUrl || body.coverImage?.url || "").trim();
   }
-  if ("content" in body) payload.content = normalizeContent(body.content);
+  if ("content" in body) {
+    payload.content = normalizeContent(body.content);
+    if (!payload.content.length) {
+      const error = new Error("Bài viết phải có ít nhất một mục nội dung đầy đủ tiêu đề và nội dung.");
+      error.statusCode = 400;
+      throw error;
+    }
+  }
   if ("isFeatured" in body) payload.isFeatured = Boolean(body.isFeatured);
   if ("displayOrder" in body) {
     const displayOrder = Number(body.displayOrder);
     payload.displayOrder = Number.isFinite(displayOrder) ? displayOrder : 0;
-  }
-
-  if ("status" in body || "isPublished" in body) {
-    const isPublished = "status" in body ? body.status === "published" : Boolean(body.isPublished);
-    payload.isPublished = isPublished;
-    if (isPublished && !existingPost?.publishedAt) payload.publishedAt = new Date();
   }
 
   return payload;
@@ -80,9 +84,10 @@ const sendBlogError = (res, error) => {
 
   return res.status(error.statusCode || 500).json({
     message: error.statusCode ? error.message : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
-    error: error.message,
   });
 };
+
+const isValidObjectId = (value) => mongoose.isValidObjectId(value);
 
 const normalizeVisitorPart = (value) =>
   String(value || "")
@@ -188,7 +193,7 @@ const getCollectionCommentCountMap = async (postIds) => {
   return new Map(rows.map((row) => [getIdKey(row._id), row.count]));
 };
 
-const getAdminCommentStatusCountMap = async (postIds) => {
+const getAdminCommentStatusCountMap = async (postIds, range) => {
   const counts = new Map();
   postIds.forEach((postId) => {
     counts.set(getIdKey(postId), {
@@ -201,8 +206,12 @@ const getAdminCommentStatusCountMap = async (postIds) => {
 
   if (!postIds.length) return counts;
 
+  const match = { postId: { $in: postIds } };
+  if (range) {
+    match.createdAt = { $gte: range.start, $lte: range.end };
+  }
   const rows = await BlogComment.aggregate([
-    { $match: { postId: { $in: postIds } } },
+    { $match: match },
     {
       $project: {
         postId: 1,
@@ -238,13 +247,28 @@ const getAdminCommentStatusCountMap = async (postIds) => {
   return counts;
 };
 
-const getLegacyCommentCountMap = async (postIds) => {
+const getLegacyCommentCountMap = async (postIds, range) => {
   if (!postIds.length) return new Map();
+  const legacyComments = { $ifNull: ["$comments", []] };
+  const commentsInRange = range
+    ? {
+        $filter: {
+          input: legacyComments,
+          as: "comment",
+          cond: {
+            $and: [
+              { $gte: ["$$comment.createdAt", range.start] },
+              { $lte: ["$$comment.createdAt", range.end] },
+            ],
+          },
+        },
+      }
+    : legacyComments;
   const rows = await BlogPost.aggregate([
     { $match: { _id: { $in: postIds } } },
     {
       $project: {
-        count: { $size: { $ifNull: ["$comments", []] } },
+        count: { $size: commentsInRange },
       },
     },
   ]);
@@ -276,6 +300,25 @@ const getBlogViewCountMap = async (postIds, range) => {
     { $group: { _id: "$postId", count: { $sum: 1 } } },
   ]);
   return new Map(rows.map((row) => [getIdKey(row._id), row.count]));
+};
+
+const getBlogRatingStatsMap = async (postIds, range) => {
+  if (!postIds.length) return new Map();
+  const match = { postId: { $in: postIds } };
+  if (range) {
+    match.createdAt = { $gte: range.start, $lte: range.end };
+  }
+  const rows = await BlogRating.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: "$postId",
+        ratingSum: { $sum: "$value" },
+        ratingCount: { $sum: 1 },
+      },
+    },
+  ]);
+  return new Map(rows.map((row) => [getIdKey(row._id), row]));
 };
 
 const serializePost = (post, { comments, commentCount, includeComments = false, viewerRating = 0 } = {}) => {
@@ -331,8 +374,11 @@ const parseDateBoundary = (value, endOfDay = false) => {
   return { date };
 };
 
-const getDateRange = ({ from, to }) => {
+export const getBlogStatsDateRange = ({ from, to }) => {
   if (!from && !to) return { range: null };
+  if (!from || !to) {
+    return { error: "Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc." };
+  }
 
   const startValue = from
     ? parseDateBoundary(from)
@@ -350,7 +396,12 @@ const getDateRange = ({ from, to }) => {
     return { error: "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc." };
   }
 
-  return { range: { start: startValue.date, end: endValue.date } };
+  const rangeDays = Math.floor((endValue.date - startValue.date) / DAY_MS) + 1;
+  if (rangeDays > BLOG_STATS_MAX_RANGE_DAYS) {
+    return { error: `Khoảng thống kê blog không được vượt quá ${BLOG_STATS_MAX_RANGE_DAYS} ngày.` };
+  }
+
+  return { range: { start: startValue.date, end: endValue.date, days: rangeDays } };
 };
 
 const toDateKey = (date) => {
@@ -359,12 +410,12 @@ const toDateKey = (date) => {
   return new Date(value.getTime() + BLOG_STATS_TIMEZONE_OFFSET_MS).toISOString().slice(0, 10);
 };
 
-const buildDailyViews = async (postIds, range) => {
+export const buildBlogDailyViews = async (postIds, range) => {
   if (!range || !postIds.length) return [];
 
   const days = [];
   const cursor = new Date(range.start);
-  while (cursor <= range.end && days.length < 90) {
+  while (cursor <= range.end) {
     const key = toDateKey(cursor);
     const [, month, day] = key.split("-");
     days.push({
@@ -416,7 +467,7 @@ export const getBlogPosts = async (_req, res) => {
       ),
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
@@ -471,7 +522,7 @@ export const getBlogPostBySlug = async (req, res) => {
       }),
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
@@ -516,7 +567,7 @@ export const increaseBlogView = async (req, res) => {
       viewCounted: true,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
@@ -588,7 +639,7 @@ export const rateBlogPost = async (req, res) => {
       ratingCount: updatedPost.ratingCount,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
@@ -642,12 +693,15 @@ export const commentBlogPost = async (req, res) => {
       post: serializePost(post, { comments, commentCount: comments.length, includeComments: true }),
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
 export const getAdminBlogComments = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "ID bài viết không hợp lệ." });
+    }
     const post = await BlogPost.findById(req.params.id).select("_id title slug");
     if (!post) {
     return res.status(404).json({ message: "Không tìm thấy bài viết." });
@@ -662,12 +716,15 @@ export const getAdminBlogComments = async (req, res) => {
       comments: comments.map(serializeAdminComment),
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
 export const updateAdminBlogCommentStatus = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id) || !isValidObjectId(req.params.commentId)) {
+      return res.status(400).json({ message: "ID bài viết hoặc bình luận không hợp lệ." });
+    }
     const status = String(req.body.status || "");
     if (!["visible", "hidden"].includes(status)) {
       return res.status(400).json({ message: "Trạng thái bình luận phải là hiển thị hoặc ẩn." });
@@ -676,7 +733,7 @@ export const updateAdminBlogCommentStatus = async (req, res) => {
     const comment = await BlogComment.findOneAndUpdate(
       { _id: req.params.commentId, postId: req.params.id },
       { status, isVisible: status === "visible" },
-      { new: true },
+      { new: true, runValidators: true },
     ).populate("userId", "name email role avatar");
 
     if (!comment) {
@@ -688,12 +745,15 @@ export const updateAdminBlogCommentStatus = async (req, res) => {
       comment: serializeAdminComment(comment),
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
 export const deleteAdminBlogComment = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id) || !isValidObjectId(req.params.commentId)) {
+      return res.status(400).json({ message: "ID bài viết hoặc bình luận không hợp lệ." });
+    }
     const comment = await BlogComment.findOneAndDelete({
       _id: req.params.commentId,
       postId: req.params.id,
@@ -705,13 +765,13 @@ export const deleteAdminBlogComment = async (req, res) => {
 
     return res.status(200).json({ message: "Xóa bình luận thành công." });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
 export const getBlogStats = async (req, res) => {
   try {
-    const dateRange = getDateRange(req.query);
+    const dateRange = getBlogStatsDateRange(req.query);
     if (dateRange.error) {
       return res.status(400).json({ message: dateRange.error });
     }
@@ -720,12 +780,13 @@ export const getBlogStats = async (req, res) => {
       .select("title slug category viewCount ratingSum ratingCount createdAt")
       .sort({ viewCount: -1 });
     const postIds = posts.map((post) => post._id);
-    const [commentCounts, legacyCommentCounts, allTimeViewCounts, rangeViewCounts, dailyViews] = await Promise.all([
-      getAdminCommentStatusCountMap(postIds),
-      getLegacyCommentCountMap(postIds),
+    const [commentCounts, legacyCommentCounts, ratingStats, allTimeViewCounts, rangeViewCounts, dailyViews] = await Promise.all([
+      getAdminCommentStatusCountMap(postIds, range),
+      getLegacyCommentCountMap(postIds, range),
+      getBlogRatingStatsMap(postIds, range),
       getBlogViewCountMap(postIds),
       getBlogViewCountMap(postIds, range),
-      buildDailyViews(postIds, range),
+      buildBlogDailyViews(postIds, range),
     ]);
 
     const blogStats = posts
@@ -735,9 +796,15 @@ export const getBlogStats = async (req, res) => {
         const legacyCommentCount = legacyCommentCounts.get(key) || 0;
         const visibleCommentCount = Number(counts.visibleCommentCount || 0) + legacyCommentCount;
         const commentCount = Number(counts.commentCount || 0) + legacyCommentCount;
+        const rating = ratingStats.get(key) || {};
+        const ratingSum = Number(rating.ratingSum || 0);
+        const ratingCount = Number(rating.ratingCount || 0);
         const data = serializePost(post, { commentCount });
         return {
           ...data,
+          ratingSum,
+          ratingCount,
+          ratingAverage: ratingCount ? Number((ratingSum / ratingCount).toFixed(1)) : 0,
           visibleCommentCount,
           pendingCommentCount: Number(counts.pendingCommentCount || 0),
           hiddenCommentCount: Number(counts.hiddenCommentCount || 0),
@@ -764,7 +831,7 @@ export const getBlogStats = async (req, res) => {
       categoryViews,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", error: error.message });
+    return sendBlogError(res, error);
   }
 };
 
@@ -776,10 +843,11 @@ export const getAdminBlogs = async (req, res) => {
       .populate("authorId", "name email")
       .sort({ isDeleted: 1, displayOrder: 1, createdAt: -1 });
     const postIds = posts.map((post) => post._id);
-    const [commentCounts, legacyCommentCounts, viewCounts] = await Promise.all([
+    const [commentCounts, legacyCommentCounts, viewCounts, ratingStats] = await Promise.all([
       getAdminCommentStatusCountMap(postIds),
       getLegacyCommentCountMap(postIds),
       getBlogViewCountMap(postIds),
+      getBlogRatingStatsMap(postIds),
     ]);
 
     return res.status(200).json({
@@ -788,17 +856,20 @@ export const getAdminBlogs = async (req, res) => {
         const key = getIdKey(post._id);
         const counts = commentCounts.get(key) || {};
         const legacyCommentCount = legacyCommentCounts.get(key) || 0;
+        const rating = ratingStats.get(key) || {};
+        const ratingSum = Number(rating.ratingSum || 0);
+        const ratingCount = Number(rating.ratingCount || 0);
         return {
           ...data,
           viewCount: viewCounts.get(key) || 0,
-          status: data.isPublished ? "published" : "draft",
+          status: data.isDeleted ? "deleted" : data.isPublished ? "published" : "draft",
           visibleCommentCount: Number(counts.visibleCommentCount || 0) + legacyCommentCount,
           pendingCommentCount: Number(counts.pendingCommentCount || 0),
           hiddenCommentCount: Number(counts.hiddenCommentCount || 0),
           commentCount: Number(counts.commentCount || 0) + legacyCommentCount,
-          ratingAverage: data.ratingCount
-            ? Number((data.ratingSum / data.ratingCount).toFixed(1))
-            : 0,
+          ratingSum,
+          ratingCount,
+          ratingAverage: ratingCount ? Number((ratingSum / ratingCount).toFixed(1)) : 0,
         };
       }),
     });
@@ -811,13 +882,15 @@ export const createAdminBlog = async (req, res) => {
   try {
     const payload = buildBlogPayload(req.body);
     const missingFields = ["title", "category", "excerpt"].filter((field) => !payload[field]);
-    if (missingFields.length) {
+    if (missingFields.length || !payload.content?.length) {
       return res.status(400).json({ message: "Vui lòng nhập đầy đủ các thông tin bắt buộc của bài viết." });
     }
 
     const post = await BlogPost.create({
       ...payload,
       authorId: req.user.userId,
+      isPublished: false,
+      publishedAt: null,
       isDeleted: false,
     });
     return res.status(201).json({ message: "Tạo bài viết thành công.", blog: post });
@@ -828,6 +901,9 @@ export const createAdminBlog = async (req, res) => {
 
 export const updateAdminBlog = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "ID bài viết không hợp lệ." });
+    }
     const post = await BlogPost.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!post) {
     return res.status(404).json({ message: "Không tìm thấy bài viết." });
@@ -844,14 +920,16 @@ export const updateAdminBlog = async (req, res) => {
 
 export const publishAdminBlog = async (req, res) => {
   try {
-    const post = await BlogPost.findOneAndUpdate(
-      { _id: req.params.id, isDeleted: { $ne: true } },
-      { isPublished: true, publishedAt: new Date() },
-      { new: true, runValidators: true },
-    );
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "ID bài viết không hợp lệ." });
+    }
+    const post = await BlogPost.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!post) {
     return res.status(404).json({ message: "Không tìm thấy bài viết." });
     }
+    post.isPublished = true;
+    post.publishedAt ||= new Date();
+    await post.save();
     return res.status(200).json({ message: "Xuất bản bài viết thành công.", blog: post });
   } catch (error) {
     return sendBlogError(res, error);
@@ -860,6 +938,9 @@ export const publishAdminBlog = async (req, res) => {
 
 export const unpublishAdminBlog = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "ID bài viết không hợp lệ." });
+    }
     const post = await BlogPost.findOneAndUpdate(
       { _id: req.params.id, isDeleted: { $ne: true } },
       { isPublished: false },
@@ -876,6 +957,9 @@ export const unpublishAdminBlog = async (req, res) => {
 
 export const deleteAdminBlog = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "ID bài viết không hợp lệ." });
+    }
     const post = await BlogPost.findOneAndUpdate(
       { _id: req.params.id, isDeleted: { $ne: true } },
       { isDeleted: true, isPublished: false, isFeatured: false },
@@ -885,6 +969,28 @@ export const deleteAdminBlog = async (req, res) => {
     return res.status(404).json({ message: "Không tìm thấy bài viết." });
     }
     return res.status(200).json({ message: "Xóa bài viết thành công." });
+  } catch (error) {
+    return sendBlogError(res, error);
+  }
+};
+
+export const restoreAdminBlog = async (req, res) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "ID bài viết không hợp lệ." });
+    }
+    const post = await BlogPost.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: true },
+      { isDeleted: false, isPublished: false, isFeatured: false },
+      { new: true, runValidators: true },
+    );
+    if (!post) {
+      return res.status(404).json({ message: "Không tìm thấy bài viết đã xóa." });
+    }
+    return res.status(200).json({
+      message: "Khôi phục bài viết thành công. Bài viết được chuyển về bản nháp.",
+      blog: post,
+    });
   } catch (error) {
     return sendBlogError(res, error);
   }
