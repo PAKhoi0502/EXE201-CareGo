@@ -6,6 +6,7 @@ import LiveLocationMap from "../../components/LiveLocationMap.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { connectLocationSocket, locationSocket } from "../../socket/locationSocket.js";
 import { dateTime, money } from "../../utils/format.js";
+import { getPaymentTimestampItems, PAYMENT_METHOD_LABELS } from "../../utils/payment.js";
 
 const MAX_LIVE_LOCATION_POINTS = 100;
 
@@ -250,6 +251,7 @@ const CustomerBookingDetailPage = () => {
   const [cancelError, setCancelError] = useState("");
 
   const booking = data?.booking;
+  const payment = data?.payment;
   const companionContact = data?.companionContact;
   const payosStatus = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -314,6 +316,7 @@ const CustomerBookingDetailPage = () => {
       : canPay
         ? { label: "Sẵn sàng", className: "bg-teal-50 text-teal-700" }
         : { label: "Chưa đến hạn", className: "bg-orange-50 text-orange-700" };
+  const paymentTimestamps = getPaymentTimestampItems(payment);
 
   useEffect(() => {
     connectLocationSocket();
@@ -645,6 +648,22 @@ const CustomerBookingDetailPage = () => {
                     <strong className="text-[#12312f]">{dateTime(paymentDueAt)}</strong>
                   </div>
                 ) : null}
+                {booking.status === "paid" && payment?.method ? (
+                  <div className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
+                    <span>Phương thức</span>
+                    <strong className="text-right text-[#12312f]">
+                      {PAYMENT_METHOD_LABELS[payment.method] || payment.method}
+                    </strong>
+                  </div>
+                ) : null}
+                {booking.status === "paid"
+                  ? paymentTimestamps.map((item) => (
+                    <div key={item.key} className="flex justify-between gap-3 border-b border-teal-50 pb-3 text-slate-500">
+                      <span>{item.label}</span>
+                      <strong className="text-right text-[#12312f]">{dateTime(item.value)}</strong>
+                    </div>
+                  ))
+                  : null}
                 {penaltyAmount > 0 ? (
                   <div className="flex justify-between gap-3 border-b border-rose-100 pb-3 text-rose-600">
                     <span>Phí quá hạn</span>

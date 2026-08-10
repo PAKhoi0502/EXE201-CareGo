@@ -5,6 +5,11 @@ import AdminPagination from "../../components/AdminPagination.jsx";
 import { Button, StatusBadge } from "../../components/Ui.jsx";
 import { useAsync } from "../../hooks/useAsync.js";
 import { dateTime, money } from "../../utils/format.js";
+import {
+  getPaymentTimestampItems,
+  getPrimaryPaymentTimestamp,
+  PAYMENT_METHOD_LABELS,
+} from "../../utils/payment.js";
 
 const statusOptions = [
   "all",
@@ -23,6 +28,14 @@ const statusLabels = {
   completed: "Hoàn thành",
   paid: "Đã thanh toán",
   cancelled: "Đã hủy",
+};
+
+const paymentStatusLabels = {
+  pending: "Chờ thanh toán",
+  paid: "Đã thanh toán",
+  failed: "Thanh toán thất bại",
+  cancelled: "Đã hủy thanh toán",
+  expired: "Đã hết hạn",
 };
 
 const initials = (name = "CG") =>
@@ -77,6 +90,7 @@ const AdminBookingsPage = () => {
     ? adminCancellableStatuses.includes(selectedBooking.status) && selectedBooking.payment?.status !== "paid"
     : false;
   const hasReportedIncident = selectedBooking?.incident?.status === "reported";
+  const selectedPaymentTimestamps = getPaymentTimestampItems(selectedBooking?.payment);
 
   const services = data?.filterOptions?.services || [];
 
@@ -317,6 +331,7 @@ const AdminBookingsPage = () => {
             <tbody className="divide-y divide-slate-100 text-xs">
               {filteredBookings.map((booking) => {
                 const hasPinnedLocation = Boolean(booking.addressLocation?.lat);
+                const primaryPaymentTimestamp = getPrimaryPaymentTimestamp(booking.payment);
                 const googleMapsUrl = hasPinnedLocation
                   ? `https://www.google.com/maps/dir/?api=1&destination=${booking.addressLocation.lat},${booking.addressLocation.lng}`
                   : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address || "")}`;
@@ -375,6 +390,11 @@ const AdminBookingsPage = () => {
                       <p className="mt-1 text-[11px] font-medium text-slate-500">
                         Mã: {booking._id}
                       </p>
+                      {booking.payment?.status === "paid" && primaryPaymentTimestamp ? (
+                        <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+                          {primaryPaymentTimestamp.label}: {dateTime(primaryPaymentTimestamp.value)}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="p-4 text-right">
                       <p className="text-sm font-bold text-teal-700">{money(getDisplayAmount(booking))}</p>
@@ -538,6 +558,21 @@ const AdminBookingsPage = () => {
               <DetailItem label="Tổng khách trả" value={money(getDisplayAmount(selectedBooking))} />
               <DetailItem label="CareGo thu" value={money(selectedBooking.status === "paid" ? getCareGoRevenue(selectedBooking) : 0)} />
               <DetailItem label="Thu nhập companion" value={money(selectedBooking.status === "paid" ? getCompanionEarning(selectedBooking) : 0)} />
+              {selectedBooking.payment ? (
+                <DetailItem
+                  label="Trạng thái thanh toán"
+                  value={paymentStatusLabels[selectedBooking.payment.status] || selectedBooking.payment.status}
+                />
+              ) : null}
+              {selectedBooking.payment?.method ? (
+                <DetailItem
+                  label="Phương thức thanh toán"
+                  value={PAYMENT_METHOD_LABELS[selectedBooking.payment.method] || selectedBooking.payment.method}
+                />
+              ) : null}
+              {selectedPaymentTimestamps.map((item) => (
+                <DetailItem key={item.key} label={item.label} value={dateTime(item.value)} />
+              ))}
               <DetailItem label="Ngày tạo" value={dateTime(selectedBooking.createdAt)} />
               <DetailItem label="Cập nhật lần cuối" value={dateTime(selectedBooking.updatedAt)} />
             </DetailGrid>

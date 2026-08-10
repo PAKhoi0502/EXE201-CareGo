@@ -63,16 +63,6 @@ const servicesSeed = [
     "Chụp ảnh xác nhận",
   ],
 },
-{
-  name: "CareGo Test 2K",
-  code: "TEST_2000",
-  description: "Dịch vụ test giá 2.000 VND mỗi giờ.",
-  pricePerHour: 2000,
-  defaultChecklist: [
-    "Bắt đầu test",
-    "Hoàn thành test",
-  ],
-},
 ];
 
 export const bookingCustomerUserSeeds = [
