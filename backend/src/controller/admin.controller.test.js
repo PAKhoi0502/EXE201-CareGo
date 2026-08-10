@@ -7,8 +7,11 @@ import Payment from "../models/payment.models.js";
 import Service from "../models/service.models.js";
 import {
   buildAdminBookingFilter,
+  buildAdminReportBookingFilter,
+  buildReportCompanions,
   buildReportDaily,
   buildReportMonthly,
+  buildReportSummary,
   getAdminBookings,
   getAdminUsers,
   parseReportRange,
@@ -262,6 +265,86 @@ test("monthly report uses the Vietnam month at the UTC month boundary", () => {
 
   assert.equal(monthly.find((item) => item.key === "2026-07")?.count, 1);
   assert.equal(monthly.find((item) => item.key === "2026-06")?.count, 0);
+});
+
+test("daily and monthly reports cover the complete selected 90-day range", () => {
+  const range = parseReportRange({ from: "2026-05-13", to: "2026-08-10" });
+  const daily = buildReportDaily([], range);
+  const monthly = buildReportMonthly([], range);
+
+  assert.equal(range.calendarDays, 90);
+  assert.equal(daily.length, 90);
+  assert.deepEqual(monthly.map((item) => item.key), ["2026-05", "2026-06", "2026-07", "2026-08"]);
+});
+
+test("admin report filter accepts status and exact entity ids", () => {
+  const range = parseReportRange({ from: "2026-08-01", to: "2026-08-10" });
+  const ids = {
+    bookingId: "507f1f77bcf86cd799439011",
+    serviceId: "507f1f77bcf86cd799439012",
+    companionId: "507f1f77bcf86cd799439013",
+    customerId: "507f1f77bcf86cd799439014",
+  };
+  const { filter, error } = buildAdminReportBookingFilter({
+    query: { ...ids, status: "paid" },
+    range,
+  });
+
+  assert.equal(error, undefined);
+  assert.equal(filter.status, "paid");
+  assert.equal(filter._id.toString(), ids.bookingId);
+  ["serviceId", "companionId", "customerId"].forEach((field) => {
+    assert.equal(filter[field].toString(), ids[field]);
+  });
+});
+
+test("report summary and companion rows include cancellation, reviews and utilization", () => {
+  const range = parseReportRange({ from: "2026-08-10", to: "2026-08-10" });
+  const companionId = "507f1f77bcf86cd799439013";
+  const bookings = [
+    {
+      _id: "booking-paid",
+      companionId,
+      status: "paid",
+      durationHours: 4,
+      totalAmount: 1000,
+      payment: { status: "paid", baseAmount: 1000, paidAmount: 1000, companionEarning: 800 },
+    },
+    {
+      _id: "booking-cancelled",
+      companionId,
+      status: "cancelled",
+      durationHours: 2,
+      totalAmount: 500,
+      payment: null,
+    },
+  ];
+  const reviews = [{ bookingId: "booking-paid", companionId, rating: 5, tags: ["Tận tâm"] }];
+  const companionProfiles = [{
+    userId: companionId,
+    workingShift: "full_day",
+    workingDays: [0, 1, 2, 3, 4, 5, 6],
+    unavailableDates: [],
+  }];
+
+  const summary = buildReportSummary({ bookings, reviews, companionProfiles, range });
+  const [companion] = buildReportCompanions(bookings, { companionProfiles, reviews, range });
+
+  assert.equal(summary.cancellationRate, 50);
+  assert.equal(summary.averageBookingValue, 750);
+  assert.equal(summary.ratingAverage, 5);
+  assert.equal(summary.reviewCoverage, 100);
+  assert.equal(summary.utilizationRate, 50);
+  assert.equal(companion.assignedHours, 4);
+  assert.equal(companion.availableHours, 8);
+  assert.equal(companion.utilizationRate, 50);
+  assert.equal(companion.completionHoursRate, 100);
+  assert.equal(companion.ratingAverage, 5);
+});
+
+test("report range rejects ranges longer than one year", () => {
+  const range = parseReportRange({ from: "2025-01-01", to: "2026-08-10" });
+  assert.match(range.error, /366/);
 });
 
 test("report range rejects invalid Vietnam calendar dates", () => {

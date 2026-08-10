@@ -54,6 +54,22 @@ const reportRangePresets = [
   { label: "90 ngày gần nhất", days: 90 },
 ];
 const REPORT_PAGE_SIZE = 25;
+const DEFAULT_REPORT_FILTERS = {
+  status: "all",
+  serviceId: "all",
+  companionId: "all",
+  customerId: "all",
+  bookingId: "",
+};
+const PAYMENT_METHOD_LABELS = {
+  cash: "Tiền mặt",
+  banking: "Chuyển khoản",
+  momo: "MoMo",
+  vnpay: "VNPay",
+  prototype: "Dữ liệu mẫu",
+  payos: "PayOS",
+  unknown: "Không xác định",
+};
 
 const getPaidPayment = (booking) => (booking.payment?.status === "paid" ? booking.payment : null);
 const getBaseAmount = (booking) => Number(booking.payment?.baseAmount || booking.payment?.amount || booking.totalAmount || 0);
@@ -70,6 +86,11 @@ const getCompanionEarning = (booking) => {
 };
 const getCareGoRevenue = (booking) => getPlatformFee(booking) + getPenaltyAmount(booking);
 const getSummaryNumber = (summary, key) => Number(summary?.[key] || 0);
+const getRelativeChange = (current, previous) => {
+  if (!previous) return current ? 100 : 0;
+  return Math.round(((current - previous) / Math.abs(previous)) * 1000) / 10;
+};
+const formatChange = (value, suffix = "%") => `${value > 0 ? "+" : ""}${value}${suffix}`;
 
 const formatDateTime = (value) => value
   ? new Intl.DateTimeFormat("vi-VN", {
@@ -81,28 +102,55 @@ const formatDateTime = (value) => value
 
 const AdminReportsPage = () => {
   const [dateRange, setDateRange] = useState(() => getRecentRange(30));
+  const [draftFilters, setDraftFilters] = useState(DEFAULT_REPORT_FILTERS);
+  const [filters, setFilters] = useState(DEFAULT_REPORT_FILTERS);
   const [reportPage, setReportPage] = useState(1);
-  const reportPath = `/admin/reports?from=${encodeURIComponent(dateRange.from)}&to=${encodeURIComponent(dateRange.to)}&page=${reportPage}&limit=${REPORT_PAGE_SIZE}`;
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const buildReportPath = ({ page = reportPage, exportAll = false } = {}) => {
+    const params = new URLSearchParams({
+      from: dateRange.from,
+      to: dateRange.to,
+      page: String(page),
+      limit: String(REPORT_PAGE_SIZE),
+    });
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== "all") params.set(key, value);
+    });
+    if (exportAll) params.set("export", "true");
+    return `/admin/reports?${params.toString()}`;
+  };
+  const reportPath = buildReportPath();
   const { data: reportData, loading, error } = useAsync(() => api.get(reportPath), [reportPath]);
   const filteredBookings = reportData?.bookings || [];
   const monthly = reportData?.monthly || [];
   const daily = reportData?.daily || [];
-  const services = reportData?.services || [];
+  const serviceStats = reportData?.services || [];
   const companionRows = reportData?.companionRows || [];
   const statusCounts = reportData?.statusCounts || [];
+  const paymentMethods = reportData?.paymentMethods || [];
+  const reviewData = reportData?.reviews || {};
+  const filterOptions = reportData?.filterOptions || {};
   const pagination = reportData?.pagination || {};
   const summary = reportData?.summary || {};
+  const previousSummary = reportData?.previousPeriod?.summary || {};
+  const previousRange = reportData?.previousPeriod?.range || {};
+  const currentSnapshot = reportData?.currentSnapshot || {};
 
   const totalBookings = getSummaryNumber(summary, "totalBookings");
   const paidRevenue = getSummaryNumber(summary, "paidRevenue");
-  const baseRevenue = getSummaryNumber(summary, "baseRevenue");
   const penaltyRevenue = getSummaryNumber(summary, "penaltyRevenue");
   const platformFee = getSummaryNumber(summary, "platformFee");
   const careGoRevenue = getSummaryNumber(summary, "careGoRevenue");
   const companionEarning = getSummaryNumber(summary, "companionEarning");
   const completionRate = getSummaryNumber(summary, "completionRate");
+  const cancellationRate = getSummaryNumber(summary, "cancellationRate");
+  const averageBookingValue = getSummaryNumber(summary, "averageBookingValue");
+  const utilizationRate = getSummaryNumber(summary, "utilizationRate");
+  const ratingAverage = getSummaryNumber(summary, "ratingAverage");
+  const reviewCount = getSummaryNumber(summary, "reviewCount");
   const missingGps = getSummaryNumber(summary, "missingGps");
-  const pendingCompanions = getSummaryNumber(summary, "pendingCompanions");
+  const pendingCompanions = getSummaryNumber(currentSnapshot, "pendingCompanions");
   const cancelledBookings = getSummaryNumber(summary, "cancelled");
   const currentPage = Number(pagination.page || reportPage);
   const pageSize = Number(pagination.limit || REPORT_PAGE_SIZE);
@@ -119,72 +167,135 @@ const AdminReportsPage = () => {
     setReportPage(1);
     setDateRange((current) => ({ ...current, [field]: value }));
   };
+  const updateDraftFilter = (field, value) => {
+    setDraftFilters((current) => ({ ...current, [field]: value }));
+  };
+  const applyFilters = (event) => {
+    event.preventDefault();
+    setReportPage(1);
+    setFilters(draftFilters);
+  };
+  const clearFilters = () => {
+    setReportPage(1);
+    setDraftFilters(DEFAULT_REPORT_FILTERS);
+    setFilters(DEFAULT_REPORT_FILTERS);
+  };
+  const activeFilterCount = Object.values(filters).filter((value) => value && value !== "all").length;
 
   const exportExcel = async () => {
-    const XLSX = await import("xlsx");
-    const workbook = XLSX.utils.book_new();
+    setExportLoading(true);
+    setExportError("");
+    try {
+      const exportData = await api.get(buildReportPath({ page: 1, exportAll: true }));
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.utils.book_new();
+      const exportSummary = exportData.summary || {};
+      const exportPrevious = exportData.previousPeriod?.summary || {};
+      const exportBookings = exportData.bookings || [];
 
-    const summaryRows = [
-      { label: "Tu ngay", value: dateRange.from },
-      { label: "Den ngay", value: dateRange.to },
-      { label: "Tong booking trong khoang", value: totalBookings },
-      { label: "Trang chi tiet", value: `${currentPage}/${totalPages}` },
-      { label: "Dong chi tiet trong file", value: filteredBookings.length },
-      { label: "Doanh thu paid", value: paidRevenue },
-      { label: "Gia tri ca da thanh toan", value: baseRevenue },
-      { label: "Phi nen tang", value: platformFee },
-      { label: "Phi phat qua han", value: penaltyRevenue },
-      { label: "CareGo thu", value: careGoRevenue },
-      { label: "Ty le hoan thanh", value: `${completionRate}%` },
-      { label: "Thieu GPS diem den", value: missingGps },
-      { label: "Ho so cho duyet", value: pendingCompanions },
-    ];
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Tong quan");
+      const summaryRows = [
+        { label: "Tu ngay", value: dateRange.from },
+        { label: "Den ngay", value: dateRange.to },
+        { label: "Tong booking", value: getSummaryNumber(exportSummary, "totalBookings") },
+        { label: "Doanh thu paid", value: getSummaryNumber(exportSummary, "paidRevenue") },
+        { label: "CareGo thu", value: getSummaryNumber(exportSummary, "careGoRevenue") },
+        { label: "Companion nhan", value: getSummaryNumber(exportSummary, "companionEarning") },
+        { label: "Gia tri booking trung binh", value: getSummaryNumber(exportSummary, "averageBookingValue") },
+        { label: "Ty le hoan thanh", value: `${getSummaryNumber(exportSummary, "completionRate")}%` },
+        { label: "Ty le huy", value: `${getSummaryNumber(exportSummary, "cancellationRate")}%` },
+        { label: "Utilization companion", value: `${getSummaryNumber(exportSummary, "utilizationRate")}%` },
+        { label: "Diem danh gia trung binh", value: getSummaryNumber(exportSummary, "ratingAverage") },
+        { label: "So danh gia", value: getSummaryNumber(exportSummary, "reviewCount") },
+        { label: "Thieu GPS diem den", value: getSummaryNumber(exportSummary, "missingGps") },
+        { label: "Ho so companion cho duyet (hien tai)", value: getSummaryNumber(exportData.currentSnapshot, "pendingCompanions") },
+        { label: "Tong dong booking trong file", value: exportBookings.length },
+      ];
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Tong quan");
 
-    const monthlyRows = monthly.map((item) => ({
-      thang: item.label,
-      so_booking: item.count,
-      doanh_thu_paid: item.revenue,
-      phi_phat: item.penalty,
-    }));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(monthlyRows), "Doanh thu theo thang");
+      const comparisonRows = [
+        ["totalBookings", "Tong booking"],
+        ["careGoRevenue", "CareGo thu"],
+        ["averageBookingValue", "Gia tri booking TB"],
+        ["completionRate", "Ty le hoan thanh"],
+        ["cancellationRate", "Ty le huy"],
+        ["utilizationRate", "Utilization"],
+        ["ratingAverage", "Diem danh gia TB"],
+      ].map(([key, label]) => ({
+        chi_so: label,
+        ky_hien_tai: getSummaryNumber(exportSummary, key),
+        ky_truoc: getSummaryNumber(exportPrevious, key),
+        thay_doi_phan_tram: getRelativeChange(
+          getSummaryNumber(exportSummary, key),
+          getSummaryNumber(exportPrevious, key),
+        ),
+      }));
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(comparisonRows), "So sanh ky truoc");
 
-    const serviceRows = services.map((item) => ({
-      dich_vu: item.name,
-      so_booking: item.count,
-      tong_gia_tri: item.revenue,
-    }));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(serviceRows), "Top dich vu");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.daily || []).map((item) => ({
+        ngay: item.key,
+        so_booking: item.count,
+        carego_thu: item.caregoRevenue,
+        companion_nhan: item.companionEarning,
+      }))), "Theo ngay");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.monthly || []).map((item) => ({
+        thang: item.key,
+        so_booking: item.count,
+        doanh_thu_paid: item.revenue,
+        phi_phat: item.penalty,
+      }))), "Theo thang");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.paymentMethods || []).map((item) => ({
+        phuong_thuc: PAYMENT_METHOD_LABELS[item.method] || item.method,
+        so_giao_dich: item.count,
+        tong_tien: item.amount,
+      }))), "Phuong thuc TT");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.reviews?.distribution || []).map((item) => ({
+        so_sao: item.rating,
+        so_danh_gia: item.count,
+      }))), "Danh gia");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.services || []).map((item) => ({
+        dich_vu: item.name,
+        so_booking: item.count,
+        tong_gia_tri: item.revenue,
+      }))), "Top dich vu");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.companionRows || []).map((item) => ({
+        companion: item.name,
+        so_ca: item.count,
+        paid: item.paid,
+        gio_duoc_gan: item.assignedHours,
+        gio_kha_dung: item.availableHours,
+        utilization: item.utilizationRate,
+        ty_le_gio_hoan_thanh: item.completionHoursRate,
+        diem_danh_gia: item.ratingAverage,
+        thu_nhap: item.earning,
+      }))), "Hieu suat companion");
 
-    const companionRowsExport = companionRows.map((item) => ({
-      companion: item.name,
-      so_ca: item.count,
-      paid: item.paid,
-      thu_nhap: item.earning,
-    }));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(companionRowsExport), "Hieu suat companion");
+      const bookingRows = exportBookings.map((booking) => ({
+        booking_id: booking._id,
+        khach_hang: booking.customerId?.name || "",
+        email_khach_hang: booking.customerId?.email || "",
+        companion: booking.companionId?.name || "",
+        dich_vu: booking.serviceId?.name || "",
+        trang_thai: booking.status,
+        thoi_luong_gio: booking.durationHours,
+        tien_ca: getBaseAmount(booking),
+        phi_nen_tang: getPlatformFee(booking),
+        phi_phat: getPenaltyAmount(booking),
+        payment_status: booking.payment?.status || "",
+        payment_method: booking.payment?.method || "",
+        tong_khach_tra: getPaidPayment(booking) ? getPaidAmount(booking) : 0,
+        carego_thu: getPaidPayment(booking) ? getCareGoRevenue(booking) : 0,
+        thu_nhap_companion: getPaidPayment(booking) ? getCompanionEarning(booking) : 0,
+        ngay_thuc_hien: formatDateTime(booking.startTime),
+        ngay_tao: formatDateTime(booking.createdAt),
+      }));
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings all");
 
-    const bookingRows = filteredBookings.map((booking) => ({
-      booking_id: booking._id,
-      khach_hang: booking.customerId?.name || "",
-      email_khach_hang: booking.customerId?.email || "",
-      companion: booking.companionId?.name || "",
-      dich_vu: booking.serviceId?.name || "",
-      trang_thai: booking.status,
-      tien_ca: getBaseAmount(booking),
-      phi_nen_tang: getPlatformFee(booking),
-      phi_phat: getPenaltyAmount(booking),
-      payment_status: booking.payment?.status || "",
-      tong_khach_tra: getPaidPayment(booking) ? getPaidAmount(booking) : 0,
-      carego_thu: getPaidPayment(booking) ? getCareGoRevenue(booking) : 0,
-      thu_nhap_companion: getPaidPayment(booking) ? getCompanionEarning(booking) : 0,
-      ngay_thuc_hien: formatDateTime(booking.startTime),
-      ngay_tao: formatDateTime(booking.createdAt),
-    }));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings page");
-
-    const fileName = `admin-report-${dateRange.from}-to-${dateRange.to}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
+      XLSX.writeFile(workbook, `admin-report-${dateRange.from}-to-${dateRange.to}.xlsx`);
+    } catch (exportFailure) {
+      setExportError(exportFailure.message);
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const chartOptions = {
@@ -227,13 +338,25 @@ const AdminReportsPage = () => {
     ],
   };
 
-  const statusData = {
-    labels: statuses,
+  const paymentMethodData = {
+    labels: paymentMethods.map((item) => PAYMENT_METHOD_LABELS[item.method] || item.method),
     datasets: [
       {
-        label: "Số booking",
-        data: statuses.map((status) => getStatusCount(status)),
-        backgroundColor: ["#f59e0b", "#0284c7", "#4f46e5", "#64748b", "#0f766e", "#e11d48"],
+        label: "Giao dịch paid",
+        data: paymentMethods.map((item) => item.count),
+        backgroundColor: ["#0f766e", "#2563eb", "#7c3aed", "#db2777", "#ea580c", "#64748b"],
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const reviewRatingData = {
+    labels: (reviewData.distribution || []).map((item) => `${item.rating} sao`),
+    datasets: [
+      {
+        label: "Số đánh giá",
+        data: (reviewData.distribution || []).map((item) => item.count),
+        backgroundColor: ["#ef4444", "#f97316", "#f59e0b", "#14b8a6", "#0f766e"],
         borderRadius: 6,
       },
     ],
@@ -297,6 +420,45 @@ const AdminReportsPage = () => {
     },
     cutout: "64%",
   };
+  const comparisonMetrics = [
+    {
+      key: "totalBookings",
+      label: "Tổng booking",
+      current: totalBookings,
+      previous: getSummaryNumber(previousSummary, "totalBookings"),
+      format: (value) => String(value),
+    },
+    {
+      key: "careGoRevenue",
+      label: "CareGo thu",
+      current: careGoRevenue,
+      previous: getSummaryNumber(previousSummary, "careGoRevenue"),
+      format: money,
+    },
+    {
+      key: "averageBookingValue",
+      label: "Giá trị booking TB",
+      current: averageBookingValue,
+      previous: getSummaryNumber(previousSummary, "averageBookingValue"),
+      format: money,
+    },
+    {
+      key: "cancellationRate",
+      label: "Tỷ lệ hủy",
+      current: cancellationRate,
+      previous: getSummaryNumber(previousSummary, "cancellationRate"),
+      format: (value) => `${value}%`,
+      rate: true,
+    },
+    {
+      key: "utilizationRate",
+      label: "Utilization",
+      current: utilizationRate,
+      previous: getSummaryNumber(previousSummary, "utilizationRate"),
+      format: (value) => `${value}%`,
+      rate: true,
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -308,14 +470,16 @@ const AdminReportsPage = () => {
         <button
           type="button"
           onClick={exportExcel}
+          disabled={exportLoading || loading}
           className="inline-flex items-center justify-center rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 transition hover:border-teal-300 hover:bg-teal-100"
         >
-          Xuất Excel
+          {exportLoading ? "Đang xuất toàn bộ..." : "Xuất Excel toàn bộ"}
         </button>
       </div>
 
       {loading ? <p className="text-sm text-slate-500">Đang tải báo cáo...</p> : null}
       {error ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
+      {exportError ? <p className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{exportError}</p> : null}
 
       <section className="overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-xl shadow-teal-900/5">
         <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-500 p-5 text-white">
@@ -373,6 +537,46 @@ const AdminReportsPage = () => {
               </label>
             </div>
           </div>
+
+          <form className="mt-5 grid gap-3 rounded-2xl border border-white/20 bg-white/10 p-4 md:grid-cols-2 xl:grid-cols-5" onSubmit={applyFilters}>
+            <label className="grid gap-1 text-xs font-bold text-teal-50">
+              Trạng thái
+              <select value={draftFilters.status} onChange={(event) => updateDraftFilter("status", event.target.value)} className="min-h-10 rounded-xl bg-white px-3 text-sm font-bold text-slate-800 outline-none">
+                <option value="all">Tất cả trạng thái</option>
+                {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-bold text-teal-50">
+              Dịch vụ
+              <select value={draftFilters.serviceId} onChange={(event) => updateDraftFilter("serviceId", event.target.value)} className="min-h-10 rounded-xl bg-white px-3 text-sm font-bold text-slate-800 outline-none">
+                <option value="all">Tất cả dịch vụ</option>
+                {(filterOptions.services || []).map((service) => <option key={service._id} value={service._id}>{service.name}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-bold text-teal-50">
+              Companion
+              <select value={draftFilters.companionId} onChange={(event) => updateDraftFilter("companionId", event.target.value)} className="min-h-10 rounded-xl bg-white px-3 text-sm font-bold text-slate-800 outline-none">
+                <option value="all">Tất cả companion</option>
+                {(filterOptions.companions || []).map((companion) => <option key={companion._id} value={companion._id}>{companion.name} · {companion.email}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-bold text-teal-50">
+              Khách hàng
+              <select value={draftFilters.customerId} onChange={(event) => updateDraftFilter("customerId", event.target.value)} className="min-h-10 rounded-xl bg-white px-3 text-sm font-bold text-slate-800 outline-none">
+                <option value="all">Tất cả khách hàng</option>
+                {(filterOptions.customers || []).map((customer) => <option key={customer._id} value={customer._id}>{customer.name} · {customer.email}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-bold text-teal-50">
+              Mã booking
+              <input value={draftFilters.bookingId} onChange={(event) => updateDraftFilter("bookingId", event.target.value.trim())} placeholder="24 ký tự ObjectId" className="min-h-10 rounded-xl bg-white px-3 text-sm font-bold text-slate-800 outline-none" />
+            </label>
+            <div className="flex flex-wrap items-center gap-2 md:col-span-2 xl:col-span-5">
+              <button type="submit" className="rounded-full bg-white px-5 py-2 text-xs font-black text-teal-700">Áp dụng bộ lọc</button>
+              <button type="button" onClick={clearFilters} className="rounded-full border border-white/30 px-5 py-2 text-xs font-black text-white">Xóa bộ lọc</button>
+              <span className="text-xs font-bold text-teal-50">{activeFilterCount} bộ lọc đang áp dụng</span>
+            </div>
+          </form>
         </div>
 
         <div className="grid gap-4 p-5 md:grid-cols-3">
@@ -393,7 +597,7 @@ const AdminReportsPage = () => {
         </div>
       </section>
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="text-xs font-medium text-slate-400">Doanh thu paid</span>
           <p className="mt-2 text-xl font-bold text-teal-700">{money(paidRevenue)}</p>
@@ -402,24 +606,62 @@ const AdminReportsPage = () => {
           <span className="text-xs font-medium text-slate-400">CareGo thu</span>
           <p className="mt-2 text-xl font-bold text-emerald-700">{money(careGoRevenue)}</p>
           <p className="mt-1 text-[11px] text-slate-400">Phí nền tảng: {money(platformFee)}</p>
+          <p className="mt-1 text-[11px] text-slate-400">Phí phạt: {money(penaltyRevenue)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <span className="text-xs font-medium text-slate-400">Phí phạt</span>
-          <p className="mt-2 text-xl font-bold text-rose-700">{money(penaltyRevenue)}</p>
+          <span className="text-xs font-medium text-slate-400">Giá trị booking trung bình</span>
+          <p className="mt-2 text-xl font-bold text-violet-700">{money(averageBookingValue)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="text-xs font-medium text-slate-400">Tỷ lệ hoàn thành</span>
           <p className="mt-2 text-xl font-bold text-blue-700">{completionRate}%</p>
         </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Tỷ lệ hủy</span>
+          <p className="mt-2 text-xl font-bold text-rose-700">{cancellationRate}%</p>
+          <p className="mt-1 text-[11px] text-slate-400">{cancelledBookings} booking bị hủy</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Đánh giá khách hàng</span>
+          <p className="mt-2 text-xl font-bold text-amber-600">{ratingAverage || 0} / 5</p>
+          <p className="mt-1 text-[11px] text-slate-400">{reviewCount} đánh giá</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <span className="text-xs font-medium text-slate-400">Utilization companion</span>
+          <p className="mt-2 text-xl font-bold text-indigo-700">{utilizationRate}%</p>
+          <p className="mt-1 text-[11px] text-slate-400">Giờ được gán / giờ khả dụng</p>
+        </div>
         <div className="rounded-xl border-l-4 border-amber-500 bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <span className="text-xs font-medium text-amber-600">Thiếu GPS điểm đến</span>
           <p className="mt-2 text-xl font-bold text-slate-900">{missingGps}</p>
         </div>
-        <div className="rounded-xl border-l-4 border-rose-500 bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <span className="text-xs font-medium text-rose-600">Hồ sơ chờ duyệt</span>
-          <p className="mt-2 text-xl font-bold text-slate-900">{pendingCompanions}</p>
-        </div>
       </div>
+
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-bold text-slate-900">So sánh với kỳ liền trước</h2>
+            <p className="mt-1 text-xs text-slate-400">Kỳ trước: {previousRange.from || "-"} – {previousRange.to || "-"}, cùng độ dài và cùng bộ lọc.</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {comparisonMetrics.map((item) => {
+            const change = item.rate
+              ? Math.round((item.current - item.previous) * 10) / 10
+              : getRelativeChange(item.current, item.previous);
+            return (
+              <div key={item.key} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                <p className="text-xs font-semibold text-slate-500">{item.label}</p>
+                <p className="mt-2 text-lg font-black text-slate-900">{item.format(item.current)}</p>
+                <p className="mt-1 text-[11px] text-slate-400">Kỳ trước: {item.format(item.previous)}</p>
+                <p className={`mt-2 text-xs font-black ${change > 0 ? "text-emerald-600" : change < 0 ? "text-rose-600" : "text-slate-500"}`}>
+                  {formatChange(change, item.rate ? " điểm %" : "%")}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <section className="rounded-2xl border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5 xl:col-span-2">
@@ -472,7 +714,7 @@ const AdminReportsPage = () => {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-[1fr_2fr]">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="font-bold text-slate-900">Doanh thu theo tháng</h2>
           <p className="mt-1 text-xs text-slate-400">Chỉ tính booking đã thanh toán.</p>
@@ -481,15 +723,38 @@ const AdminReportsPage = () => {
           </div>
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900">Booking theo trạng thái</h2>
-          <p className="mt-1 text-xs text-slate-400">Theo dõi backlog và chất lượng vận hành.</p>
+          <h2 className="font-bold text-slate-900">Phương thức thanh toán</h2>
+          <p className="mt-1 text-xs text-slate-400">Phân bổ các giao dịch đã thanh toán trong khoảng lọc.</p>
           <div className="mt-4 h-72">
-            <Bar data={statusData} options={chartOptions} />
+            <Bar data={paymentMethodData} options={chartOptions} />
           </div>
         </section>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <section className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
+        <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+          <div>
+            <h2 className="font-bold text-slate-900">Phân tích đánh giá khách hàng</h2>
+            <p className="mt-1 text-xs text-slate-400">{reviewData.count || 0} đánh giá · trung bình {reviewData.average || 0}/5 · độ phủ {reviewData.coverage || 0}% số ca hoàn thành.</p>
+            <div className="mt-4 h-72">
+              <Bar data={reviewRatingData} options={dailyChartOptions} />
+            </div>
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900">Tag được nhắc nhiều</h3>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(reviewData.topTags || []).map((item) => (
+                <span key={item.tag} className="rounded-full bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">
+                  {item.tag} · {item.count}
+                </span>
+              ))}
+              {!(reviewData.topTags || []).length ? <p className="text-xs text-slate-400">Chưa có tag đánh giá.</p> : null}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_2fr]">
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 bg-slate-50/70 p-5">
             <h2 className="font-bold text-slate-900">Top dịch vụ</h2>
@@ -504,14 +769,14 @@ const AdminReportsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {services.map((item) => (
+              {serviceStats.map((item) => (
                 <tr key={item.name}>
                   <td className="p-4 font-semibold text-slate-800">{item.name}</td>
                   <td className="p-4">{item.count}</td>
                   <td className="p-4 text-right font-bold text-teal-700">{money(item.revenue)}</td>
                 </tr>
               ))}
-              {!services.length ? (
+              {!serviceStats.length ? (
                 <tr>
                   <td colSpan="3" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td>
                 </tr>
@@ -523,14 +788,19 @@ const AdminReportsPage = () => {
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 bg-slate-50/70 p-5">
             <h2 className="font-bold text-slate-900">Hiệu suất companion</h2>
-            <p className="mt-1 text-xs text-slate-400">Xếp theo số ca được gán.</p>
+            <p className="mt-1 text-xs text-slate-400">Giờ được gán so với lịch làm việc khả dụng trong khoảng lọc.</p>
           </div>
-          <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto">
+          <table className="min-w-[860px] w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 text-slate-400">
                 <th className="p-4">Companion</th>
                 <th className="p-4">Số ca</th>
                 <th className="p-4">Paid</th>
+                <th className="p-4">Giờ gán / khả dụng</th>
+                <th className="p-4">Utilization</th>
+                <th className="p-4">Giờ hoàn thành</th>
+                <th className="p-4">Đánh giá</th>
                 <th className="p-4 text-right">Thu nhập</th>
               </tr>
             </thead>
@@ -540,16 +810,21 @@ const AdminReportsPage = () => {
                   <td className="p-4 font-semibold text-slate-800">{item.name}</td>
                   <td className="p-4">{item.count}</td>
                   <td className="p-4">{item.paid}</td>
+                  <td className="p-4">{item.assignedHours} / {item.availableHours} giờ</td>
+                  <td className="p-4 font-black text-indigo-700">{item.utilizationRate}%</td>
+                  <td className="p-4">{item.completionHoursRate}%</td>
+                  <td className="p-4">{item.ratingAverage || 0}/5 ({item.reviewCount || 0})</td>
                   <td className="p-4 text-right font-bold text-teal-700">{money(item.earning)}</td>
                 </tr>
               ))}
               {!companionRows.length ? (
                 <tr>
-                  <td colSpan="4" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td>
+                  <td colSpan="8" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td>
                 </tr>
               ) : null}
             </tbody>
           </table>
+          </div>
         </section>
       </div>
 
@@ -640,12 +915,12 @@ const AdminReportsPage = () => {
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
             <p className="text-sm font-semibold text-slate-800">Booking thiếu GPS điểm đến</p>
-            <p className="mt-1 text-xs text-slate-500">Cần yêu cầu customer ghim địa chỉ khi đặt lịch mới.</p>
+            <p className="mt-1 text-xs text-slate-500">{missingGps} booking trong khoảng lọc cần bổ sung vị trí.</p>
             <StatusBadge status={missingGps ? "pending" : "approved"} />
           </div>
           <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
-            <p className="text-sm font-semibold text-slate-800">Hồ sơ companion chờ duyệt</p>
-            <p className="mt-1 text-xs text-slate-500">Ảnh hưởng đến nguồn cung ca chăm sóc.</p>
+            <p className="text-sm font-semibold text-slate-800">Hồ sơ companion chờ duyệt hiện tại</p>
+            <p className="mt-1 text-xs text-slate-500">{pendingCompanions} hồ sơ trên toàn hệ thống; chỉ số này không phụ thuộc khoảng ngày.</p>
             <StatusBadge status={pendingCompanions ? "pending" : "approved"} />
           </div>
           <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
