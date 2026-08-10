@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Booking from "../models/booking.models.js";
 import BlogComment from "../models/blog-comment.models.js";
 import CompanionProfile from "../models/companion-profile.models.js";
@@ -47,7 +48,7 @@ const escapeRegExp = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/
 
 const getAdminSearch = (value) => String(value || "").trim().slice(0, 100);
 
-const buildAdminBookingFilter = async (query = {}) => {
+export const buildAdminBookingFilter = async (query = {}) => {
   const filter = {};
 
   if (ADMIN_BOOKING_STATUSES.has(query.status)) {
@@ -57,20 +58,32 @@ const buildAdminBookingFilter = async (query = {}) => {
     if (!/^[a-f\d]{24}$/i.test(query.serviceId)) {
       return { error: "Dịch vụ không hợp lệ." };
     }
-    filter.serviceId = query.serviceId;
+    filter.serviceId = new mongoose.Types.ObjectId(query.serviceId);
   }
 
   const search = getAdminSearch(query.search);
   if (!search) return { filter };
 
   const pattern = new RegExp(escapeRegExp(search), "i");
-  const [users, elders, services] = await Promise.all([
+  const bookingId = /^[a-f\d]{24}$/i.test(search)
+    ? new mongoose.Types.ObjectId(search)
+    : null;
+  const parsedOrderCode = /^\d+$/.test(search) ? Number(search) : NaN;
+  const canSearchOrderCode = Number.isSafeInteger(parsedOrderCode) && parsedOrderCode > 0;
+  const [users, elders, services, matchingPayments] = await Promise.all([
     User.find({ $or: [{ name: pattern }, { email: pattern }, { phone: pattern }] }).select("_id").lean(),
     ElderProfile.find({ fullName: pattern }).select("_id").lean(),
     Service.find({ name: pattern }).select("_id").lean(),
+    canSearchOrderCode
+      ? Payment.find({ orderCode: parsedOrderCode }).select("bookingId").lean()
+      : [],
   ]);
 
   filter.$or = [
+    ...(bookingId ? [{ _id: bookingId }] : []),
+    ...(matchingPayments.length
+      ? [{ _id: { $in: matchingPayments.map((payment) => payment.bookingId) } }]
+      : []),
     { address: pattern },
     { customerId: { $in: users.map((item) => item._id) } },
     { companionId: { $in: users.map((item) => item._id) } },
@@ -615,6 +628,7 @@ export const getAdminBookings = async (req, res) => {
         .lean(),
       Booking.countDocuments(bookingFilterResult.filter),
       Booking.aggregate([
+        { $match: bookingFilterResult.filter },
         {
           $group: {
             _id: null,
@@ -630,6 +644,23 @@ export const getAdminBookings = async (req, res) => {
       ]),
       Payment.aggregate([
         { $match: { status: "paid" } },
+        ...(Object.keys(bookingFilterResult.filter).length > 0
+          ? [
+              {
+                $lookup: {
+                  from: Booking.collection.collectionName,
+                  localField: "bookingId",
+                  foreignField: "_id",
+                  as: "booking",
+                },
+              },
+              {
+                $match: {
+                  booking: { $elemMatch: bookingFilterResult.filter },
+                },
+              },
+            ]
+          : []),
         {
           $group: {
             _id: null,

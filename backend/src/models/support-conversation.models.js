@@ -4,6 +4,12 @@ export const SUPPORT_CONVERSATION_SUBJECT_MAX_LENGTH = 160;
 
 const SupportConversationSchema = new mongoose.Schema(
   {
+    seedKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+      select: false,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",

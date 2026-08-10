@@ -14,6 +14,8 @@
     "seed:blogs": "node src/scripts/seed-blogs.js",
     "seed:customers": "node src/scripts/seed-customers.js --yes",
     "seed:bookings": "node src/scripts/seed-bookings.js --yes",
+    "seed:withdrawals": "node src/scripts/seed-withdrawals.js --yes",
+    "seed:support": "node src/scripts/seed-support.js --yes",
     "seed:demo": "node src/scripts/seed-demo.js --yes",
     "seed:reset:demo": "node src/scripts/reset-demo.js"
   },

@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const WithdrawalRequestSchema = new mongoose.Schema(
   {
+    seedKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+      select: false,
+    },
     companionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",

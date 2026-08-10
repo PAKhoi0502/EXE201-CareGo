@@ -11,6 +11,7 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 dotenv.config();
 
 const password = process.env.SEED_PASSWORD || "CareGo@123";
+const legacyCustomerSeedCount = 21;
 
 export const customersSeed = [
   { name: "Nguyễn Hoàng Anh", email: "hoanganh@gmail.com", phone: "0979502094" },
@@ -34,6 +35,229 @@ export const customersSeed = [
   { name: "Bùi Anh Khoa", email: "anhkhoa@gmail.com", phone: "0932648175" },
   { name: "Đỗ Ngọc Diệp", email: "ngocdiep@gmail.com", phone: "0947152836" },
   { name: "Hồ Minh Trí", email: "minhtri@gmail.com", phone: "0965827413" },
+  // Synthetic demo profiles with plausible, non-sequential public-facing data.
+  {
+    name: "Nguyễn Thị Thùy Dung",
+    email: "ngthuydung91@gmail.com",
+    phone: "0325847169",
+    joinedAt: "2025-08-12T02:15:00.000Z",
+  },
+  {
+    name: "Trần Quốc Đạt",
+    email: "tranqdat88@gmail.com",
+    phone: "0337264951",
+    joinedAt: "2025-08-21T08:40:00.000Z",
+  },
+  {
+    name: "Lê Ngọc Hân",
+    email: "lengochan.92@gmail.com",
+    phone: "0348152679",
+    joinedAt: "2025-09-03T04:25:00.000Z",
+  },
+  {
+    name: "Phạm Trung Kiên",
+    email: "phamtrungkien89@gmail.com",
+    phone: "0356429187",
+    joinedAt: "2025-09-17T11:10:00.000Z",
+  },
+  {
+    name: "Võ Thị Mỹ Hạnh",
+    email: "myhanh.vo93@gmail.com",
+    phone: "0369517428",
+    joinedAt: "2025-09-29T03:50:00.000Z",
+  },
+  {
+    name: "Đặng Anh Tuấn",
+    email: "danganhtuan87@gmail.com",
+    phone: "0372846159",
+    joinedAt: "2025-10-08T09:35:00.000Z",
+  },
+  {
+    name: "Bùi Khánh Linh",
+    email: "khanhlinh.bui94@gmail.com",
+    phone: "0387169254",
+    joinedAt: "2025-10-19T06:20:00.000Z",
+  },
+  {
+    name: "Đỗ Minh Quân",
+    email: "dominhquan90@gmail.com",
+    phone: "0395284176",
+    joinedAt: "2025-10-31T01:45:00.000Z",
+  },
+  {
+    name: "Hồ Thanh Thảo",
+    email: "hothanhthao.95@gmail.com",
+    phone: "0703826159",
+    joinedAt: "2025-11-09T10:05:00.000Z",
+  },
+  {
+    name: "Ngô Đức Huy",
+    email: "ngoduchuy1988@gmail.com",
+    phone: "0769152843",
+    joinedAt: "2025-11-18T05:30:00.000Z",
+  },
+  {
+    name: "Dương Bảo Trâm",
+    email: "baotram.duong93@gmail.com",
+    phone: "0774268195",
+    joinedAt: "2025-11-27T12:15:00.000Z",
+  },
+  {
+    name: "Lý Hoàng Nam",
+    email: "lyhoangnam86@gmail.com",
+    phone: "0782639517",
+    joinedAt: "2025-12-06T02:55:00.000Z",
+  },
+  {
+    name: "Nguyễn Gia Linh",
+    email: "nguyengialinh.96@gmail.com",
+    phone: "0798514263",
+    joinedAt: "2025-12-14T07:20:00.000Z",
+  },
+  {
+    name: "Trần Nhật Minh",
+    email: "nhatminh.tran91@gmail.com",
+    phone: "0813759264",
+    joinedAt: "2025-12-23T03:10:00.000Z",
+  },
+  {
+    name: "Lê Thảo Vy",
+    email: "thaovy.le94@gmail.com",
+    phone: "0826941735",
+    joinedAt: "2026-01-04T09:45:00.000Z",
+  },
+  {
+    name: "Phạm Quang Hưng",
+    email: "phamquanghung89@gmail.com",
+    phone: "0835276419",
+    joinedAt: "2026-01-13T04:35:00.000Z",
+  },
+  {
+    name: "Võ Ngọc Ánh",
+    email: "ngocanh.vo95@gmail.com",
+    phone: "0849163527",
+    joinedAt: "2026-01-22T11:25:00.000Z",
+  },
+  {
+    name: "Đặng Tuấn Phong",
+    email: "dang.tuanphong90@gmail.com",
+    phone: "0852647193",
+    joinedAt: "2026-02-02T01:40:00.000Z",
+  },
+  {
+    name: "Bùi Mai Anh",
+    email: "maianh.bui97@gmail.com",
+    phone: "0867381945",
+    joinedAt: "2026-02-11T08:10:00.000Z",
+  },
+  {
+    name: "Đỗ Quốc Bảo",
+    email: "doquocbao1987@gmail.com",
+    phone: "0884129675",
+    joinedAt: "2026-02-19T05:55:00.000Z",
+  },
+  {
+    name: "Hồ Phương Nhi",
+    email: "phuongnhi.ho96@gmail.com",
+    phone: "0893751248",
+    joinedAt: "2026-02-28T10:30:00.000Z",
+  },
+  {
+    name: "Ngô Thành Đạt",
+    email: "ngothanhdat92@gmail.com",
+    phone: "0906842715",
+    joinedAt: "2026-03-07T02:20:00.000Z",
+  },
+  {
+    name: "Dương Khả Hân",
+    email: "khahan.duong98@gmail.com",
+    phone: "0915278463",
+    joinedAt: "2026-03-15T07:50:00.000Z",
+  },
+  {
+    name: "Lý Minh Hoàng",
+    email: "lyminhhoang89@gmail.com",
+    phone: "0937184256",
+    joinedAt: "2026-03-24T04:05:00.000Z",
+  },
+  {
+    name: "Nguyễn Thu Trang",
+    email: "thutrang.nguyen93@gmail.com",
+    phone: "0943267851",
+    joinedAt: "2026-04-01T09:20:00.000Z",
+  },
+  {
+    name: "Trần Đình Phúc",
+    email: "trandinhphuc88@gmail.com",
+    phone: "0968154372",
+    joinedAt: "2026-04-10T03:45:00.000Z",
+  },
+  {
+    name: "Lê Hải Yến",
+    email: "haiyen.le95@gmail.com",
+    phone: "0973648251",
+    joinedAt: "2026-04-18T11:05:00.000Z",
+  },
+  {
+    name: "Phạm Đức Thịnh",
+    email: "phamducthinh91@gmail.com",
+    phone: "0985271364",
+    joinedAt: "2026-04-27T06:35:00.000Z",
+  },
+  {
+    name: "Võ Kim Ngân",
+    email: "kimngan.vo97@gmail.com",
+    phone: "0329614758",
+    joinedAt: "2026-05-05T01:25:00.000Z",
+  },
+  {
+    name: "Đặng Minh Khôi",
+    email: "dangminhkhoi90@gmail.com",
+    phone: "0334187692",
+    joinedAt: "2026-05-13T08:55:00.000Z",
+  },
+  {
+    name: "Bùi Ngọc Thảo",
+    email: "ngocthao.bui94@gmail.com",
+    phone: "0346725189",
+    joinedAt: "2026-05-21T04:15:00.000Z",
+  },
+  {
+    name: "Đỗ Anh Dũng",
+    email: "doanhdung1986@gmail.com",
+    phone: "0358194267",
+    joinedAt: "2026-05-30T10:40:00.000Z",
+  },
+  {
+    name: "Hồ Quỳnh Như",
+    email: "quynhnhu.ho98@gmail.com",
+    phone: "0362749518",
+    joinedAt: "2026-06-06T02:35:00.000Z",
+  },
+  {
+    name: "Ngô Quang Vũ",
+    email: "ngoquangvu89@gmail.com",
+    phone: "0379513864",
+    joinedAt: "2026-06-13T07:15:00.000Z",
+  },
+  {
+    name: "Dương Tường Vi",
+    email: "tuongvi.duong96@gmail.com",
+    phone: "0384627195",
+    joinedAt: "2026-06-19T05:20:00.000Z",
+  },
+  {
+    name: "Lý Quốc Cường",
+    email: "lyquoccuong87@gmail.com",
+    phone: "0398152746",
+    joinedAt: "2026-06-25T11:30:00.000Z",
+  },
+  {
+    name: "Nguyễn Bích Ngọc",
+    email: "bichngoc.nguyen95@gmail.com",
+    phone: "0706419285",
+    joinedAt: "2026-06-30T03:05:00.000Z",
+  },
 ];
 
 const obsoleteCustomersSeed = [
@@ -101,16 +325,20 @@ export const seedCustomerUsers = async () => {
   const cleanup = await cleanupObsoleteCustomerUsers();
 
   for (const [index, customer] of customersSeed.entries()) {
+    const { joinedAt, ...customerProfile } = customer;
     const email = customer.email.trim().toLowerCase();
     const sequence = String(index + 1).padStart(2, "0");
     const previousEmail = `${email.split("@")[0]}.carego${sequence}@gmail.com`;
     const legacyEmail = `customer${sequence}@carego.test`;
-    const existingUser = await User.findOne({ email: { $in: [email, previousEmail, legacyEmail] } });
-    await User.findOneAndUpdate(
+    const emailCandidates = index < legacyCustomerSeedCount
+      ? [email, previousEmail, legacyEmail]
+      : [email];
+    const existingUser = await User.findOne({ email: { $in: emailCandidates } });
+    const user = await User.findOneAndUpdate(
       existingUser ? { _id: existingUser._id } : { email },
       {
         $set: {
-          ...customer,
+          ...customerProfile,
           email,
           recoveryEmail: email,
           password: hashedPassword,
@@ -130,6 +358,18 @@ export const seedCustomerUsers = async () => {
       },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );
+
+    if (!existingUser && joinedAt) {
+      const joinedAtDate = new Date(joinedAt);
+      if (Number.isNaN(joinedAtDate.getTime())) {
+        throw new Error(`Invalid joinedAt for ${email}`);
+      }
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { createdAt: joinedAtDate } },
+        { timestamps: false },
+      );
+    }
   }
 
   return {

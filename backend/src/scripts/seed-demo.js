@@ -12,11 +12,13 @@ import Service from "../models/service.models.js";
 import ShiftLog from "../models/shift-log.models.js";
 import User from "../models/user.models.js";
 import {
-  isWithinCompanionWorkingShift,
+  isCompanionScheduleAvailable,
   parseBookingAvailabilityWindow,
 } from "../utils/companion-availability.js";
 import { seedBlogData } from "./seed-blogs.js";
-import { seedCustomerUsers } from "./seed-customers.js";
+import { customersSeed, seedCustomerUsers } from "./seed-customers.js";
+import { seedSupportData } from "./seed-support.js";
+import { seedWithdrawalData } from "./seed-withdrawals.js";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 dotenv.config();
@@ -72,6 +74,28 @@ const servicesSeed = [
   ],
 },
 ];
+
+export const bookingCustomerUserSeeds = [
+  { key: "customerThuyDung", email: "ngthuydung91@gmail.com" },
+  { key: "customerQuocDat", email: "tranqdat88@gmail.com" },
+  { key: "customerNgocHan", email: "lengochan.92@gmail.com" },
+  { key: "customerTrungKien", email: "phamtrungkien89@gmail.com" },
+  { key: "customerMyHanh", email: "myhanh.vo93@gmail.com" },
+  { key: "customerAnhTuan", email: "danganhtuan87@gmail.com" },
+  { key: "customerKhanhLinh", email: "khanhlinh.bui94@gmail.com" },
+  { key: "customerMinhQuan", email: "dominhquan90@gmail.com" },
+  { key: "customerThanhThao", email: "hothanhthao.95@gmail.com" },
+  { key: "customerDucHuy", email: "ngoduchuy1988@gmail.com" },
+  { key: "customerBaoTram", email: "baotram.duong93@gmail.com" },
+  { key: "customerHoangNam", email: "lyhoangnam86@gmail.com" },
+  { key: "customerGiaLinh", email: "nguyengialinh.96@gmail.com" },
+].map(({ key, email }) => {
+  const customer = customersSeed.find((item) => item.email === email);
+  if (!customer) {
+    throw new Error(`Missing customer seed for booking account ${email}`);
+  }
+  return { key, ...customer, role: "customer" };
+});
 
 const usersSeed = [
   {
@@ -159,6 +183,7 @@ const usersSeed = [
     phone: "0915555555",
     role: "customer",
   },
+  ...bookingCustomerUserSeeds,
   {
     key: "companionKhoi",
     name: "Phạm Anh Khôi",
@@ -245,7 +270,7 @@ const usersSeed = [
   },
 ];
 
-const elderProfilesSeed = [
+export const elderProfilesSeed = [
   {
     key: "elderA",
     customerKey: "customerMinhAn",
@@ -315,9 +340,165 @@ const elderProfilesSeed = [
       relationship: "Con gái",
     },
   },
+  {
+    key: "elderThuyDung",
+    customerKey: "customerThuyDung",
+    fullName: "Nguyễn Văn Thành",
+    age: 73,
+    gender: "male",
+    address: "Vinhomes Grand Park, TP. Thủ Đức, TP. HCM",
+    medicalNotes: "Huyết áp cao, cần theo dõi trước khi vận động.",
+    chronicConditions: ["Huyết áp cao"],
+    medicines: [{ name: "Amlodipine", dosage: "5mg", schedule: "Sau bữa sáng", note: "Theo đơn bác sĩ" }],
+    emergencyContact: { name: "Nguyễn Thị Thùy Dung", phone: "0325847169", relationship: "Con gái" },
+  },
+  {
+    key: "elderQuocDat",
+    customerKey: "customerQuocDat",
+    fullName: "Trần Thị Hồng",
+    age: 70,
+    gender: "female",
+    address: "Chung cư Sunrise City, Quận 7, TP. HCM",
+    medicalNotes: "Đau khớp gối, di chuyển chậm khi lên xuống cầu thang.",
+    chronicConditions: ["Thoái hóa khớp gối"],
+    medicines: [{ name: "Glucosamine", dosage: "500mg", schedule: "Sau bữa trưa", note: "Theo hướng dẫn gia đình" }],
+    emergencyContact: { name: "Trần Quốc Đạt", phone: "0337264951", relationship: "Con trai" },
+  },
+  {
+    key: "elderNgocHan",
+    customerKey: "customerNgocHan",
+    fullName: "Lê Văn Định",
+    age: 77,
+    gender: "male",
+    address: "Chung cư Hà Đô Centrosa, Quận 10, TP. HCM",
+    medicalNotes: "Cần kiểm soát đường huyết và ăn đúng giờ.",
+    chronicConditions: ["Tiểu đường type 2"],
+    medicines: [{ name: "Metformin", dosage: "500mg", schedule: "Sau bữa tối", note: "Không uống khi bỏ bữa" }],
+    emergencyContact: { name: "Lê Ngọc Hân", phone: "0348152679", relationship: "Con gái" },
+  },
+  {
+    key: "elderTrungKien",
+    customerKey: "customerTrungKien",
+    fullName: "Phạm Thị Nguyệt",
+    age: 75,
+    gender: "female",
+    address: "Chung cư Orchard Garden, Quận Phú Nhuận, TP. HCM",
+    medicalNotes: "Thị lực giảm, cần hỗ trợ đọc giấy tờ khi đi khám.",
+    chronicConditions: ["Đục thủy tinh thể"],
+    medicines: [{ name: "Nước mắt nhân tạo", dosage: "1 giọt", schedule: "Sáng và tối", note: "Dùng theo hướng dẫn bác sĩ" }],
+    emergencyContact: { name: "Phạm Trung Kiên", phone: "0356429187", relationship: "Con trai" },
+  },
+  {
+    key: "elderMyHanh",
+    customerKey: "customerMyHanh",
+    fullName: "Võ Văn Lộc",
+    age: 72,
+    gender: "male",
+    address: "Chung cư Saigon Royal, Quận 4, TP. HCM",
+    medicalNotes: "Mỡ máu cao, hạn chế thức ăn nhiều dầu mỡ.",
+    chronicConditions: ["Rối loạn lipid máu"],
+    medicines: [{ name: "Atorvastatin", dosage: "10mg", schedule: "Sau bữa tối", note: "Theo đơn bác sĩ" }],
+    emergencyContact: { name: "Võ Thị Mỹ Hạnh", phone: "0369517428", relationship: "Con gái" },
+  },
+  {
+    key: "elderAnhTuan",
+    customerKey: "customerAnhTuan",
+    fullName: "Đặng Thị Kim Liên",
+    age: 69,
+    gender: "female",
+    address: "Khu dân cư Him Lam, Quận 7, TP. HCM",
+    medicalNotes: "Cần nhắc uống thuốc huyết áp đều đặn.",
+    chronicConditions: ["Huyết áp cao"],
+    medicines: [{ name: "Losartan", dosage: "50mg", schedule: "Sau bữa sáng", note: "Theo đơn bác sĩ" }],
+    emergencyContact: { name: "Đặng Anh Tuấn", phone: "0372846159", relationship: "Con trai" },
+  },
+  {
+    key: "elderKhanhLinh",
+    customerKey: "customerKhanhLinh",
+    fullName: "Bùi Văn Hòa",
+    age: 78,
+    gender: "male",
+    address: "Masteri Thảo Điền, TP. Thủ Đức, TP. HCM",
+    medicalNotes: "Sức nghe giảm nhẹ, cần nói rõ và chậm.",
+    chronicConditions: ["Suy giảm thính lực"],
+    medicines: [],
+    emergencyContact: { name: "Bùi Khánh Linh", phone: "0387169254", relationship: "Con gái" },
+  },
+  {
+    key: "elderMinhQuan",
+    customerKey: "customerMinhQuan",
+    fullName: "Đỗ Thị Thu Cúc",
+    age: 74,
+    gender: "female",
+    address: "Chung cư Xi Grand Court, Quận 10, TP. HCM",
+    medicalNotes: "Có tiền sử chóng mặt khi thay đổi tư thế nhanh.",
+    chronicConditions: ["Rối loạn tiền đình"],
+    medicines: [{ name: "Betahistine", dosage: "16mg", schedule: "Sau bữa sáng", note: "Theo đơn bác sĩ" }],
+    emergencyContact: { name: "Đỗ Minh Quân", phone: "0395284176", relationship: "Con trai" },
+  },
+  {
+    key: "elderThanhThao",
+    customerKey: "customerThanhThao",
+    fullName: "Hồ Văn Minh",
+    age: 71,
+    gender: "male",
+    address: "Vinhomes Central Park, Quận Bình Thạnh, TP. HCM",
+    medicalNotes: "Đau lưng mạn tính, tránh mang vật nặng.",
+    chronicConditions: ["Thoái hóa cột sống"],
+    medicines: [{ name: "Calcium", dosage: "500mg", schedule: "Sau bữa trưa", note: "Theo hướng dẫn gia đình" }],
+    emergencyContact: { name: "Hồ Thanh Thảo", phone: "0703826159", relationship: "Con gái" },
+  },
+  {
+    key: "elderDucHuy",
+    customerKey: "customerDucHuy",
+    fullName: "Ngô Thị Bích",
+    age: 76,
+    gender: "female",
+    address: "Chung cư Léman Luxury, Quận 3, TP. HCM",
+    medicalNotes: "Nhịp tim đôi lúc không đều, cần nghỉ khi thấy mệt.",
+    chronicConditions: ["Rối loạn nhịp tim"],
+    medicines: [{ name: "Bisoprolol", dosage: "2.5mg", schedule: "Sau bữa sáng", note: "Theo đơn bác sĩ" }],
+    emergencyContact: { name: "Ngô Đức Huy", phone: "0769152843", relationship: "Con trai" },
+  },
+  {
+    key: "elderBaoTram",
+    customerKey: "customerBaoTram",
+    fullName: "Dương Văn Sơn",
+    age: 73,
+    gender: "male",
+    address: "Chung cư Eco Green, Quận 7, TP. HCM",
+    medicalNotes: "Cần hỗ trợ đi bộ quãng dài và theo dõi hô hấp.",
+    chronicConditions: ["Hen phế quản nhẹ"],
+    medicines: [{ name: "Salbutamol", dosage: "Theo chỉ định", schedule: "Khi cần", note: "Mang theo khi ra ngoài" }],
+    emergencyContact: { name: "Dương Bảo Trâm", phone: "0774268195", relationship: "Con gái" },
+  },
+  {
+    key: "elderHoangNam",
+    customerKey: "customerHoangNam",
+    fullName: "Lý Thị Thanh",
+    age: 68,
+    gender: "female",
+    address: "The Sun Avenue, TP. Thủ Đức, TP. HCM",
+    medicalNotes: "Cần nhắc ăn uống đúng giờ và theo dõi đường huyết.",
+    chronicConditions: ["Tiền tiểu đường"],
+    medicines: [],
+    emergencyContact: { name: "Lý Hoàng Nam", phone: "0782639517", relationship: "Con trai" },
+  },
+  {
+    key: "elderGiaLinh",
+    customerKey: "customerGiaLinh",
+    fullName: "Nguyễn Văn Tâm",
+    age: 79,
+    gender: "male",
+    address: "Chung cư Richmond City, Quận Bình Thạnh, TP. HCM",
+    medicalNotes: "Đi lại bằng gậy, cần hỗ trợ khi lên xuống xe.",
+    chronicConditions: ["Thoái hóa khớp háng"],
+    medicines: [{ name: "Vitamin D3", dosage: "1000 IU", schedule: "Sau bữa sáng", note: "Theo hướng dẫn bác sĩ" }],
+    emergencyContact: { name: "Nguyễn Gia Linh", phone: "0798514263", relationship: "Cháu gái" },
+  },
 ];
 
-const companionProfilesSeed = [
+export const companionProfilesSeed = [
   {
     userKey: "companionKhoi",
     fullName: "Phạm Anh Khôi",
@@ -789,7 +970,7 @@ const paidBookingReviews = [
   },
 ];
 
-const paidBookingCustomers = [
+export const paidBookingCustomers = [
   {
     customerKey: "customerMinhAn",
     elderKey: "elderA",
@@ -820,6 +1001,84 @@ const paidBookingCustomers = [
       displayName: "Masteri An Phú",
     },
   },
+  {
+    customerKey: "customerThuyDung",
+    elderKey: "elderThuyDung",
+    address: "Vinhomes Grand Park, TP. Thủ Đức, TP. HCM",
+    addressLocation: { lat: 10.8411, lng: 106.8431, displayName: "Vinhomes Grand Park" },
+  },
+  {
+    customerKey: "customerQuocDat",
+    elderKey: "elderQuocDat",
+    address: "Chung cư Sunrise City, Quận 7, TP. HCM",
+    addressLocation: { lat: 10.7403, lng: 106.7016, displayName: "Sunrise City Quận 7" },
+  },
+  {
+    customerKey: "customerNgocHan",
+    elderKey: "elderNgocHan",
+    address: "Chung cư Hà Đô Centrosa, Quận 10, TP. HCM",
+    addressLocation: { lat: 10.777, lng: 106.6775, displayName: "Hà Đô Centrosa" },
+  },
+  {
+    customerKey: "customerTrungKien",
+    elderKey: "elderTrungKien",
+    address: "Chung cư Orchard Garden, Quận Phú Nhuận, TP. HCM",
+    addressLocation: { lat: 10.8082, lng: 106.6707, displayName: "Orchard Garden" },
+  },
+  {
+    customerKey: "customerMyHanh",
+    elderKey: "elderMyHanh",
+    address: "Chung cư Saigon Royal, Quận 4, TP. HCM",
+    addressLocation: { lat: 10.7685, lng: 106.7005, displayName: "Saigon Royal" },
+  },
+  {
+    customerKey: "customerAnhTuan",
+    elderKey: "elderAnhTuan",
+    address: "Khu dân cư Him Lam, Quận 7, TP. HCM",
+    addressLocation: { lat: 10.7421, lng: 106.6979, displayName: "Khu dân cư Him Lam" },
+  },
+  {
+    customerKey: "customerKhanhLinh",
+    elderKey: "elderKhanhLinh",
+    address: "Masteri Thảo Điền, TP. Thủ Đức, TP. HCM",
+    addressLocation: { lat: 10.8029, lng: 106.7332, displayName: "Masteri Thảo Điền" },
+  },
+  {
+    customerKey: "customerMinhQuan",
+    elderKey: "elderMinhQuan",
+    address: "Chung cư Xi Grand Court, Quận 10, TP. HCM",
+    addressLocation: { lat: 10.7655, lng: 106.6673, displayName: "Xi Grand Court" },
+  },
+  {
+    customerKey: "customerThanhThao",
+    elderKey: "elderThanhThao",
+    address: "Vinhomes Central Park, Quận Bình Thạnh, TP. HCM",
+    addressLocation: { lat: 10.7952, lng: 106.7206, displayName: "Vinhomes Central Park" },
+  },
+  {
+    customerKey: "customerDucHuy",
+    elderKey: "elderDucHuy",
+    address: "Chung cư Léman Luxury, Quận 3, TP. HCM",
+    addressLocation: { lat: 10.7797, lng: 106.6888, displayName: "Léman Luxury" },
+  },
+  {
+    customerKey: "customerBaoTram",
+    elderKey: "elderBaoTram",
+    address: "Chung cư Eco Green, Quận 7, TP. HCM",
+    addressLocation: { lat: 10.7316, lng: 106.7216, displayName: "Eco Green Sài Gòn" },
+  },
+  {
+    customerKey: "customerHoangNam",
+    elderKey: "elderHoangNam",
+    address: "The Sun Avenue, TP. Thủ Đức, TP. HCM",
+    addressLocation: { lat: 10.7889, lng: 106.7496, displayName: "The Sun Avenue" },
+  },
+  {
+    customerKey: "customerGiaLinh",
+    elderKey: "elderGiaLinh",
+    address: "Chung cư Richmond City, Quận Bình Thạnh, TP. HCM",
+    addressLocation: { lat: 10.8169, lng: 106.7026, displayName: "Richmond City" },
+  },
 ];
 
 bookingSeed.push(
@@ -839,7 +1098,7 @@ bookingSeed.push(
   }),
 );
 
-const projectWeekBookingSeed = [
+export const projectWeekBookingSeed = [
   {
     seedKey: "demo-booking-week5-01",
     customerIndex: 0,
@@ -1005,6 +1264,149 @@ const projectWeekBookingSeed = [
     address: "Benh vien Gia Dinh, Binh Thanh, TP. HCM",
     addressLocation: { lat: 10.8036, lng: 106.6944, displayName: "Benh vien Gia Dinh" },
   },
+  {
+    seedKey: "demo-booking-week8-01",
+    customerIndex: 3,
+    companionKey: "companionKhoi",
+    serviceCode: "2",
+    date: "2026-06-30",
+    startHour: 8,
+    durationHours: 3,
+    address: "Vinhomes Grand Park, TP. Thủ Đức, TP. HCM",
+    addressLocation: { lat: 10.8411, lng: 106.8431, displayName: "Vinhomes Grand Park" },
+  },
+  {
+    seedKey: "demo-booking-week8-02",
+    customerIndex: 4,
+    companionKey: "companionDucManh",
+    serviceCode: "2",
+    date: "2026-07-02",
+    startHour: 14,
+    durationHours: 4,
+    address: "Chung cư Sunrise City, Quận 7, TP. HCM",
+    addressLocation: { lat: 10.7403, lng: 106.7016, displayName: "Sunrise City Quận 7" },
+  },
+  {
+    seedKey: "demo-booking-week8-03",
+    customerIndex: 5,
+    companionKey: "companionTuan",
+    serviceCode: "3",
+    date: "2026-07-05",
+    startHour: 14,
+    durationHours: 3,
+    address: "Hồ Bán Nguyệt, Quận 7, TP. HCM",
+    addressLocation: { lat: 10.7297, lng: 106.7187, displayName: "Hồ Bán Nguyệt" },
+  },
+  {
+    seedKey: "demo-booking-week9-01",
+    customerIndex: 6,
+    companionKey: "companionLanAnh",
+    serviceCode: "1",
+    date: "2026-07-06",
+    startHour: 8,
+    durationHours: 4,
+    address: "Bệnh viện Nhân dân 115, Quận 10, TP. HCM",
+    addressLocation: { lat: 10.7748, lng: 106.6674, displayName: "Bệnh viện Nhân dân 115" },
+  },
+  {
+    seedKey: "demo-booking-week9-02",
+    customerIndex: 7,
+    companionKey: "companionBaoTran",
+    serviceCode: "1",
+    date: "2026-07-08",
+    startHour: 8,
+    durationHours: 3,
+    address: "Bệnh viện Mắt TP. HCM, Quận 3",
+    addressLocation: { lat: 10.7785, lng: 106.6864, displayName: "Bệnh viện Mắt TP. HCM" },
+  },
+  {
+    seedKey: "demo-booking-week9-03",
+    customerIndex: 8,
+    companionKey: "companionPhuongNam",
+    serviceCode: "3",
+    date: "2026-07-10",
+    startHour: 14,
+    durationHours: 3,
+    address: "Vinhomes Central Park, Quận Bình Thạnh, TP. HCM",
+    addressLocation: { lat: 10.7952, lng: 106.7206, displayName: "Vinhomes Central Park" },
+  },
+  {
+    seedKey: "demo-booking-week9-04",
+    customerIndex: 9,
+    companionKey: "companionKhoi",
+    serviceCode: "1",
+    date: "2026-07-12",
+    startHour: 9,
+    durationHours: 4,
+    address: "Bệnh viện Lê Văn Thịnh, TP. Thủ Đức, TP. HCM",
+    addressLocation: { lat: 10.7771, lng: 106.7654, displayName: "Bệnh viện Lê Văn Thịnh" },
+  },
+  {
+    seedKey: "demo-booking-week10-01",
+    customerIndex: 10,
+    companionKey: "companionQuynhTrang",
+    serviceCode: "1",
+    date: "2026-07-16",
+    startHour: 13,
+    durationHours: 4,
+    address: "Bệnh viện Hoàn Mỹ Sài Gòn, Quận Phú Nhuận, TP. HCM",
+    addressLocation: { lat: 10.8007, lng: 106.6797, displayName: "Bệnh viện Hoàn Mỹ Sài Gòn" },
+  },
+  {
+    seedKey: "demo-booking-week12-01",
+    customerIndex: 11,
+    companionKey: "companionThanh",
+    serviceCode: "1",
+    date: "2026-07-28",
+    startHour: 8,
+    durationHours: 4,
+    address: "Bệnh viện Nhân dân Gia Định, Quận Bình Thạnh, TP. HCM",
+    addressLocation: { lat: 10.8036, lng: 106.6944, displayName: "Bệnh viện Nhân dân Gia Định" },
+  },
+  {
+    seedKey: "demo-booking-week12-02",
+    customerIndex: 12,
+    companionKey: "companionHoangThanh",
+    serviceCode: "3",
+    date: "2026-08-01",
+    startHour: 15,
+    durationHours: 3,
+    address: "Công viên Lê Văn Tám, Quận 3, TP. HCM",
+    addressLocation: { lat: 10.7873, lng: 106.6947, displayName: "Công viên Lê Văn Tám" },
+  },
+  {
+    seedKey: "demo-booking-week13-01",
+    customerIndex: 13,
+    companionKey: "companionDucManh",
+    serviceCode: "2",
+    date: "2026-08-03",
+    startHour: 8,
+    durationHours: 4,
+    address: "Chung cư Eco Green, Quận 7, TP. HCM",
+    addressLocation: { lat: 10.7316, lng: 106.7216, displayName: "Eco Green Sài Gòn" },
+  },
+  {
+    seedKey: "demo-booking-week13-02",
+    customerIndex: 14,
+    companionKey: "companionPhuongNam",
+    serviceCode: "2",
+    date: "2026-08-06",
+    startHour: 14,
+    durationHours: 3,
+    address: "The Sun Avenue, TP. Thủ Đức, TP. HCM",
+    addressLocation: { lat: 10.7889, lng: 106.7496, displayName: "The Sun Avenue" },
+  },
+  {
+    seedKey: "demo-booking-week13-03",
+    customerIndex: 15,
+    companionKey: "companionHaiYen",
+    serviceCode: "1",
+    date: "2026-08-08",
+    startHour: 9,
+    durationHours: 4,
+    address: "Bệnh viện Quận 6, Quận 6, TP. HCM",
+    addressLocation: { lat: 10.746, lng: 106.635, displayName: "Bệnh viện Quận 6" },
+  },
 ];
 
 bookingSeed.splice(
@@ -1078,6 +1480,13 @@ const seedUsers = async () => {
       },
       { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
     );
+    if (!existingUser && userData.joinedAt) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { createdAt: new Date(userData.joinedAt) } },
+        { timestamps: false },
+      );
+    }
     users[userData.key] = user;
   }
 
@@ -1247,6 +1656,13 @@ const upsertPayment = async ({ booking, status }) => {
   );
 };
 
+const setSeedDocumentTimestamps = async (Model, filter, createdAt, updatedAt = createdAt) => {
+  await Model.collection.updateOne(
+    filter,
+    { $set: { createdAt, updatedAt } },
+  );
+};
+
 const pruneObsoleteDemoBookings = async () => {
   const seedKeys = bookingSeed.map((item) => item.seedKey);
   const obsoleteBookings = await Booking.find({
@@ -1282,7 +1698,7 @@ const seedBookings = async ({ users, elders, services }) => {
 
   await pruneObsoleteDemoBookings();
 
-  for (const item of bookingSeed) {
+  for (const [seedIndex, item] of bookingSeed.entries()) {
     const customerId = users[item.customerKey]._id;
     const elderProfileId = elders[item.elderKey]._id;
     const companionId = users[item.companionKey]._id;
@@ -1309,8 +1725,8 @@ const seedBookings = async ({ users, elders, services }) => {
       throw new Error(`Invalid booking seed for ${item.companionKey}: ${availabilityWindow.error}`);
     }
     const companionProfile = companionProfilesSeed.find((profile) => profile.userKey === item.companionKey);
-    if (!isWithinCompanionWorkingShift(companionProfile?.workingShift, startTime, item.durationHours)) {
-      throw new Error(`Booking seed for ${item.companionKey} is outside the configured working shift`);
+    if (!isCompanionScheduleAvailable(companionProfile, startTime, item.durationHours)) {
+      throw new Error(`Booking seed for ${item.companionKey} is outside the configured availability`);
     }
     const payload = {
       seedKey: item.seedKey,
@@ -1377,6 +1793,18 @@ const seedBookings = async ({ users, elders, services }) => {
         },
         { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
       );
+    }
+
+    const bookingCreatedAt = new Date(startTime.getTime() - ((seedIndex % 4) + 2) * 24 * 60 * 60 * 1000);
+    const bookingUpdatedAt = completedAt || bookingCreatedAt;
+    await setSeedDocumentTimestamps(Booking, { _id: booking._id }, bookingCreatedAt, bookingUpdatedAt);
+    await setSeedDocumentTimestamps(ShiftLog, { bookingId: booking._id }, startTime, bookingUpdatedAt);
+    if (["completed", "paid"].includes(item.status)) {
+      await setSeedDocumentTimestamps(Payment, { bookingId: booking._id }, bookingUpdatedAt, bookingUpdatedAt);
+    }
+    if (item.review) {
+      const reviewCreatedAt = new Date(bookingUpdatedAt.getTime() + ((seedIndex % 5) + 1) * 60 * 60 * 1000);
+      await setSeedDocumentTimestamps(Review, { bookingId: booking._id }, reviewCreatedAt, reviewCreatedAt);
     }
 
     bookings.push(booking);
@@ -1453,6 +1881,8 @@ export const seedDemoData = async () => {
   const elders = await seedElderProfiles(users);
   const bookings = await seedBookings({ users, elders, services });
   const companionStats = await syncCompanionStats(users);
+  const withdrawalSummary = await seedWithdrawalData();
+  const supportSummary = await seedSupportData();
   await seedBlogData();
 
   console.log("Database:", mongoose.connection.name);
@@ -1469,8 +1899,22 @@ export const seedDemoData = async () => {
   }
   console.log("Bookings:", bookings.length);
   console.log("Companion reviews:", Object.values(companionStats).reduce((total, item) => total + item.ratingCount, 0));
+  console.log("Withdrawals:", withdrawalSummary.withdrawals.length);
+  console.log("Total withdrawn:", withdrawalSummary.totalWithdrawn);
+  console.log("Support conversations:", supportSummary.conversations.length);
+  console.log("Support messages:", supportSummary.messageCount);
 
-  return { services, users, elders, bookings, customerCount, customerCleanup: customerSeedResult.cleanup, companionStats };
+  return {
+    services,
+    users,
+    elders,
+    bookings,
+    customerCount,
+    customerCleanup: customerSeedResult.cleanup,
+    companionStats,
+    withdrawalSummary,
+    supportSummary,
+  };
 };
 
 const run = async () => {

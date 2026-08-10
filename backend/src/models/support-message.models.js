@@ -4,6 +4,12 @@ export const SUPPORT_MESSAGE_MAX_LENGTH = 3000;
 
 const SupportMessageSchema = new mongoose.Schema(
   {
+    seedKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+      select: false,
+    },
     conversationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "supportConversation",

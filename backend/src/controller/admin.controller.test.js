@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test, { afterEach } from "node:test";
 import User from "../models/user.models.js";
 import Booking from "../models/booking.models.js";
+import ElderProfile from "../models/elder-profile.models.js";
 import Payment from "../models/payment.models.js";
 import Service from "../models/service.models.js";
 import {
+  buildAdminBookingFilter,
   buildReportDaily,
   buildReportMonthly,
   getAdminBookings,
@@ -140,6 +142,8 @@ test("updateUserStatus returns the same safe admin user projection", { concurren
 test("getAdminBookings limits the database query and returns pagination metadata", { concurrency: false }, async () => {
   let skipped = null;
   let limited = null;
+  let bookingSummaryPipeline = null;
+  let paymentSummaryPipeline = null;
   const bookings = [{ _id: "booking-1", status: "pending" }];
   const createBookingQuery = () => ({
     populate() { return this; },
@@ -151,8 +155,14 @@ test("getAdminBookings limits the database query and returns pagination metadata
 
   mockMethod(Booking, "find", createBookingQuery);
   mockMethod(Booking, "countDocuments", async () => 31);
-  mockMethod(Booking, "aggregate", async () => [{ total: 31, running: 4, gpsReady: 20 }]);
-  mockMethod(Payment, "aggregate", async () => [{ paidRevenue: 1000, penaltyRevenue: 50, platformFee: 100 }]);
+  mockMethod(Booking, "aggregate", async (pipeline) => {
+    bookingSummaryPipeline = pipeline;
+    return [{ total: 31, running: 4, gpsReady: 20 }];
+  });
+  mockMethod(Payment, "aggregate", async (pipeline) => {
+    paymentSummaryPipeline = pipeline;
+    return [{ paidRevenue: 1000, penaltyRevenue: 50, platformFee: 100 }];
+  });
   mockMethod(Payment, "find", () => ({ sort() { return this; }, lean: async () => [] }));
   mockMethod(Service, "find", () => ({
     select() { return this; },
@@ -161,13 +171,54 @@ test("getAdminBookings limits the database query and returns pagination metadata
   }));
 
   const res = createResponse();
-  await getAdminBookings({ query: { page: "2", limit: "10" } }, res);
+  await getAdminBookings({ query: { page: "2", limit: "10", status: "paid" } }, res);
 
   assert.equal(res.statusCode, 200);
   assert.equal(skipped, 10);
   assert.equal(limited, 10);
   assert.deepEqual(res.body.pagination, { page: 2, limit: 10, total: 31, totalPages: 4 });
   assert.equal(res.body.summary.careGoRevenue, 150);
+  assert.deepEqual(bookingSummaryPipeline[0], { $match: { status: "paid" } });
+  assert.equal(paymentSummaryPipeline.some((stage) => stage.$lookup?.from === Booking.collection.collectionName), true);
+  assert.deepEqual(
+    paymentSummaryPipeline.find((stage) => stage.$match?.booking)?.$match,
+    { booking: { $elemMatch: { status: "paid" } } },
+  );
+});
+
+test("admin booking search includes an exact MongoDB booking id", { concurrency: false }, async () => {
+  const bookingId = "507f1f77bcf86cd799439011";
+  const emptyQuery = () => ({ select() { return this; }, lean: async () => [] });
+
+  mockMethod(User, "find", emptyQuery);
+  mockMethod(ElderProfile, "find", emptyQuery);
+  mockMethod(Service, "find", emptyQuery);
+
+  const { filter } = await buildAdminBookingFilter({ search: bookingId });
+  const idCondition = filter.$or.find((condition) => condition._id && !condition._id.$in);
+
+  assert.equal(idCondition._id.toString(), bookingId);
+});
+
+test("admin booking search resolves a PayOS order code to its booking", { concurrency: false }, async () => {
+  const bookingId = "507f1f77bcf86cd799439011";
+  const emptyQuery = () => ({ select() { return this; }, lean: async () => [] });
+
+  mockMethod(User, "find", emptyQuery);
+  mockMethod(ElderProfile, "find", emptyQuery);
+  mockMethod(Service, "find", emptyQuery);
+  mockMethod(Payment, "find", (filter) => ({
+    select() { return this; },
+    async lean() {
+      assert.deepEqual(filter, { orderCode: 123456 });
+      return [{ bookingId }];
+    },
+  }));
+
+  const { filter } = await buildAdminBookingFilter({ search: "123456" });
+  const paymentCondition = filter.$or.find((condition) => condition._id?.$in);
+
+  assert.deepEqual(paymentCondition, { _id: { $in: [bookingId] } });
 });
 
 test("report range uses full calendar days in Vietnam", () => {

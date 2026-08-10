@@ -229,7 +229,7 @@ const AdminBookingsPage = () => {
               setQuery(event.target.value);
               setPage(1);
             }}
-            placeholder="Tìm booking, khách hàng, companion..."
+            placeholder="Tìm mã booking, mã PayOS, khách hàng, companion..."
             className="min-h-11 w-full rounded-xl border border-transparent bg-slate-100 px-4 pl-10 text-sm outline-none transition focus:border-teal-300 focus:bg-white focus:ring-2 focus:ring-teal-100"
           />
           <span className="absolute left-3 top-2.5 text-slate-400">⌕</span>
@@ -371,6 +371,9 @@ const AdminBookingsPage = () => {
                       <StatusBadge status={booking.status} />
                       <p className="mt-2 text-[11px] text-slate-400">
                         Tạo lúc: {dateTime(booking.createdAt)}
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium text-slate-500">
+                        Mã: {booking._id}
                       </p>
                     </td>
                     <td className="p-4 text-right">
