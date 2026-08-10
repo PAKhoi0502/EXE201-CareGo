@@ -94,6 +94,20 @@ test("booking model enforces one idempotency key per customer without affecting 
   assert.equal(Booking.schema.path("idempotencyFingerprint").options.select, false);
 });
 
+test("booking model stores lifecycle and cancellation analytics fields", () => {
+  assert.equal(Booking.schema.path("acceptedAt").instance, "Date");
+  assert.equal(Booking.schema.path("checkInAt").instance, "Date");
+  assert.equal(Booking.schema.path("checkOutAt").instance, "Date");
+  assert.equal(Booking.schema.path("cancellation.cancelledAt").instance, "Date");
+  assert.deepEqual(Booking.schema.path("cancellation.cancelledByRole").options.enum, [
+    "",
+    "customer",
+    "companion",
+    "admin",
+    "system",
+  ]);
+});
+
 test("getMyBookings paginates, filters and searches customer bookings", { concurrency: false }, async () => {
   let countFilter = null;
   let findFilter = null;

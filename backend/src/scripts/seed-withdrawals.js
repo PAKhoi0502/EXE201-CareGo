@@ -189,7 +189,7 @@ export const seedWithdrawalData = async () => {
               bankAccountNumber: encryptSensitiveValue(item.bankAccountNumber),
               bankAccountName: encryptSensitiveValue(item.bankAccountName),
               note: "Rút thu nhập CareGo đến ngày 09/08/2026.",
-              adminNote: "Đã hoàn tất đối soát và chuyển khoản demo.",
+              adminNote: "Đã hoàn tất đối soát và chuyển khoản.",
               status: "paid",
               processedAt,
               processedBy: admin._id,

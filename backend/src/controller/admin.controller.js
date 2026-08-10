@@ -22,6 +22,7 @@ const REPORT_MAX_RANGE_DAYS = 366;
 const REPORT_DETAIL_DEFAULT_LIMIT = 25;
 const REPORT_DETAIL_MAX_LIMIT = 100;
 const REPORT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const REPORT_DATE_BASES = new Set(["booking", "payment", "created"]);
 const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
 const VIETNAM_UTC_OFFSET = "+07:00";
 const ADMIN_USER_RESPONSE_FIELDS = [
@@ -220,7 +221,22 @@ const getPaymentCareGoRevenue = (payment) =>
 const getBookingReportAmount = (booking) =>
   booking.payment ? getPaymentBaseAmount(booking.payment) : numberValue(booking.totalAmount);
 
-export const buildReportMonthly = (bookings, rangeOrNow = new Date()) => {
+const getEffectivePaymentDate = (payment) => payment?.transferredAt || payment?.paidAt || null;
+
+const getReportBookingDate = (booking, dateBasis = "booking") => {
+  if (dateBasis === "payment") return getEffectivePaymentDate(booking.payment);
+  if (dateBasis === "created") return booking.createdAt;
+  return booking.startTime;
+};
+
+const parseReportDateBasis = (value) => {
+  const dateBasis = String(value || "booking").trim().toLowerCase();
+  return REPORT_DATE_BASES.has(dateBasis)
+    ? { dateBasis }
+    : { error: "Loại ngày báo cáo không hợp lệ." };
+};
+
+export const buildReportMonthly = (bookings, rangeOrNow = new Date(), dateBasis = "booking") => {
   const hasExplicitRange = rangeOrNow?.start && rangeOrNow?.end;
   const [endYear, endMonth] = toVietnamMonthKey(
     hasExplicitRange ? rangeOrNow.end : rangeOrNow,
@@ -252,7 +268,9 @@ export const buildReportMonthly = (bookings, rangeOrNow = new Date()) => {
   });
 
   bookings.forEach((booking) => {
-    const bucket = months.find((item) => item.key === toVietnamMonthKey(booking.startTime));
+    const reportDate = getReportBookingDate(booking, dateBasis);
+    if (!reportDate) return;
+    const bucket = months.find((item) => item.key === toVietnamMonthKey(reportDate));
     if (!bucket) return;
 
     bucket.count += 1;
@@ -265,7 +283,7 @@ export const buildReportMonthly = (bookings, rangeOrNow = new Date()) => {
   return months;
 };
 
-export const buildReportDaily = (bookings, range) => {
+export const buildReportDaily = (bookings, range, dateBasis = "booking") => {
   const days = [];
   const cursor = new Date(range.start);
 
@@ -285,7 +303,9 @@ export const buildReportDaily = (bookings, range) => {
   }
 
   bookings.forEach((booking) => {
-    const bucket = days.find((item) => item.key === toVietnamDateInputValue(booking.startTime));
+    const reportDate = getReportBookingDate(booking, dateBasis);
+    if (!reportDate) return;
+    const bucket = days.find((item) => item.key === toVietnamDateInputValue(reportDate));
     if (!bucket) return;
 
     bucket.count += 1;
@@ -302,11 +322,23 @@ const buildReportServices = (bookings) => {
   const stats = {};
   bookings.forEach((booking) => {
     const name = booking.serviceId?.name || "Khac";
-    stats[name] ||= { name, count: 0, revenue: 0 };
+    stats[name] ||= { name, count: 0, paid: 0, cancelled: 0, revenue: 0, paidRevenue: 0 };
     stats[name].count += 1;
     stats[name].revenue += getBookingReportAmount(booking);
+    if (booking.status === "cancelled") stats[name].cancelled += 1;
+    if (booking.payment?.status === "paid") {
+      stats[name].paid += 1;
+      stats[name].paidRevenue += getPaymentPaidAmount(booking.payment);
+    }
   });
-  return Object.values(stats).sort((a, b) => b.count - a.count).slice(0, 5);
+  return Object.values(stats)
+    .map((item) => ({
+      ...item,
+      cancellationRate: item.count ? Math.round((item.cancelled / item.count) * 1000) / 10 : 0,
+      averagePaidValue: item.paid ? Math.round(item.paidRevenue / item.paid) : 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
 };
 
 const COMPANION_SHIFT_HOURS = {
@@ -320,6 +352,7 @@ const getVietnamWeekday = (dateKey) =>
 
 const getCompanionAvailableHours = (profile, range) => {
   if (!profile || !range?.start || !range?.end) return 0;
+  if (profile.acceptingBookings === false) return 0;
   const workingDays = new Set(
     Array.isArray(profile.workingDays) && profile.workingDays.length
       ? profile.workingDays
@@ -343,6 +376,20 @@ const getCompanionAvailableHours = (profile, range) => {
 
 export const buildReportCompanions = (bookings, { companionProfiles = [], reviews = [], range } = {}) => {
   const stats = {};
+  companionProfiles.forEach((profile) => {
+    const id = getIdKey(profile.userId);
+    if (!id) return;
+    stats[id] = {
+      id,
+      name: profile.userId?.name || "Chưa rõ companion",
+      count: 0,
+      paid: 0,
+      cancelled: 0,
+      earning: 0,
+      assignedHours: 0,
+      completedHours: 0,
+    };
+  });
   bookings.forEach((booking) => {
     const id = getIdKey(booking.companionId) || booking.companionId?.email || "unknown";
     stats[id] ||= {
@@ -350,11 +397,13 @@ export const buildReportCompanions = (bookings, { companionProfiles = [], review
       name: booking.companionId?.name || "Chua co companion",
       count: 0,
       paid: 0,
+      cancelled: 0,
       earning: 0,
       assignedHours: 0,
       completedHours: 0,
     };
     stats[id].count += 1;
+    if (booking.status === "cancelled") stats[id].cancelled += 1;
     if (booking.status !== "cancelled") {
       stats[id].assignedHours += numberValue(booking.durationHours);
     }
@@ -395,6 +444,9 @@ export const buildReportCompanions = (bookings, { companionProfiles = [], review
           ? Math.round((rating.total / rating.count) * 10) / 10
           : 0,
         reviewCount: rating.count,
+        cancellationRate: item.count
+          ? Math.round((item.cancelled / item.count) * 1000) / 10
+          : 0,
       };
     })
     .sort((a, b) => b.assignedHours - a.assignedHours || b.count - a.count)
@@ -411,16 +463,22 @@ const buildReportStatusCounts = (bookings) =>
     }, {}),
   );
 
-export const buildReportSummary = ({ bookings, reviews = [], companionProfiles = [], range }) => {
+export const buildReportSummary = ({ bookings, reviews = [], companionProfiles = [], range, now = new Date() }) => {
   const paidBookings = bookings.filter((booking) => booking.payment?.status === "paid");
   const completed = bookings.filter((booking) => ["completed", "paid"].includes(booking.status)).length;
   const cancelled = bookings.filter((booking) => booking.status === "cancelled").length;
+  const completionEligibleBookings = bookings.filter((booking) => {
+    if (["completed", "paid", "cancelled"].includes(booking.status)) return true;
+    const bookingEnd = new Date(booking.startTime).getTime() + numberValue(booking.durationHours) * 60 * 60 * 1000;
+    return Number.isFinite(bookingEnd) && bookingEnd <= now.getTime();
+  });
+  const eligibleCompleted = completionEligibleBookings
+    .filter((booking) => ["completed", "paid"].includes(booking.status))
+    .length;
   const assignedHours = bookings
     .filter((booking) => booking.status !== "cancelled")
     .reduce((sum, booking) => sum + numberValue(booking.durationHours), 0);
-  const companionIds = new Set(bookings.map((booking) => getIdKey(booking.companionId)).filter(Boolean));
   const availableHours = companionProfiles
-    .filter((profile) => companionIds.has(getIdKey(profile.userId)))
     .reduce((sum, profile) => sum + getCompanionAvailableHours(profile, range), 0);
   const ratingTotal = reviews.reduce((sum, review) => sum + numberValue(review.rating), 0);
 
@@ -437,11 +495,14 @@ export const buildReportSummary = ({ bookings, reviews = [], companionProfiles =
       0,
     ),
     completed,
+    completionEligibleBookings: completionEligibleBookings.length,
     cancelled,
-    completionRate: bookings.length ? Math.round((completed / bookings.length) * 100) : 0,
+    completionRate: completionEligibleBookings.length
+      ? Math.round((eligibleCompleted / completionEligibleBookings.length) * 100)
+      : 0,
     cancellationRate: bookings.length ? Math.round((cancelled / bookings.length) * 1000) / 10 : 0,
-    averageBookingValue: bookings.length
-      ? Math.round(bookings.reduce((sum, booking) => sum + getBookingReportAmount(booking), 0) / bookings.length)
+    averageBookingValue: paidBookings.length
+      ? Math.round(paidBookings.reduce((sum, booking) => sum + getPaymentPaidAmount(booking.payment), 0) / paidBookings.length)
       : 0,
     missingGps: bookings.filter((booking) => !booking.addressLocation?.lat).length,
     assignedHours,
@@ -454,12 +515,15 @@ export const buildReportSummary = ({ bookings, reviews = [], companionProfiles =
 };
 
 export const buildAdminReportBookingFilter = ({ query = {}, range }) => {
-  const filter = {
-    startTime: {
-      $gte: range.start,
-      $lte: range.end,
-    },
-  };
+  const dateBasisResult = parseReportDateBasis(query.dateBasis);
+  if (dateBasisResult.error) return dateBasisResult;
+  const filter = {};
+
+  if (dateBasisResult.dateBasis === "booking") {
+    filter.startTime = { $gte: range.start, $lte: range.end };
+  } else if (dateBasisResult.dateBasis === "created") {
+    filter.createdAt = { $gte: range.start, $lte: range.end };
+  }
 
   if (query.status && query.status !== "all") {
     if (!ADMIN_BOOKING_STATUSES.has(query.status)) {
@@ -490,7 +554,33 @@ export const buildAdminReportBookingFilter = ({ query = {}, range }) => {
     filter._id = new mongoose.Types.ObjectId(bookingId);
   }
 
-  return { filter };
+  if (query.issue === "missingGps") {
+    filter["addressLocation.lat"] = { $in: [null] };
+  }
+
+  return { filter, dateBasis: dateBasisResult.dateBasis };
+};
+
+const buildPaymentDateFilter = (range) => ({
+  status: "paid",
+  $or: [
+    { transferredAt: { $gte: range.start, $lte: range.end } },
+    {
+      transferredAt: { $in: [null] },
+      paidAt: { $gte: range.start, $lte: range.end },
+    },
+  ],
+});
+
+const constrainReportFilterToBookingIds = (filter, bookingIds) => {
+  const ids = bookingIds.map((value) => new mongoose.Types.ObjectId(getIdKey(value)));
+  if (filter._id && !filter._id.$in) {
+    const exactId = getIdKey(filter._id);
+    filter._id = { $in: ids.filter((id) => getIdKey(id) === exactId) };
+  } else {
+    filter._id = { $in: ids };
+  }
+  return filter;
 };
 
 const buildPreviousReportRange = (range) => {
@@ -517,7 +607,18 @@ const buildReportPaymentMethods = (bookings) => Object.values(
   }, {}),
 ).sort((a, b) => b.count - a.count);
 
-const buildReportReviews = (reviews, completedBookings) => {
+const toReportBookingReference = (booking) => ({
+  bookingId: getIdKey(booking?._id),
+  status: booking?.status || "",
+  startTime: booking?.startTime || null,
+  completedAt: booking?.completedAt || null,
+  customer: booking?.customerId?.name || "",
+  companion: booking?.companionId?.name || "",
+  service: booking?.serviceId?.name || "",
+});
+
+export const buildReportReviews = (reviews, completedBookings, bookings = []) => {
+  const bookingsById = new Map(bookings.map((booking) => [getIdKey(booking._id), booking]));
   const distribution = [1, 2, 3, 4, 5].map((rating) => ({
     rating,
     count: reviews.filter((review) => numberValue(review.rating) === rating).length,
@@ -542,6 +643,156 @@ const buildReportReviews = (reviews, completedBookings) => {
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8),
+    lowRatings: reviews
+      .filter((review) => numberValue(review.rating) <= 3)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 20)
+      .map((review) => ({
+        ...toReportBookingReference(bookingsById.get(getIdKey(review.bookingId))),
+        rating: numberValue(review.rating),
+        comment: review.comment || "",
+        tags: review.tags || [],
+        reviewedAt: review.createdAt || null,
+      })),
+  };
+};
+
+export const buildReportPaymentAnalysis = (bookings, now = new Date()) => {
+  const bookingsWithPayment = bookings.filter((booking) => booking.payment);
+  const paidBookings = bookingsWithPayment.filter((booking) => booking.payment.status === "paid");
+  const statusCounts = Object.values(bookingsWithPayment.reduce((stats, booking) => {
+    const status = booking.payment.status || "unknown";
+    stats[status] ||= { status, count: 0, amount: 0 };
+    stats[status].count += 1;
+    stats[status].amount += numberValue(booking.payment.paidAmount || booking.payment.amount);
+    return stats;
+  }, {}));
+  const sourceCounts = Object.values(paidBookings.reduce((stats, booking) => {
+    const source = booking.payment.paidAtSource || "unknown";
+    stats[source] ||= { source, count: 0 };
+    stats[source].count += 1;
+    return stats;
+  }, {}));
+  const paymentDelayHours = paidBookings
+    .map((booking) => {
+      if (!booking.completedAt || !getEffectivePaymentDate(booking.payment)) return null;
+      const completedAt = new Date(booking.completedAt).getTime();
+      const paidAt = new Date(getEffectivePaymentDate(booking.payment)).getTime();
+      const delay = (paidAt - completedAt) / (60 * 60 * 1000);
+      return Number.isFinite(delay) && delay >= 0 ? delay : null;
+    })
+    .filter((value) => value !== null);
+  const overdueBookings = bookings
+    .filter((booking) => (
+      booking.paymentDueAt
+      && new Date(booking.paymentDueAt) < now
+      && booking.payment?.status !== "paid"
+      && booking.status === "completed"
+    ))
+    .sort((a, b) => new Date(a.paymentDueAt) - new Date(b.paymentDueAt));
+
+  return {
+    statusCounts,
+    sourceCounts,
+    paidCount: paidBookings.length,
+    providerTransferredCount: paidBookings.filter((booking) => booking.payment.transferredAt).length,
+    providerTimeCoverage: paidBookings.length
+      ? Math.round((paidBookings.filter((booking) => booking.payment.transferredAt).length / paidBookings.length) * 1000) / 10
+      : 0,
+    averagePaymentDelayHours: paymentDelayHours.length
+      ? Math.round((paymentDelayHours.reduce((sum, value) => sum + value, 0) / paymentDelayHours.length) * 10) / 10
+      : 0,
+    overdueCount: overdueBookings.length,
+    overdueAmount: overdueBookings.reduce((sum, booking) => sum + getBookingReportAmount(booking), 0),
+    overdueBookings: overdueBookings.slice(0, 20).map((booking) => ({
+      ...toReportBookingReference(booking),
+      paymentDueAt: booking.paymentDueAt,
+      amount: getBookingReportAmount(booking),
+      paymentStatus: booking.payment?.status || "none",
+    })),
+  };
+};
+
+export const buildReportCancellations = (bookings) => {
+  const cancelledBookings = bookings.filter((booking) => booking.status === "cancelled");
+  const reasons = Object.values(cancelledBookings.reduce((stats, booking) => {
+    const reason = booking.cancellation?.reason || "unknown";
+    stats[reason] ||= { reason, count: 0 };
+    stats[reason].count += 1;
+    return stats;
+  }, {}));
+  const actors = Object.values(cancelledBookings.reduce((stats, booking) => {
+    const role = booking.cancellation?.cancelledByRole || "unknown";
+    stats[role] ||= { role, count: 0 };
+    stats[role].count += 1;
+    return stats;
+  }, {}));
+
+  return {
+    count: cancelledBookings.length,
+    reasons: reasons.sort((a, b) => b.count - a.count),
+    actors: actors.sort((a, b) => b.count - a.count),
+    details: cancelledBookings
+      .sort((a, b) => new Date(b.cancellation?.cancelledAt || b.updatedAt) - new Date(a.cancellation?.cancelledAt || a.updatedAt))
+      .slice(0, 20)
+      .map((booking) => ({
+        ...toReportBookingReference(booking),
+        reason: booking.cancellation?.reason || "unknown",
+        details: booking.cancellation?.details || "",
+        cancelledAt: booking.cancellation?.cancelledAt || booking.updatedAt || null,
+        cancelledByRole: booking.cancellation?.cancelledByRole || "unknown",
+      })),
+  };
+};
+
+export const buildReportIncidents = (bookings) => {
+  const incidentBookings = bookings.filter((booking) => booking.incident?.status && booking.incident.status !== "none");
+  return {
+    count: incidentBookings.length,
+    openCount: incidentBookings.filter((booking) => booking.incident.status === "reported").length,
+    details: incidentBookings
+      .sort((a, b) => new Date(b.incident?.reportedAt) - new Date(a.incident?.reportedAt))
+      .slice(0, 20)
+      .map((booking) => ({
+        ...toReportBookingReference(booking),
+        incidentStatus: booking.incident.status,
+        reason: booking.incident.reason || "other",
+        details: booking.incident.details || "",
+        resolution: booking.incident.resolution || "",
+        reportedAt: booking.incident.reportedAt || null,
+        resolvedAt: booking.incident.resolvedAt || null,
+      })),
+  };
+};
+
+export const buildReportCustomers = (bookings) => {
+  const customers = Object.values(bookings.reduce((stats, booking) => {
+    const id = getIdKey(booking.customerId);
+    if (!id) return stats;
+    stats[id] ||= {
+      id,
+      name: booking.customerId?.name || "Chưa rõ khách hàng",
+      email: booking.customerId?.email || "",
+      bookings: 0,
+      paidBookings: 0,
+      paidValue: 0,
+    };
+    stats[id].bookings += 1;
+    if (booking.payment?.status === "paid") {
+      stats[id].paidBookings += 1;
+      stats[id].paidValue += getPaymentPaidAmount(booking.payment);
+    }
+    return stats;
+  }, {}));
+  const repeatCustomers = customers.filter((customer) => customer.bookings > 1).length;
+
+  return {
+    uniqueCustomers: customers.length,
+    repeatCustomers,
+    repeatRate: customers.length ? Math.round((repeatCustomers / customers.length) * 1000) / 10 : 0,
+    topCustomers: customers
+      .sort((a, b) => b.paidValue - a.paidValue || b.bookings - a.bookings)
+      .slice(0, 10),
   };
 };
 
@@ -674,7 +925,7 @@ export const getAdminDashboard = async (req, res) => {
     const [blogCommentCounts, dashboardPayments] = await Promise.all([
       getDashboardBlogCommentCountMap(blogStats),
       Payment.find({ bookingId: { $in: dashboardBookings.map((booking) => booking._id) } })
-        .select("bookingId amount baseAmount paidAmount penaltyAmount platformFee companionEarning status")
+        .select("bookingId amount baseAmount paidAmount penaltyAmount platformFee companionEarning method status paidAt transferredAt confirmedAt paidAtSource createdAt updatedAt")
         .lean(),
     ]);
     const dashboardPaymentByBooking = new Map(
@@ -920,6 +1171,11 @@ export const getAdminReports = async (req, res) => {
     if (range.error) {
       return res.status(400).json({ message: range.error });
     }
+    const dateBasisResult = parseReportDateBasis(req.query.dateBasis);
+    if (dateBasisResult.error) {
+      return res.status(400).json({ message: dateBasisResult.error });
+    }
+    const { dateBasis } = dateBasisResult;
     const exportAllDetails = req.query.export === "true";
     const pagination = exportAllDetails
       ? { page: 1, limit: Number.MAX_SAFE_INTEGER, skip: 0 }
@@ -935,6 +1191,26 @@ export const getAdminReports = async (req, res) => {
     const previousRange = buildPreviousReportRange(range);
     const previousFilterResult = buildAdminReportBookingFilter({ query: req.query, range: previousRange });
 
+    if (dateBasis === "payment") {
+      const [currentPaymentRows, previousPaymentRows] = await Promise.all([
+        Payment.find(buildPaymentDateFilter(range)).select("bookingId").lean(),
+        Payment.find(buildPaymentDateFilter(previousRange)).select("bookingId").lean(),
+      ]);
+      constrainReportFilterToBookingIds(
+        bookingFilterResult.filter,
+        currentPaymentRows.map((payment) => payment.bookingId),
+      );
+      constrainReportFilterToBookingIds(
+        previousFilterResult.filter,
+        previousPaymentRows.map((payment) => payment.bookingId),
+      );
+    }
+
+    const companionProfileFilter = { vettingStatus: "approved" };
+    if (bookingFilterResult.filter.companionId) {
+      companionProfileFilter.userId = bookingFilterResult.filter.companionId;
+    }
+
     const [
       reportBookings,
       previousBookings,
@@ -942,6 +1218,7 @@ export const getAdminReports = async (req, res) => {
       filterServices,
       filterCompanions,
       filterCustomers,
+      rawCompanionProfiles,
     ] = await Promise.all([
       Booking.find(bookingFilterResult.filter)
         .populate("customerId", "name email phone")
@@ -951,43 +1228,44 @@ export const getAdminReports = async (req, res) => {
         .sort({ startTime: -1, _id: -1 })
         .lean(),
       Booking.find(previousFilterResult.filter)
-        .select("customerId companionId serviceId status startTime durationHours addressLocation totalAmount platformFee")
+        .select("customerId companionId serviceId status startTime durationHours addressLocation totalAmount platformFee createdAt completedAt paymentDueAt")
         .lean(),
       CompanionProfile.countDocuments({ vettingStatus: "pending" }),
       Service.find().select("_id name").sort({ name: 1 }).lean(),
-      User.find({ role: "companion" }).select("_id name email").sort({ name: 1 }).lean(),
+      User.find({ role: "companion", isActive: true }).select("_id name email").sort({ name: 1 }).lean(),
       User.find({ role: "customer" }).select("_id name email").sort({ name: 1 }).lean(),
+      CompanionProfile.find(companionProfileFilter)
+        .select("userId workingShift workingDays unavailableDates acceptingBookings vettingStatus")
+        .populate("userId", "name email isActive")
+        .lean(),
     ]);
+    const companionProfiles = rawCompanionProfiles.filter((profile) => profile.userId?.isActive !== false);
 
     const currentBookingIds = reportBookings.map((booking) => booking._id);
     const previousBookingIds = previousBookings.map((booking) => booking._id);
     const allBookingIds = [...currentBookingIds, ...previousBookingIds];
-    const allCompanionIds = [...new Set(
-      [...reportBookings, ...previousBookings]
-        .map((booking) => getIdKey(booking.companionId))
-        .filter(Boolean),
-    )];
-    const [paidPayments, reviews, companionProfiles] = await Promise.all([
-      Payment.find({ bookingId: { $in: allBookingIds }, status: "paid" })
-        .select("bookingId amount platformFee companionEarning baseAmount penaltyAmount paidAmount method status paidAt createdAt")
+    const [payments, reviews] = await Promise.all([
+      Payment.find({ bookingId: { $in: allBookingIds } })
+        .select("bookingId amount platformFee companionEarning baseAmount penaltyAmount paidAmount method status paidAt transferredAt confirmedAt paidAtSource createdAt updatedAt")
         .lean(),
       Review.find({ bookingId: { $in: allBookingIds } })
-        .select("bookingId companionId rating tags createdAt")
-        .lean(),
-      CompanionProfile.find({ userId: { $in: allCompanionIds } })
-        .select("userId workingShift workingDays unavailableDates")
+        .select("bookingId customerId companionId rating comment tags createdAt")
         .lean(),
     ]);
 
-    const paidPaymentByBookingId = new Map(
-      paidPayments.map((payment) => [getIdKey(payment.bookingId), payment]),
+    const paymentByBookingId = new Map(
+      payments.map((payment) => [getIdKey(payment.bookingId), payment]),
     );
     const attachPayment = (booking) => ({
       ...booking,
-      payment: toPaymentDto(paidPaymentByBookingId.get(getIdKey(booking._id)), "admin"),
+      payment: toPaymentDto(paymentByBookingId.get(getIdKey(booking._id)), "admin"),
     });
     const reportBookingsWithPayment = reportBookings.map(attachPayment);
     const previousBookingsWithPayment = previousBookings.map(attachPayment);
+    reportBookingsWithPayment.sort((first, second) => (
+      new Date(getReportBookingDate(second, dateBasis) || 0)
+      - new Date(getReportBookingDate(first, dateBasis) || 0)
+    ));
     const currentBookingIdSet = new Set(currentBookingIds.map(getIdKey));
     const previousBookingIdSet = new Set(previousBookingIds.map(getIdKey));
     const currentReviews = reviews.filter((review) => currentBookingIdSet.has(getIdKey(review.bookingId)));
@@ -1028,8 +1306,9 @@ export const getAdminReports = async (req, res) => {
         summary: previousSummary,
       },
       currentSnapshot: { pendingCompanions },
-      monthly: buildReportMonthly(reportBookingsWithPayment, range),
-      daily: buildReportDaily(reportBookingsWithPayment, range),
+      dateBasis,
+      monthly: buildReportMonthly(reportBookingsWithPayment, range, dateBasis),
+      daily: buildReportDaily(reportBookingsWithPayment, range, dateBasis),
       services: buildReportServices(reportBookingsWithPayment),
       companionRows: buildReportCompanions(reportBookingsWithPayment, {
         companionProfiles,
@@ -1038,7 +1317,11 @@ export const getAdminReports = async (req, res) => {
       }),
       statusCounts: buildReportStatusCounts(reportBookingsWithPayment),
       paymentMethods: buildReportPaymentMethods(reportBookingsWithPayment),
-      reviews: buildReportReviews(currentReviews, summary.completed),
+      paymentAnalysis: buildReportPaymentAnalysis(reportBookingsWithPayment),
+      reviews: buildReportReviews(currentReviews, summary.completed, reportBookingsWithPayment),
+      cancellations: buildReportCancellations(reportBookingsWithPayment),
+      incidents: buildReportIncidents(reportBookingsWithPayment),
+      customers: buildReportCustomers(reportBookingsWithPayment),
       filterOptions: {
         services: filterServices,
         companions: filterCompanions,

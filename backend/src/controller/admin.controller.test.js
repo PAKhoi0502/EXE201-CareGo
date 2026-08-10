@@ -9,8 +9,12 @@ import {
   buildAdminBookingFilter,
   buildAdminReportBookingFilter,
   buildReportCompanions,
+  buildReportCancellations,
+  buildReportCustomers,
   buildReportDaily,
   buildReportMonthly,
+  buildReportPaymentAnalysis,
+  buildReportReviews,
   buildReportSummary,
   getAdminBookings,
   getAdminUsers,
@@ -277,6 +281,25 @@ test("daily and monthly reports cover the complete selected 90-day range", () =>
   assert.deepEqual(monthly.map((item) => item.key), ["2026-05", "2026-06", "2026-07", "2026-08"]);
 });
 
+test("payment-date reports group by effective payment time instead of booking time", () => {
+  const range = parseReportRange({ from: "2026-08-10", to: "2026-08-10" });
+  const booking = {
+    startTime: new Date("2026-07-01T01:00:00.000Z"),
+    payment: {
+      status: "paid",
+      paidAt: new Date("2026-08-10T02:00:00.000Z"),
+      platformFee: 100,
+      companionEarning: 400,
+    },
+  };
+
+  const [day] = buildReportDaily([booking], range, "payment");
+  assert.equal(day.count, 1);
+  assert.equal(day.caregoRevenue, 100);
+  assert.equal(buildAdminReportBookingFilter({ query: { dateBasis: "payment" }, range }).filter.startTime, undefined);
+  assert.ok(buildAdminReportBookingFilter({ query: { dateBasis: "created" }, range }).filter.createdAt);
+});
+
 test("admin report filter accepts status and exact entity ids", () => {
   const range = parseReportRange({ from: "2026-08-01", to: "2026-08-10" });
   const ids = {
@@ -325,21 +348,89 @@ test("report summary and companion rows include cancellation, reviews and utiliz
     workingShift: "full_day",
     workingDays: [0, 1, 2, 3, 4, 5, 6],
     unavailableDates: [],
+  }, {
+    userId: "507f1f77bcf86cd799439099",
+    workingShift: "full_day",
+    workingDays: [0, 1, 2, 3, 4, 5, 6],
+    unavailableDates: [],
   }];
 
   const summary = buildReportSummary({ bookings, reviews, companionProfiles, range });
   const [companion] = buildReportCompanions(bookings, { companionProfiles, reviews, range });
 
   assert.equal(summary.cancellationRate, 50);
-  assert.equal(summary.averageBookingValue, 750);
+  assert.equal(summary.averageBookingValue, 1000);
   assert.equal(summary.ratingAverage, 5);
   assert.equal(summary.reviewCoverage, 100);
-  assert.equal(summary.utilizationRate, 50);
+  assert.equal(summary.utilizationRate, 25);
   assert.equal(companion.assignedHours, 4);
   assert.equal(companion.availableHours, 8);
   assert.equal(companion.utilizationRate, 50);
   assert.equal(companion.completionHoursRate, 100);
   assert.equal(companion.ratingAverage, 5);
+});
+
+test("detailed report analysis returns actionable payment, cancellation, review and customer rows", () => {
+  const paidBooking = {
+    _id: "booking-paid",
+    customerId: { _id: "customer-1", name: "Khách A", email: "a@example.com" },
+    companionId: { _id: "companion-1", name: "Companion A" },
+    serviceId: { name: "CareGo Home" },
+    status: "paid",
+    startTime: new Date("2026-08-08T01:00:00.000Z"),
+    completedAt: new Date("2026-08-08T03:00:00.000Z"),
+    payment: {
+      status: "paid",
+      paidAmount: 500000,
+      paidAt: new Date("2026-08-08T05:00:00.000Z"),
+      paidAtSource: "server_fallback",
+    },
+  };
+  const cancelledBooking = {
+    _id: "booking-cancelled",
+    customerId: { _id: "customer-1", name: "Khách A", email: "a@example.com" },
+    companionId: { _id: "companion-2", name: "Companion B" },
+    serviceId: { name: "CareGo Walk" },
+    status: "cancelled",
+    startTime: new Date("2026-08-09T01:00:00.000Z"),
+    cancellation: {
+      reason: "customer_request",
+      details: "Gia đình đổi lịch",
+      cancelledAt: new Date("2026-08-08T08:00:00.000Z"),
+      cancelledByRole: "customer",
+    },
+  };
+  const overdueBooking = {
+    _id: "booking-overdue",
+    customerId: { _id: "customer-2", name: "Khách B" },
+    companionId: { _id: "companion-1", name: "Companion A" },
+    serviceId: { name: "CareGo Hospital" },
+    status: "completed",
+    startTime: new Date("2026-08-01T01:00:00.000Z"),
+    paymentDueAt: new Date("2026-08-05T01:00:00.000Z"),
+    totalAmount: 300000,
+    payment: { status: "failed", amount: 300000 },
+  };
+  const bookings = [paidBooking, cancelledBooking, overdueBooking];
+  const review = {
+    bookingId: "booking-paid",
+    rating: 3,
+    comment: "Cập nhật hơi chậm",
+    tags: ["Hoàn thành công việc"],
+    createdAt: new Date("2026-08-08T06:00:00.000Z"),
+  };
+
+  const paymentAnalysis = buildReportPaymentAnalysis(bookings, new Date("2026-08-10T00:00:00.000Z"));
+  const cancellations = buildReportCancellations(bookings);
+  const reviews = buildReportReviews([review], 1, bookings);
+  const customers = buildReportCustomers(bookings);
+
+  assert.equal(paymentAnalysis.averagePaymentDelayHours, 2);
+  assert.equal(paymentAnalysis.overdueCount, 1);
+  assert.equal(cancellations.details[0].reason, "customer_request");
+  assert.equal(reviews.lowRatings[0].comment, "Cập nhật hơi chậm");
+  assert.equal(customers.uniqueCustomers, 2);
+  assert.equal(customers.repeatCustomers, 1);
 });
 
 test("report range rejects ranges longer than one year", () => {

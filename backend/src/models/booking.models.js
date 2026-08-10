@@ -87,6 +87,18 @@ const BookingSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    acceptedAt: {
+      type: Date,
+      default: null,
+    },
+    checkInAt: {
+      type: Date,
+      default: null,
+    },
+    checkOutAt: {
+      type: Date,
+      default: null,
+    },
     paymentDueAt: {
       type: Date,
       default: null,
@@ -100,6 +112,32 @@ const BookingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    cancellation: {
+      reason: {
+        type: String,
+        enum: ["", "customer_request", "companion_unavailable", "schedule_change", "incident", "admin_cancelled", "other"],
+        default: "",
+      },
+      details: {
+        type: String,
+        default: "",
+        maxlength: 1000,
+      },
+      cancelledAt: {
+        type: Date,
+        default: null,
+      },
+      cancelledBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        default: null,
+      },
+      cancelledByRole: {
+        type: String,
+        enum: ["", "customer", "companion", "admin", "system"],
+        default: "",
+      },
     },
     incident: {
       status: {

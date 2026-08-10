@@ -60,6 +60,43 @@ const DEFAULT_REPORT_FILTERS = {
   companionId: "all",
   customerId: "all",
   bookingId: "",
+  issue: "",
+};
+const REPORT_DATE_BASIS_OPTIONS = [
+  { value: "booking", label: "Ngày thực hiện booking" },
+  { value: "payment", label: "Ngày thanh toán" },
+  { value: "created", label: "Ngày tạo booking" },
+];
+const REPORT_DATE_BASIS_LABELS = Object.fromEntries(
+  REPORT_DATE_BASIS_OPTIONS.map((item) => [item.value, item.label]),
+);
+const STATUS_LABELS = {
+  pending: "Chờ xác nhận",
+  accepted: "Đã nhận",
+  in_progress: "Đang diễn ra",
+  completed: "Chờ thanh toán",
+  paid: "Đã thanh toán",
+  cancelled: "Đã hủy",
+  failed: "Thất bại",
+  expired: "Hết hạn",
+  none: "Chưa có",
+  unknown: "Không xác định",
+};
+const PAYMENT_SOURCE_LABELS = {
+  payos: "Thời gian PayOS",
+  server_fallback: "Thời gian hệ thống",
+  seed: "Dữ liệu mẫu",
+  manual: "Xác nhận thủ công",
+  unknown: "Không xác định",
+};
+const CANCELLATION_REASON_LABELS = {
+  customer_request: "Khách hàng yêu cầu",
+  companion_unavailable: "Companion không thể nhận ca",
+  schedule_change: "Thay đổi lịch",
+  incident: "Hủy sau sự cố",
+  admin_cancelled: "Admin hủy",
+  other: "Lý do khác",
+  unknown: "Chưa ghi nhận",
 };
 const PAYMENT_METHOD_LABELS = {
   cash: "Tiền mặt",
@@ -87,10 +124,29 @@ const getCompanionEarning = (booking) => {
 const getCareGoRevenue = (booking) => getPlatformFee(booking) + getPenaltyAmount(booking);
 const getSummaryNumber = (summary, key) => Number(summary?.[key] || 0);
 const getRelativeChange = (current, previous) => {
-  if (!previous) return current ? 100 : 0;
+  if (!previous) return current ? null : 0;
   return Math.round(((current - previous) / Math.abs(previous)) * 1000) / 10;
 };
-const formatChange = (value, suffix = "%") => `${value > 0 ? "+" : ""}${value}${suffix}`;
+const formatChange = (value, suffix = "%") => value === null
+  ? "Phát sinh mới"
+  : `${value > 0 ? "+" : ""}${value}${suffix}`;
+
+const groupDailyTrend = (daily) => {
+  if (daily.length <= 45) return { points: daily, granularity: "ngày" };
+
+  const points = [];
+  for (let index = 0; index < daily.length; index += 7) {
+    const group = daily.slice(index, index + 7);
+    points.push({
+      key: group[0]?.key,
+      label: `${group[0]?.label || ""}–${group.at(-1)?.label || ""}`,
+      count: group.reduce((sum, item) => sum + Number(item.count || 0), 0),
+      caregoRevenue: group.reduce((sum, item) => sum + Number(item.caregoRevenue || 0), 0),
+      companionEarning: group.reduce((sum, item) => sum + Number(item.companionEarning || 0), 0),
+    });
+  }
+  return { points, granularity: "tuần" };
+};
 
 const formatDateTime = (value) => value
   ? new Intl.DateTimeFormat("vi-VN", {
@@ -102,6 +158,7 @@ const formatDateTime = (value) => value
 
 const AdminReportsPage = () => {
   const [dateRange, setDateRange] = useState(() => getRecentRange(30));
+  const [dateBasis, setDateBasis] = useState("booking");
   const [draftFilters, setDraftFilters] = useState(DEFAULT_REPORT_FILTERS);
   const [filters, setFilters] = useState(DEFAULT_REPORT_FILTERS);
   const [reportPage, setReportPage] = useState(1);
@@ -113,6 +170,7 @@ const AdminReportsPage = () => {
       to: dateRange.to,
       page: String(page),
       limit: String(REPORT_PAGE_SIZE),
+      dateBasis,
     });
     Object.entries(filters).forEach(([key, value]) => {
       if (value && value !== "all") params.set(key, value);
@@ -129,7 +187,11 @@ const AdminReportsPage = () => {
   const companionRows = reportData?.companionRows || [];
   const statusCounts = reportData?.statusCounts || [];
   const paymentMethods = reportData?.paymentMethods || [];
+  const paymentAnalysis = reportData?.paymentAnalysis || {};
   const reviewData = reportData?.reviews || {};
+  const cancellationData = reportData?.cancellations || {};
+  const incidentData = reportData?.incidents || {};
+  const customerData = reportData?.customers || {};
   const filterOptions = reportData?.filterOptions || {};
   const pagination = reportData?.pagination || {};
   const summary = reportData?.summary || {};
@@ -144,6 +206,7 @@ const AdminReportsPage = () => {
   const careGoRevenue = getSummaryNumber(summary, "careGoRevenue");
   const companionEarning = getSummaryNumber(summary, "companionEarning");
   const completionRate = getSummaryNumber(summary, "completionRate");
+  const completionEligibleBookings = getSummaryNumber(summary, "completionEligibleBookings");
   const cancellationRate = getSummaryNumber(summary, "cancellationRate");
   const averageBookingValue = getSummaryNumber(summary, "averageBookingValue");
   const utilizationRate = getSummaryNumber(summary, "utilizationRate");
@@ -181,6 +244,27 @@ const AdminReportsPage = () => {
     setFilters(DEFAULT_REPORT_FILTERS);
   };
   const activeFilterCount = Object.values(filters).filter((value) => value && value !== "all").length;
+  const focusBooking = (bookingId) => {
+    const nextFilters = { ...DEFAULT_REPORT_FILTERS, bookingId };
+    setDraftFilters(nextFilters);
+    setFilters(nextFilters);
+    setReportPage(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const focusIssue = (issue) => {
+    const nextFilters = { ...filters, issue, bookingId: "" };
+    setDraftFilters(nextFilters);
+    setFilters(nextFilters);
+    setReportPage(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const focusStatus = (status) => {
+    const nextFilters = { ...filters, status, issue: "", bookingId: "" };
+    setDraftFilters(nextFilters);
+    setFilters(nextFilters);
+    setReportPage(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const exportExcel = async () => {
     setExportLoading(true);
@@ -194,6 +278,7 @@ const AdminReportsPage = () => {
       const exportBookings = exportData.bookings || [];
 
       const summaryRows = [
+        { label: "Loai ngay bao cao", value: REPORT_DATE_BASIS_LABELS[dateBasis] },
         { label: "Tu ngay", value: dateRange.from },
         { label: "Den ngay", value: dateRange.to },
         { label: "Tong booking", value: getSummaryNumber(exportSummary, "totalBookings") },
@@ -255,12 +340,19 @@ const AdminReportsPage = () => {
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.services || []).map((item) => ({
         dich_vu: item.name,
         so_booking: item.count,
+        so_paid: item.paid,
+        so_huy: item.cancelled,
+        ty_le_huy: item.cancellationRate,
+        doanh_thu_paid: item.paidRevenue,
+        gia_tri_paid_trung_binh: item.averagePaidValue,
         tong_gia_tri: item.revenue,
       }))), "Top dich vu");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.companionRows || []).map((item) => ({
         companion: item.name,
         so_ca: item.count,
         paid: item.paid,
+        cancelled: item.cancelled,
+        ty_le_huy: item.cancellationRate,
         gio_duoc_gan: item.assignedHours,
         gio_kha_dung: item.availableHours,
         utilization: item.utilizationRate,
@@ -268,6 +360,36 @@ const AdminReportsPage = () => {
         diem_danh_gia: item.ratingAverage,
         thu_nhap: item.earning,
       }))), "Hieu suat companion");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.paymentAnalysis?.statusCounts || []).map((item) => ({
+        trang_thai: item.status,
+        so_giao_dich: item.count,
+        gia_tri: item.amount,
+      }))), "Trang thai thanh toan");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.cancellations?.details || []).map((item) => ({
+        booking_id: item.bookingId,
+        khach_hang: item.customer,
+        companion: item.companion,
+        dich_vu: item.service,
+        ly_do: item.reason,
+        chi_tiet: item.details,
+        nguoi_huy: item.cancelledByRole,
+        thoi_gian_huy: formatDateTime(item.cancelledAt),
+      }))), "Booking huy");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.reviews?.lowRatings || []).map((item) => ({
+        booking_id: item.bookingId,
+        so_sao: item.rating,
+        nhan_xet: item.comment,
+        tags: (item.tags || []).join(", "),
+        companion: item.companion,
+        dich_vu: item.service,
+      }))), "Danh gia thap");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet((exportData.customers?.topCustomers || []).map((item) => ({
+        khach_hang: item.name,
+        email: item.email,
+        so_booking: item.bookings,
+        so_paid: item.paidBookings,
+        gia_tri_da_thanh_toan: item.paidValue,
+      }))), "Khach hang");
 
       const bookingRows = exportBookings.map((booking) => ({
         booking_id: booking._id,
@@ -282,6 +404,13 @@ const AdminReportsPage = () => {
         phi_phat: getPenaltyAmount(booking),
         payment_status: booking.payment?.status || "",
         payment_method: booking.payment?.method || "",
+        thoi_gian_ngan_hang_ghi_nhan: booking.payment?.transferredAt
+          ? formatDateTime(booking.payment.transferredAt)
+          : "",
+        thoi_gian_he_thong_xac_nhan: booking.payment?.confirmedAt
+          ? formatDateTime(booking.payment.confirmedAt)
+          : "",
+        nguon_thoi_gian_thanh_toan: booking.payment?.paidAtSource || "",
         tong_khach_tra: getPaidPayment(booking) ? getPaidAmount(booking) : 0,
         carego_thu: getPaidPayment(booking) ? getCareGoRevenue(booking) : 0,
         thu_nhap_companion: getPaidPayment(booking) ? getCompanionEarning(booking) : 0,
@@ -290,7 +419,7 @@ const AdminReportsPage = () => {
       }));
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(bookingRows), "Bookings all");
 
-      XLSX.writeFile(workbook, `admin-report-${dateRange.from}-to-${dateRange.to}.xlsx`);
+      XLSX.writeFile(workbook, `admin-report-${dateBasis}-${dateRange.from}-to-${dateRange.to}.xlsx`);
     } catch (exportFailure) {
       setExportError(exportFailure.message);
     } finally {
@@ -362,12 +491,14 @@ const AdminReportsPage = () => {
     ],
   };
 
+  const { points: trendPoints, granularity: trendGranularity } = groupDailyTrend(daily);
+
   const dailyBookingData = {
-    labels: daily.map((item) => item.label),
+    labels: trendPoints.map((item) => item.label),
     datasets: [
       {
         label: "Booking",
-        data: daily.map((item) => item.count),
+        data: trendPoints.map((item) => item.count),
         borderColor: "#0f766e",
         backgroundColor: "rgba(20, 184, 166, 0.18)",
         pointBackgroundColor: "#0f766e",
@@ -379,7 +510,7 @@ const AdminReportsPage = () => {
   };
 
   const statusShareData = {
-    labels: statuses,
+    labels: statuses.map((status) => STATUS_LABELS[status] || status),
     datasets: [
       {
         data: statuses.map((status) => getStatusCount(status)),
@@ -392,17 +523,17 @@ const AdminReportsPage = () => {
   };
 
   const moneySplitData = {
-    labels: daily.map((item) => item.label),
+    labels: trendPoints.map((item) => item.label),
     datasets: [
       {
         label: "CareGo thu",
-        data: daily.map((item) => Math.round((item.caregoRevenue / 1000000) * 10) / 10),
+        data: trendPoints.map((item) => Math.round((item.caregoRevenue / 1000000) * 10) / 10),
         backgroundColor: "rgba(15, 118, 110, 0.78)",
         borderRadius: 6,
       },
       {
         label: "Companion nhận",
-        data: daily.map((item) => Math.round((item.companionEarning / 1000000) * 10) / 10),
+        data: trendPoints.map((item) => Math.round((item.companionEarning / 1000000) * 10) / 10),
         backgroundColor: "rgba(37, 99, 235, 0.68)",
         borderRadius: 6,
       },
@@ -419,6 +550,10 @@ const AdminReportsPage = () => {
       },
     },
     cutout: "64%",
+    onClick: (_event, elements) => {
+      const status = statuses[elements[0]?.index];
+      if (status) focusStatus(status);
+    },
   };
   const comparisonMetrics = [
     {
@@ -437,7 +572,7 @@ const AdminReportsPage = () => {
     },
     {
       key: "averageBookingValue",
-      label: "Giá trị booking TB",
+      label: "Giá trị paid TB",
       current: averageBookingValue,
       previous: getSummaryNumber(previousSummary, "averageBookingValue"),
       format: money,
@@ -449,6 +584,15 @@ const AdminReportsPage = () => {
       previous: getSummaryNumber(previousSummary, "cancellationRate"),
       format: (value) => `${value}%`,
       rate: true,
+      lowerIsBetter: true,
+    },
+    {
+      key: "completionRate",
+      label: "Tỷ lệ hoàn thành",
+      current: completionRate,
+      previous: getSummaryNumber(previousSummary, "completionRate"),
+      format: (value) => `${value}%`,
+      rate: true,
     },
     {
       key: "utilizationRate",
@@ -457,6 +601,13 @@ const AdminReportsPage = () => {
       previous: getSummaryNumber(previousSummary, "utilizationRate"),
       format: (value) => `${value}%`,
       rate: true,
+    },
+    {
+      key: "ratingAverage",
+      label: "Điểm đánh giá",
+      current: ratingAverage,
+      previous: getSummaryNumber(previousSummary, "ratingAverage"),
+      format: (value) => `${value}/5`,
     },
   ];
 
@@ -488,9 +639,9 @@ const AdminReportsPage = () => {
               <p className="text-xs font-black uppercase tracking-[0.22em] text-teal-100">
                 Bộ lọc báo cáo
               </p>
-              <h2 className="mt-1 text-xl font-black">Lọc dữ liệu theo ngày thực hiện booking</h2>
+              <h2 className="mt-1 text-xl font-black">Lọc dữ liệu theo loại ngày cần phân tích</h2>
               <p className="mt-1 max-w-2xl text-sm font-medium text-teal-50">
-                Doanh thu, biểu đồ, top dịch vụ, hiệu suất companion và file Excel sẽ tính theo khoảng ngày này.
+                Vận hành nên dùng ngày thực hiện; đối soát doanh thu nên dùng ngày thanh toán.
               </p>
             </div>
             <button
@@ -516,7 +667,20 @@ const AdminReportsPage = () => {
               ))}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="grid gap-1 text-xs font-bold text-teal-50">
+                Loại ngày
+                <select
+                  value={dateBasis}
+                  onChange={(event) => {
+                    setReportPage(1);
+                    setDateBasis(event.target.value);
+                  }}
+                  className="min-h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
+                >
+                  {REPORT_DATE_BASIS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </label>
               <label className="grid gap-1 text-xs font-bold text-teal-50">
                 Từ ngày
                 <input
@@ -543,7 +707,7 @@ const AdminReportsPage = () => {
               Trạng thái
               <select value={draftFilters.status} onChange={(event) => updateDraftFilter("status", event.target.value)} className="min-h-10 rounded-xl bg-white px-3 text-sm font-bold text-slate-800 outline-none">
                 <option value="all">Tất cả trạng thái</option>
-                {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                {statuses.map((status) => <option key={status} value={status}>{STATUS_LABELS[status] || status}</option>)}
               </select>
             </label>
             <label className="grid gap-1 text-xs font-bold text-teal-50">
@@ -575,6 +739,7 @@ const AdminReportsPage = () => {
               <button type="submit" className="rounded-full bg-white px-5 py-2 text-xs font-black text-teal-700">Áp dụng bộ lọc</button>
               <button type="button" onClick={clearFilters} className="rounded-full border border-white/30 px-5 py-2 text-xs font-black text-white">Xóa bộ lọc</button>
               <span className="text-xs font-bold text-teal-50">{activeFilterCount} bộ lọc đang áp dụng</span>
+              {filters.issue ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Cảnh báo: thiếu GPS</span> : null}
             </div>
           </form>
         </div>
@@ -593,6 +758,7 @@ const AdminReportsPage = () => {
             <strong className="mt-2 block text-sm font-black text-sky-800">
               {dateRange.from} - {dateRange.to}
             </strong>
+            <p className="mt-1 text-[11px] text-sky-600">{REPORT_DATE_BASIS_LABELS[dateBasis]}</p>
           </div>
         </div>
       </section>
@@ -609,12 +775,13 @@ const AdminReportsPage = () => {
           <p className="mt-1 text-[11px] text-slate-400">Phí phạt: {money(penaltyRevenue)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <span className="text-xs font-medium text-slate-400">Giá trị booking trung bình</span>
+          <span className="text-xs font-medium text-slate-400">Giá trị booking paid trung bình</span>
           <p className="mt-2 text-xl font-bold text-violet-700">{money(averageBookingValue)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="text-xs font-medium text-slate-400">Tỷ lệ hoàn thành</span>
           <p className="mt-2 text-xl font-bold text-blue-700">{completionRate}%</p>
+          <p className="mt-1 text-[11px] text-slate-400">Trên {completionEligibleBookings} booking đã đến hạn kết thúc</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <span className="text-xs font-medium text-slate-400">Tỷ lệ hủy</span>
@@ -644,32 +811,40 @@ const AdminReportsPage = () => {
             <p className="mt-1 text-xs text-slate-400">Kỳ trước: {previousRange.from || "-"} – {previousRange.to || "-"}, cùng độ dài và cùng bộ lọc.</p>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {filters.bookingId ? (
+          <p className="mt-4 rounded-xl bg-amber-50 p-4 text-xs font-semibold text-amber-700">
+            So sánh kỳ trước không áp dụng khi đang lọc chính xác một mã booking.
+          </p>
+        ) : null}
+        {!filters.bookingId ? <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {comparisonMetrics.map((item) => {
             const change = item.rate
               ? Math.round((item.current - item.previous) * 10) / 10
               : getRelativeChange(item.current, item.previous);
+            const isImprovement = change !== null && change !== 0
+              ? item.lowerIsBetter ? change < 0 : change > 0
+              : null;
             return (
               <div key={item.key} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
                 <p className="text-xs font-semibold text-slate-500">{item.label}</p>
                 <p className="mt-2 text-lg font-black text-slate-900">{item.format(item.current)}</p>
                 <p className="mt-1 text-[11px] text-slate-400">Kỳ trước: {item.format(item.previous)}</p>
-                <p className={`mt-2 text-xs font-black ${change > 0 ? "text-emerald-600" : change < 0 ? "text-rose-600" : "text-slate-500"}`}>
+                <p className={`mt-2 text-xs font-black ${isImprovement === true ? "text-emerald-600" : isImprovement === false ? "text-rose-600" : "text-slate-500"}`}>
                   {formatChange(change, item.rate ? " điểm %" : "%")}
                 </p>
               </div>
             );
           })}
-        </div>
+        </div> : null}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <section className="rounded-2xl border border-teal-100 bg-white p-5 shadow-xl shadow-teal-900/5 xl:col-span-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="font-bold text-slate-900">Booking theo ngày</h2>
+              <h2 className="font-bold text-slate-900">Booking theo {trendGranularity}</h2>
               <p className="mt-1 text-xs text-slate-400">
-                Theo dõi số lịch chăm sóc theo ngày thực hiện trong khoảng đang lọc.
+                Phân nhóm theo {REPORT_DATE_BASIS_LABELS[dateBasis].toLowerCase()}; khoảng dài được gộp theo tuần để dễ đọc.
               </p>
             </div>
             <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">
@@ -731,6 +906,70 @@ const AdminReportsPage = () => {
         </section>
       </div>
 
+      <section className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-bold text-slate-900">Vận hành thanh toán</h2>
+            <p className="mt-1 text-xs text-slate-400">Theo dõi độ trễ thanh toán, khoản quá hạn và nguồn thời gian giao dịch.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(paymentAnalysis.statusCounts || []).map((item) => (
+              <span key={item.status} className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-700">
+                {STATUS_LABELS[item.status] || item.status}: {item.count}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
+            <p className="text-xs font-semibold text-slate-500">Độ trễ thanh toán trung bình</p>
+            <p className="mt-2 text-xl font-black text-slate-900">{Number(paymentAnalysis.averagePaymentDelayHours || 0)} giờ</p>
+          </div>
+          <div className="rounded-xl bg-rose-50 p-4 ring-1 ring-rose-100">
+            <p className="text-xs font-semibold text-rose-600">Khoản quá hạn</p>
+            <p className="mt-2 text-xl font-black text-rose-700">{paymentAnalysis.overdueCount || 0}</p>
+            <p className="mt-1 text-[11px] text-rose-500">{money(paymentAnalysis.overdueAmount || 0)}</p>
+          </div>
+          <div className="rounded-xl bg-teal-50 p-4 ring-1 ring-teal-100">
+            <p className="text-xs font-semibold text-teal-600">Có giờ giao dịch từ PayOS</p>
+            <p className="mt-2 text-xl font-black text-teal-700">{paymentAnalysis.providerTimeCoverage || 0}%</p>
+          </div>
+          <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-100">
+            <p className="text-xs font-semibold text-violet-600">Nguồn thời gian</p>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {(paymentAnalysis.sourceCounts || []).map((item) => (
+                <span key={item.source} className="rounded-full bg-white px-2 py-1 text-[11px] font-black text-violet-700">
+                  {PAYMENT_SOURCE_LABELS[item.source] || item.source}: {item.count}
+                </span>
+              ))}
+              {!(paymentAnalysis.sourceCounts || []).length ? <span className="text-xs text-violet-400">Chưa có payment paid</span> : null}
+            </div>
+          </div>
+        </div>
+        {(paymentAnalysis.overdueBookings || []).length ? (
+          <details className="mt-4 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
+            <summary className="cursor-pointer text-sm font-black text-rose-700">Xem booking quá hạn thanh toán</summary>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-xs">
+                <thead><tr className="text-slate-400"><th className="p-2">Booking</th><th className="p-2">Khách hàng</th><th className="p-2">Dịch vụ</th><th className="p-2">Hạn thanh toán</th><th className="p-2 text-right">Giá trị</th><th className="p-2" /></tr></thead>
+                <tbody>
+                  {paymentAnalysis.overdueBookings.map((item) => (
+                    <tr key={item.bookingId} className="border-t border-rose-100">
+                      <td className="p-2 font-mono text-[11px]">{item.bookingId}</td>
+                      <td className="p-2">{item.customer}</td>
+                      <td className="p-2">{item.service}</td>
+                      <td className="p-2">{formatDateTime(item.paymentDueAt)}</td>
+                      <td className="p-2 text-right font-bold">{money(item.amount)}</td>
+                      <td className="p-2 text-right"><button type="button" onClick={() => focusBooking(item.bookingId)} className="font-black text-teal-700">Xem</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ) : null}
+      </section>
+
       <section className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
         <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
           <div>
@@ -754,6 +993,40 @@ const AdminReportsPage = () => {
         </div>
       </section>
 
+      <section className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
+        <div className="grid gap-4 border-b border-violet-100 bg-violet-50/60 p-5 sm:grid-cols-3">
+          <div>
+            <h2 className="font-bold text-slate-900">Phân tích khách hàng</h2>
+            <p className="mt-1 text-xs text-slate-400">Tần suất đặt lịch và giá trị đã thanh toán trong khoảng lọc.</p>
+          </div>
+          <div className="rounded-xl bg-white p-3 ring-1 ring-violet-100">
+            <p className="text-xs font-semibold text-violet-500">Khách hàng duy nhất</p>
+            <p className="mt-1 text-xl font-black text-violet-700">{customerData.uniqueCustomers || 0}</p>
+          </div>
+          <div className="rounded-xl bg-white p-3 ring-1 ring-violet-100">
+            <p className="text-xs font-semibold text-violet-500">Khách đặt lại trong kỳ</p>
+            <p className="mt-1 text-xl font-black text-violet-700">{customerData.repeatRate || 0}%</p>
+            <p className="text-[11px] text-violet-400">{customerData.repeatCustomers || 0} khách có từ 2 booking</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-left text-xs">
+            <thead><tr className="border-b border-slate-100 text-slate-400"><th className="p-4">Khách hàng</th><th className="p-4">Booking</th><th className="p-4">Paid</th><th className="p-4 text-right">Đã thanh toán</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {(customerData.topCustomers || []).map((item) => (
+                <tr key={item.id}>
+                  <td className="p-4"><p className="font-semibold text-slate-800">{item.name}</p><p className="mt-1 text-slate-400">{item.email}</p></td>
+                  <td className="p-4">{item.bookings}</td>
+                  <td className="p-4">{item.paidBookings}</td>
+                  <td className="p-4 text-right font-black text-violet-700">{money(item.paidValue)}</td>
+                </tr>
+              ))}
+              {!(customerData.topCustomers || []).length ? <tr><td colSpan="4" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-[1fr_2fr]">
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 bg-slate-50/70 p-5">
@@ -765,7 +1038,9 @@ const AdminReportsPage = () => {
               <tr className="border-b border-slate-100 text-slate-400">
                 <th className="p-4">Dịch vụ</th>
                 <th className="p-4">Booking</th>
-                <th className="p-4 text-right">Tổng giá trị</th>
+                <th className="p-4">Paid</th>
+                <th className="p-4">Tỷ lệ hủy</th>
+                <th className="p-4 text-right">Doanh thu paid</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -773,12 +1048,14 @@ const AdminReportsPage = () => {
                 <tr key={item.name}>
                   <td className="p-4 font-semibold text-slate-800">{item.name}</td>
                   <td className="p-4">{item.count}</td>
-                  <td className="p-4 text-right font-bold text-teal-700">{money(item.revenue)}</td>
+                  <td className="p-4">{item.paid}</td>
+                  <td className="p-4 font-semibold text-rose-600">{item.cancellationRate}%</td>
+                  <td className="p-4 text-right font-bold text-teal-700">{money(item.paidRevenue)}</td>
                 </tr>
               ))}
               {!serviceStats.length ? (
                 <tr>
-                  <td colSpan="3" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td>
+                  <td colSpan="5" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -791,12 +1068,13 @@ const AdminReportsPage = () => {
             <p className="mt-1 text-xs text-slate-400">Giờ được gán so với lịch làm việc khả dụng trong khoảng lọc.</p>
           </div>
           <div className="overflow-x-auto">
-          <table className="min-w-[860px] w-full text-left text-xs">
+          <table className="min-w-[960px] w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 text-slate-400">
                 <th className="p-4">Companion</th>
                 <th className="p-4">Số ca</th>
                 <th className="p-4">Paid</th>
+                <th className="p-4">Tỷ lệ hủy</th>
                 <th className="p-4">Giờ gán / khả dụng</th>
                 <th className="p-4">Utilization</th>
                 <th className="p-4">Giờ hoàn thành</th>
@@ -810,6 +1088,7 @@ const AdminReportsPage = () => {
                   <td className="p-4 font-semibold text-slate-800">{item.name}</td>
                   <td className="p-4">{item.count}</td>
                   <td className="p-4">{item.paid}</td>
+                  <td className="p-4 font-semibold text-rose-600">{item.cancellationRate}%</td>
                   <td className="p-4">{item.assignedHours} / {item.availableHours} giờ</td>
                   <td className="p-4 font-black text-indigo-700">{item.utilizationRate}%</td>
                   <td className="p-4">{item.completionHoursRate}%</td>
@@ -819,7 +1098,7 @@ const AdminReportsPage = () => {
               ))}
               {!companionRows.length ? (
                 <tr>
-                  <td colSpan="8" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td>
+                  <td colSpan="9" className="p-6 text-center text-slate-400">Chưa có dữ liệu.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -827,6 +1106,62 @@ const AdminReportsPage = () => {
           </div>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
+        <div>
+          <h2 className="font-bold text-slate-900">Phân tích chất lượng chi tiết</h2>
+          <p className="mt-1 text-xs text-slate-400">Mở từng nhóm để xem booking cần xử lý và lọc ngược về báo cáo.</p>
+        </div>
+        <div className="mt-4 grid gap-4 xl:grid-cols-3">
+          <details className="rounded-xl border border-rose-100 bg-rose-50/40 p-4" open={Boolean(cancellationData.count)}>
+            <summary className="cursor-pointer text-sm font-black text-rose-700">Booking bị hủy · {cancellationData.count || 0}</summary>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(cancellationData.reasons || []).map((item) => <span key={item.reason} className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-rose-600">{CANCELLATION_REASON_LABELS[item.reason] || item.reason}: {item.count}</span>)}
+            </div>
+            <div className="mt-3 space-y-2">
+              {(cancellationData.details || []).map((item) => (
+                <article key={item.bookingId} className="rounded-lg bg-white p-3 ring-1 ring-rose-100">
+                  <p className="font-bold text-slate-800">{item.service} · {item.customer}</p>
+                  <p className="mt-1 text-xs text-slate-500">{CANCELLATION_REASON_LABELS[item.reason] || item.reason} · {formatDateTime(item.cancelledAt)}</p>
+                  {item.details ? <p className="mt-1 text-xs text-slate-500">{item.details}</p> : null}
+                  <button type="button" onClick={() => focusBooking(item.bookingId)} className="mt-2 text-xs font-black text-teal-700">Xem booking</button>
+                </article>
+              ))}
+              {!(cancellationData.details || []).length ? <p className="text-xs text-slate-400">Không có booking bị hủy.</p> : null}
+            </div>
+          </details>
+
+          <details className="rounded-xl border border-amber-100 bg-amber-50/40 p-4" open={Boolean((reviewData.lowRatings || []).length)}>
+            <summary className="cursor-pointer text-sm font-black text-amber-700">Đánh giá 1–3 sao · {(reviewData.lowRatings || []).length}</summary>
+            <div className="mt-3 space-y-2">
+              {(reviewData.lowRatings || []).map((item) => (
+                <article key={`${item.bookingId}-${item.reviewedAt}`} className="rounded-lg bg-white p-3 ring-1 ring-amber-100">
+                  <p className="font-bold text-slate-800">{item.rating}/5 · {item.companion}</p>
+                  <p className="mt-1 text-xs text-slate-500">{item.service} · {item.customer}</p>
+                  <p className="mt-1 text-xs text-slate-600">{item.comment || "Không có nhận xét"}</p>
+                  <button type="button" onClick={() => focusBooking(item.bookingId)} className="mt-2 text-xs font-black text-teal-700">Xem booking</button>
+                </article>
+              ))}
+              {!(reviewData.lowRatings || []).length ? <p className="text-xs text-slate-400">Không có đánh giá thấp.</p> : null}
+            </div>
+          </details>
+
+          <details className="rounded-xl border border-violet-100 bg-violet-50/40 p-4" open={Boolean(incidentData.openCount)}>
+            <summary className="cursor-pointer text-sm font-black text-violet-700">Sự cố · {incidentData.count || 0} ({incidentData.openCount || 0} đang mở)</summary>
+            <div className="mt-3 space-y-2">
+              {(incidentData.details || []).map((item) => (
+                <article key={item.bookingId} className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
+                  <p className="font-bold text-slate-800">{item.service} · {item.incidentStatus}</p>
+                  <p className="mt-1 text-xs text-slate-500">{item.details || item.reason}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">Báo lúc {formatDateTime(item.reportedAt)}</p>
+                  <button type="button" onClick={() => focusBooking(item.bookingId)} className="mt-2 text-xs font-black text-teal-700">Xem booking</button>
+                </article>
+              ))}
+              {!(incidentData.details || []).length ? <p className="text-xs text-slate-400">Không có sự cố.</p> : null}
+            </div>
+          </details>
+        </div>
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 p-5 sm:flex-row sm:items-start sm:justify-between">
@@ -849,6 +1184,7 @@ const AdminReportsPage = () => {
                 <th className="p-4">Companion</th>
                 <th className="p-4">Dịch vụ</th>
                 <th className="p-4">Trạng thái</th>
+                <th className="p-4">Thanh toán</th>
                 <th className="p-4 text-right">Khách trả</th>
                 <th className="p-4 text-right">CareGo thu</th>
               </tr>
@@ -864,14 +1200,17 @@ const AdminReportsPage = () => {
                   <td className="p-4">
                     <p className="font-semibold text-slate-800">{booking.customerId?.name || ""}</p>
                     <p className="mt-1 text-slate-400">{booking.customerId?.email || ""}</p>
+                    <p className="mt-1 text-slate-400">Người thân: {booking.elderProfileId?.fullName || "-"}</p>
                   </td>
                   <td className="p-4 font-semibold text-slate-800">{booking.companionId?.name || ""}</td>
                   <td className="p-4 font-semibold text-teal-700">{booking.serviceId?.name || ""}</td>
                   <td className="p-4">
                     <StatusBadge status={booking.status} />
-                    <p className="mt-2 text-[11px] font-semibold text-slate-400">
-                      Payment: {booking.payment?.status || "none"}
-                    </p>
+                  </td>
+                  <td className="p-4">
+                    <p className="font-semibold text-slate-700">{STATUS_LABELS[booking.payment?.status || "none"]}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">{PAYMENT_METHOD_LABELS[booking.payment?.method] || booking.payment?.method || "-"}</p>
+                    {booking.payment?.paidAt ? <p className="mt-1 text-[11px] text-slate-400">{formatDateTime(booking.payment.transferredAt || booking.payment.paidAt)}</p> : null}
                   </td>
                   <td className="p-4 text-right font-bold text-slate-900">{money(getPaidAmount(booking))}</td>
                   <td className="p-4 text-right font-bold text-teal-700">{money(getCareGoRevenue(booking))}</td>
@@ -879,7 +1218,7 @@ const AdminReportsPage = () => {
               ))}
               {!filteredBookings.length && !loading ? (
                 <tr>
-                  <td colSpan="7" className="p-6 text-center text-slate-400">Chưa có booking trong trang này.</td>
+                  <td colSpan="8" className="p-6 text-center text-slate-400">Chưa có booking trong trang này.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -917,11 +1256,13 @@ const AdminReportsPage = () => {
             <p className="text-sm font-semibold text-slate-800">Booking thiếu GPS điểm đến</p>
             <p className="mt-1 text-xs text-slate-500">{missingGps} booking trong khoảng lọc cần bổ sung vị trí.</p>
             <StatusBadge status={missingGps ? "pending" : "approved"} />
+            {missingGps ? <button type="button" onClick={() => focusIssue("missingGps")} className="ml-2 text-xs font-black text-teal-700">Xem danh sách</button> : null}
           </div>
           <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
             <p className="text-sm font-semibold text-slate-800">Hồ sơ companion chờ duyệt hiện tại</p>
             <p className="mt-1 text-xs text-slate-500">{pendingCompanions} hồ sơ trên toàn hệ thống; chỉ số này không phụ thuộc khoảng ngày.</p>
             <StatusBadge status={pendingCompanions ? "pending" : "approved"} />
+            {pendingCompanions ? <a href="/admin/companions" className="ml-2 text-xs font-black text-teal-700">Đi đến duyệt hồ sơ</a> : null}
           </div>
           <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
             <p className="text-sm font-semibold text-slate-800">Booking bị hủy</p>
@@ -929,6 +1270,7 @@ const AdminReportsPage = () => {
               {cancelledBookings} booking đang cancelled.
             </p>
             <StatusBadge status={cancelledBookings ? "cancelled" : "approved"} />
+            {cancelledBookings ? <button type="button" onClick={() => focusStatus("cancelled")} className="ml-2 text-xs font-black text-teal-700">Xem danh sách</button> : null}
           </div>
         </div>
       </section>

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildSeedPaymentTimes,
   bookingCustomerUserSeeds,
   companionProfilesSeed,
   elderProfilesSeed,
+  getRealisticBookingNote,
+  getProjectWeekBookingScenario,
   paidBookingCustomers,
   projectWeekBookingSeed,
 } from "./seed-demo.js";
@@ -55,4 +58,50 @@ test("each added booking has a valid customer, elder and companion schedule", ()
   }
 
   assert.equal(customerKeys.size, 13);
+});
+
+test("paid seed payments are marked as seed confirmations, not bank transfers", () => {
+  const completedAt = new Date("2026-07-08T08:00:00.000Z");
+  const paidTimes = buildSeedPaymentTimes({ booking: { completedAt }, status: "paid" });
+
+  assert.equal(paidTimes.paidAt.toISOString(), completedAt.toISOString());
+  assert.equal(paidTimes.confirmedAt.toISOString(), completedAt.toISOString());
+  assert.equal(paidTimes.transferredAt, null);
+  assert.equal(paidTimes.paidAtSource, "seed");
+
+  assert.deepEqual(buildSeedPaymentTimes({ booking: {}, status: "completed" }), {
+    paidAt: null,
+    transferredAt: null,
+    confirmedAt: null,
+    paidAtSource: null,
+  });
+});
+
+test("booking seed notes are realistic and do not expose internal seed keys", () => {
+  for (const [index, serviceCode] of ["1", "2", "3"].entries()) {
+    const note = getRealisticBookingNote(serviceCode, index);
+    assert.ok(note.length > 20);
+    assert.equal(/demo|seedKey|demo-booking/i.test(note), false);
+  }
+
+  assert.match(getRealisticBookingNote("1", 0), /khám|bệnh viện/i);
+  assert.match(getRealisticBookingNote("2", 0), /thuốc|sức khỏe|tại nhà/i);
+  assert.match(getRealisticBookingNote("3", 0), /đi dạo|ngoài trời/i);
+});
+
+test("project-week seed has realistic operational and payment states", () => {
+  const scenarios = projectWeekBookingSeed.map((item, index) =>
+    getProjectWeekBookingScenario(item.seedKey, index),
+  );
+  const statusCounts = scenarios.reduce((counts, item) => {
+    counts[item.status] = (counts[item.status] || 0) + 1;
+    return counts;
+  }, {});
+  const paymentStatuses = new Set(
+    scenarios.filter((item) => item.status === "completed").map((item) => item.paymentStatus),
+  );
+
+  assert.deepEqual(statusCounts, { paid: 22, cancelled: 3, completed: 3 });
+  assert.deepEqual(paymentStatuses, new Set(["pending", "expired", "failed"]));
+  assert.equal(scenarios.filter((item) => item.incident).length, 2);
 });

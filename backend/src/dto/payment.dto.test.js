@@ -22,6 +22,9 @@ const payment = {
   qrCode: "secret-qr-data",
   rawWebhook: { accountNumber: "0123456789", reference: "provider-reference" },
   paidAt: new Date("2026-07-08T08:00:00.000Z"),
+  transferredAt: new Date("2026-07-08T08:00:00.000Z"),
+  confirmedAt: new Date("2026-07-08T08:00:03.000Z"),
+  paidAtSource: "payos",
   expiresAt: new Date("2026-07-08T08:15:00.000Z"),
   createdAt: new Date("2026-07-08T07:50:00.000Z"),
   updatedAt: new Date("2026-07-08T08:00:00.000Z"),
@@ -47,4 +50,15 @@ test("provider payment fields are excluded from Mongoose queries by default", ()
   sensitiveFields.forEach((field) => {
     assert.equal(Payment.schema.path(field).options.select, false, `${field} must use select: false`);
   });
+});
+
+test("payment model distinguishes provider transfer and system confirmation times", () => {
+  assert.equal(Payment.schema.path("transferredAt").instance, "Date");
+  assert.equal(Payment.schema.path("confirmedAt").instance, "Date");
+  assert.deepEqual(Payment.schema.path("paidAtSource").options.enum, [
+    "payos",
+    "server_fallback",
+    "manual",
+    "seed",
+  ]);
 });

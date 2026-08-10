@@ -126,6 +126,9 @@ test("getMyEarnings returns ledger entries and summary from paid payments", { co
     {
       _id: "payment-2",
       paidAt: new Date("2026-07-07T09:15:00.000Z"),
+      transferredAt: new Date("2026-07-07T09:15:00.000Z"),
+      confirmedAt: new Date("2026-07-07T09:15:03.000Z"),
+      paidAtSource: "payos",
       companionEarning: 180000,
       baseAmount: 220000,
       paidAmount: 220000,
@@ -183,6 +186,9 @@ test("getMyEarnings returns ledger entries and summary from paid payments", { co
   assert.equal(res.body.summary.today, 180000);
   assert.equal(res.body.entries.length, 2);
   assert.equal(res.body.entries[0].paidAt.toISOString(), "2026-07-07T09:15:00.000Z");
+  assert.equal(res.body.entries[0].transferredAt.toISOString(), "2026-07-07T09:15:00.000Z");
+  assert.equal(res.body.entries[0].confirmedAt.toISOString(), "2026-07-07T09:15:03.000Z");
+  assert.equal(res.body.entries[0].paidAtSource, "payos");
   assert.equal(res.body.entries[0].payment.companionEarning, 180000);
   assert.equal(res.body.entries[0].booking.updatedAt.toISOString(), "2026-06-01T00:00:00.000Z");
 });

@@ -77,6 +77,19 @@ const PaymentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    transferredAt: {
+      type: Date,
+      default: null,
+    },
+    confirmedAt: {
+      type: Date,
+      default: null,
+    },
+    paidAtSource: {
+      type: String,
+      enum: ["payos", "server_fallback", "manual", "seed"],
+      default: null,
+    },
     expiresAt: {
       type: Date,
       default: null,

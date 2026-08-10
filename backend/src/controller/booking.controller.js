@@ -40,6 +40,10 @@ import {
   emitAdminPaymentSuccessAlert,
 } from "../utils/admin-alerts.js";
 import {
+  applyPaymentConfirmationTimes,
+  getPayOSTransferredAt,
+} from "../utils/payment-time.js";
+import {
   getBookingEndTime,
   getRequestedEndTime,
   isCompanionScheduleAvailable,
@@ -124,6 +128,7 @@ const companionBookingLink = (bookingId) => `/companion/bookings/${toIdString(bo
 const normalizeIncidentReason = (value) => String(value || "").trim().toLowerCase();
 const normalizeIncidentResolution = (value) => String(value || "").trim().toLowerCase();
 const normalizeIncidentDetails = (value) => String(value || "").trim();
+const normalizeCancellationReason = (value) => String(value || "").trim().toLowerCase();
 
 const CONFIRMED_BOOKING_STATUSES = ["accepted", "in_progress"];
 const BOOKING_STATUS_TRANSITIONS = {
@@ -140,6 +145,14 @@ const COMPANION_REJECTABLE_BOOKING_STATUSES = ["pending"];
 const INCIDENT_REPORTABLE_BOOKING_STATUSES = ["accepted", "in_progress"];
 const INCIDENT_RESOLUTION_OPTIONS = ["resume", "reassign", "cancel"];
 const INCIDENT_REASON_OPTIONS = ["health", "transport", "family_emergency", "safety", "other"];
+const CANCELLATION_REASON_OPTIONS = [
+  "customer_request",
+  "companion_unavailable",
+  "schedule_change",
+  "incident",
+  "admin_cancelled",
+  "other",
+];
 const SHIFT_EVIDENCE_EDITABLE_BOOKING_STATUSES = ["accepted", "in_progress"];
 const SHIFT_PHOTO_FOLDERS = {
   checkInPhotoUrl: "carego/check-in",
@@ -567,12 +580,6 @@ const isReusablePendingPayOSPayment = (payment, paidAmount, now) => {
   );
 };
 
-const getPayOSPaymentPaidAt = (paymentLink) => {
-  const transactionDate =
-    paymentLink?.transactions?.findLast?.((transaction) => transaction.transactionDateTime)?.transactionDateTime;
-  return transactionDate ? new Date(transactionDate) : new Date();
-};
-
 const refreshReusablePendingPayOSPayment = async ({ payment, booking, paidAmount }) => {
   if (!payment?.orderCode) {
     return null;
@@ -593,7 +600,9 @@ const refreshReusablePendingPayOSPayment = async ({ payment, booking, paidAmount
     }
 
     payment.status = "paid";
-    payment.paidAt = payment.paidAt || getPayOSPaymentPaidAt(paymentLink);
+    applyPaymentConfirmationTimes(payment, {
+      transferredAt: getPayOSTransferredAt(paymentLink),
+    });
     payment.rawWebhook = {
       source: "payos-reuse-sync",
       syncedAt: new Date(),
@@ -1392,15 +1401,40 @@ export const updateBookingStatus = async (req, res) => {
     const previousStatus = booking.status;
     const statusUpdates = { status };
     const statusFilter = { _id: booking._id, status: previousStatus };
+    const statusChangedAt = new Date();
 
     if (status === "accepted" && booking.bookingMode === "instant") {
       statusFilter.offerExpiresAt = { $gt: new Date() };
     }
 
+    if (status === "accepted") {
+      statusUpdates.acceptedAt = booking.acceptedAt || statusChangedAt;
+    }
+
+    if (status === "in_progress") {
+      statusUpdates.checkInAt = booking.checkInAt || statusChangedAt;
+    }
+
     if (status === "completed") {
-      const completedAt = booking.completedAt || new Date();
+      const completedAt = booking.completedAt || statusChangedAt;
       statusUpdates.completedAt = completedAt;
+      statusUpdates.checkOutAt = booking.checkOutAt || completedAt;
       statusUpdates.paymentDueAt = booking.paymentDueAt || new Date(completedAt.getTime() + PAYMENT_DUE_MS);
+    }
+
+    if (status === "cancelled") {
+      const requestedReason = normalizeCancellationReason(req.body?.cancellationReason || req.body?.reason);
+      statusUpdates["cancellation.reason"] = CANCELLATION_REASON_OPTIONS.includes(requestedReason)
+        ? requestedReason
+        : req.user.role === "companion"
+          ? "companion_unavailable"
+          : "other";
+      statusUpdates["cancellation.details"] = normalizeIncidentDetails(
+        req.body?.cancellationDetails || req.body?.details,
+      ).slice(0, 1000);
+      statusUpdates["cancellation.cancelledAt"] = statusChangedAt;
+      statusUpdates["cancellation.cancelledBy"] = req.user.userId;
+      statusUpdates["cancellation.cancelledByRole"] = req.user.role;
     }
 
     const updatedBooking = await Booking.findOneAndUpdate(
@@ -1614,6 +1648,11 @@ export const resolveBookingIncident = async (req, res) => {
 
     if (resolution === "cancel") {
       bookingUpdates.status = "cancelled";
+      bookingUpdates["cancellation.reason"] = "incident";
+      bookingUpdates["cancellation.details"] = adminNote || booking.incident?.details || "";
+      bookingUpdates["cancellation.cancelledAt"] = bookingUpdates["incident.resolvedAt"];
+      bookingUpdates["cancellation.cancelledBy"] = req.user.userId;
+      bookingUpdates["cancellation.cancelledByRole"] = req.user.role;
     }
 
     if (resolution === "reassign") {
@@ -1621,6 +1660,9 @@ export const resolveBookingIncident = async (req, res) => {
       bookingUpdates.companionId = nextCompanionId;
       bookingUpdates["incident.previousCompanionId"] = booking.companionId;
       bookingUpdates.offerExpiresAt = null;
+      bookingUpdates.acceptedAt = null;
+      bookingUpdates.checkInAt = null;
+      bookingUpdates.checkOutAt = null;
     }
 
     const updatedBooking = await Booking.findOneAndUpdate(
@@ -1752,7 +1794,16 @@ export const cancelBooking = async (req, res) => {
       return res.status(409).json({ message: "Không thể hủy lịch chăm sóc đã thanh toán." });
     }
 
+    const requestedReason = normalizeCancellationReason(req.body?.cancellationReason || req.body?.reason);
+    const fallbackReason = req.user.role === "admin" ? "admin_cancelled" : "customer_request";
     booking.status = "cancelled";
+    booking.cancellation = {
+      reason: CANCELLATION_REASON_OPTIONS.includes(requestedReason) ? requestedReason : fallbackReason,
+      details: normalizeIncidentDetails(req.body?.cancellationDetails || req.body?.details).slice(0, 1000),
+      cancelledAt: new Date(),
+      cancelledBy: req.user.userId,
+      cancelledByRole: req.user.role,
+    };
     await booking.save();
     emitBookingChatState(booking);
     return res.status(200).json({ message: "Hủy lịch chăm sóc thành công.", booking });
@@ -2001,6 +2052,9 @@ export const payBooking = async (req, res) => {
         penaltyAmount,
         paidAmount,
         paidAt: null,
+        transferredAt: null,
+        confirmedAt: null,
+        paidAtSource: null,
         expiresAt,
       },
       { new: true, upsert: true, setDefaultsOnInsert: true },

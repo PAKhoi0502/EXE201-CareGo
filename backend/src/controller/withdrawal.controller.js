@@ -295,6 +295,9 @@ export const getMyEarnings = async (req, res) => {
       _id: payment._id,
       amount: normalizeAmount(payment.companionEarning),
       paidAt: payment.paidAt,
+      transferredAt: payment.transferredAt || null,
+      confirmedAt: payment.confirmedAt || null,
+      paidAtSource: payment.paidAtSource || null,
       bookingId: payment.bookingId?._id || payment.bookingId || null,
       booking: payment.bookingId || null,
       payment: {

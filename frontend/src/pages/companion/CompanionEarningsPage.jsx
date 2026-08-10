@@ -74,7 +74,7 @@ const CompanionEarningsPage = () => {
                     {entry.booking?.elderProfileId?.fullName || "Không rõ người thân"} • {dateTime(entry.booking?.startTime)}
                   </p>
                   <p className="mt-1 text-xs font-semibold text-slate-400">
-                    Đã thanh toán lúc: {dateTime(entry.paidAt)}
+                    {entry.transferredAt ? "Ngân hàng ghi nhận lúc" : "Hệ thống xác nhận lúc"}: {dateTime(entry.transferredAt || entry.confirmedAt || entry.paidAt)}
                   </p>
                 </div>
                 <div className="text-left md:text-right">

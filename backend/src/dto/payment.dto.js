@@ -12,6 +12,9 @@ const COMMON_FIELDS = [
   "bookingId",
   "status",
   "paidAt",
+  "transferredAt",
+  "confirmedAt",
+  "paidAtSource",
   "createdAt",
   "updatedAt",
 ];

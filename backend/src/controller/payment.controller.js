@@ -8,6 +8,10 @@ import {
   createReviewReminderNotification,
 } from "../utils/notifications.js";
 import { emitAdminPaymentSuccessAlert } from "../utils/admin-alerts.js";
+import {
+  applyPaymentConfirmationTimes,
+  getPayOSTransferredAt,
+} from "../utils/payment-time.js";
 
 const getPayOSPaymentQuery = ({ orderCode, paymentLinkId }) => {
   const filters = [];
@@ -23,19 +27,12 @@ const getPayOSPaymentQuery = ({ orderCode, paymentLinkId }) => {
   return filters.length > 0 ? { $or: filters } : null;
 };
 
-const getPaymentPaidAt = (paymentLink) => {
-  const transactionDate = paymentLink?.transactions?.findLast?.((transaction) => transaction.transactionDateTime)?.transactionDateTime;
-  return transactionDate ? new Date(transactionDate) : new Date();
-};
-
-const updatePaidPayment = async ({ payment, booking, rawWebhook, paidAt }) => {
+const updatePaidPayment = async ({ payment, booking, rawWebhook, transferredAt, confirmedAt = new Date() }) => {
   const shouldEmitPaymentAlert = payment.status !== "paid" || booking.status !== "paid";
   payment.rawWebhook = rawWebhook;
+  applyPaymentConfirmationTimes(payment, { transferredAt, confirmedAt });
 
-  if (payment.status !== "paid") {
-    payment.status = "paid";
-    payment.paidAt = payment.paidAt || paidAt || new Date();
-  }
+  payment.status = "paid";
   await payment.save();
 
   if (booking.status !== "paid") {
@@ -77,7 +74,7 @@ const syncPaymentStatusFromPayOSLink = async ({ payment, booking, paymentLink })
       payment,
       booking,
       rawWebhook: payment.rawWebhook,
-      paidAt: getPaymentPaidAt(paymentLink),
+      transferredAt: getPayOSTransferredAt(paymentLink),
     });
     return;
   }
@@ -130,7 +127,12 @@ export const handlePayOSWebhook = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy lịch chăm sóc." });
     }
 
-    await updatePaidPayment({ payment, booking, rawWebhook: req.body, paidAt: new Date() });
+    await updatePaidPayment({
+      payment,
+      booking,
+      rawWebhook: req.body,
+      transferredAt: getPayOSTransferredAt(webhookData),
+    });
 
     return res.status(200).json({
       success: true,
@@ -170,7 +172,7 @@ export const syncPayOSPayment = async (req, res) => {
       return res.status(403).json({ success: false, message: "Bạn không có quyền đồng bộ giao dịch này." });
     }
 
-    if (payment.status !== "paid") {
+    if (payment.status !== "paid" || !payment.transferredAt) {
       const paymentLink = await getPayOSPaymentLink(orderCode);
       await syncPaymentStatusFromPayOSLink({ payment, booking, paymentLink });
     }

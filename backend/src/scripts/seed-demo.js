@@ -970,6 +970,29 @@ const paidBookingReviews = [
   },
 ];
 
+const realisticBookingNotesByService = {
+  1: [
+    "Hỗ trợ làm thủ tục khám, nhận thuốc và ghi lại lời dặn của bác sĩ cho gia đình.",
+    "Đồng hành tái khám định kỳ và cập nhật kết quả sau buổi khám cho người nhà.",
+    "Hỗ trợ di chuyển trong bệnh viện, lấy số thứ tự và nhận thuốc sau khi khám.",
+  ],
+  2: [
+    "Nhắc thuốc đúng giờ, theo dõi huyết áp và cập nhật tình trạng cho gia đình.",
+    "Trò chuyện, hỗ trợ bữa ăn nhẹ và nhắc người lớn tuổi uống thuốc theo đơn.",
+    "Theo dõi sức khỏe tại nhà và hỗ trợ các sinh hoạt nhẹ trong thời gian chăm sóc.",
+  ],
+  3: [
+    "Đồng hành đi dạo nhẹ, theo dõi sức khỏe và đưa người lớn tuổi về nhà an toàn.",
+    "Hỗ trợ vận động ngoài trời theo nhịp phù hợp và nghỉ ngơi khi cần.",
+    "Cùng người lớn tuổi đi dạo, trò chuyện và cập nhật hành trình cho gia đình.",
+  ],
+};
+
+export const getRealisticBookingNote = (serviceCode, index = 0) => {
+  const notes = realisticBookingNotesByService[String(serviceCode)] || realisticBookingNotesByService[2];
+  return notes[Math.abs(Number(index) || 0) % notes.length];
+};
+
 export const paidBookingCustomers = [
   {
     customerKey: "customerMinhAn",
@@ -1089,7 +1112,7 @@ bookingSeed.push(
       ...customer,
       ...item,
       serviceCode: String((index % 3) + 1),
-      note: `Booking đã thanh toán bổ sung ${String(index + 1).padStart(2, "0")}`,
+      note: getRealisticBookingNote(String((index % 3) + 1), index),
       status: "paid",
       completedDayOffset: item.dayOffset,
       completedHour: item.startHour + item.durationHours,
@@ -1409,11 +1432,69 @@ export const projectWeekBookingSeed = [
   },
 ];
 
+const projectWeekBookingScenarios = {
+  "demo-booking-week5-06": {
+    status: "cancelled",
+    cancellationReason: "customer_request",
+    cancellationDetails: "Gia đình thay đổi lịch chăm sóc và sẽ đặt lại vào ngày phù hợp hơn.",
+    cancelledByRole: "customer",
+  },
+  "demo-booking-week7-04": {
+    status: "cancelled",
+    cancellationReason: "companion_unavailable",
+    cancellationDetails: "Companion báo không thể tiếp tục nhận ca do có việc đột xuất.",
+    cancelledByRole: "companion",
+  },
+  "demo-booking-week9-03": {
+    status: "completed",
+    paymentStatus: "pending",
+  },
+  "demo-booking-week10-01": {
+    status: "completed",
+    paymentStatus: "expired",
+  },
+  "demo-booking-week12-02": {
+    status: "cancelled",
+    cancellationReason: "incident",
+    cancellationDetails: "Ca được hủy sau khi companion báo sự cố di chuyển và admin xác nhận phương án xử lý.",
+    cancelledByRole: "admin",
+    incident: {
+      status: "cancelled",
+      reason: "transport",
+      details: "Phương tiện gặp sự cố nên companion không thể đến điểm hẹn đúng giờ.",
+      resolution: "cancel",
+      adminNote: "Đã liên hệ gia đình và thống nhất hủy ca.",
+    },
+  },
+  "demo-booking-week13-02": {
+    status: "completed",
+    paymentStatus: "failed",
+  },
+  "demo-booking-week8-02": {
+    status: "paid",
+    incident: {
+      status: "resolved",
+      reason: "health",
+      details: "Người cao tuổi cảm thấy mệt nhẹ trong lúc chăm sóc tại nhà.",
+      resolution: "resume",
+      adminNote: "Gia đình xác nhận sức khỏe đã ổn định và ca có thể tiếp tục.",
+    },
+  },
+};
+
+export const getProjectWeekBookingScenario = (seedKey, index = 0) => ({
+  status: "paid",
+  paymentStatus: "paid",
+  paymentDelayHours: (Math.abs(Number(index) || 0) % 4) + 1,
+  ...(projectWeekBookingScenarios[seedKey] || {}),
+});
+
 bookingSeed.splice(
   0,
   bookingSeed.length,
   ...projectWeekBookingSeed.map((item, index) => {
     const customer = paidBookingCustomers[item.customerIndex % paidBookingCustomers.length];
+    const scenario = getProjectWeekBookingScenario(item.seedKey, index);
     return {
       seedKey: item.seedKey,
       ...customer,
@@ -1424,9 +1505,9 @@ bookingSeed.splice(
       durationHours: item.durationHours,
       address: item.address,
       addressLocation: item.addressLocation,
-      note: `Paid demo booking ${item.seedKey}`,
-      status: "paid",
-      review: paidBookingReviews[index % paidBookingReviews.length],
+      note: getRealisticBookingNote(item.serviceCode, index),
+      ...scenario,
+      review: scenario.status === "paid" ? paidBookingReviews[index % paidBookingReviews.length] : null,
     };
   }),
 );
@@ -1601,7 +1682,11 @@ const resolveBookingDependencies = async () => {
 const upsertShiftLog = async ({ booking, service, status }) => {
   const checklist = (service.defaultChecklist || []).map((label, index) => ({
     label,
-    done: ["in_progress", "completed", "paid"].includes(status) ? index < 2 : status === "accepted" && index === 0,
+    done: ["completed", "paid"].includes(status)
+      ? true
+      : status === "in_progress"
+        ? index < 2
+        : status === "accepted" && index === 0,
   }));
   const isActiveOrDone = ["in_progress", "completed", "paid"].includes(status);
 
@@ -1617,7 +1702,7 @@ const upsertShiftLog = async ({ booking, service, status }) => {
                 lat: booking.addressLocation?.lat,
                 lng: booking.addressLocation?.lng,
                 note: "Đã cập nhật vị trí",
-                recordedAt: new Date(),
+                recordedAt: booking.checkInAt || booking.startTime,
               },
             ]
           : [],
@@ -1631,9 +1716,31 @@ const upsertShiftLog = async ({ booking, service, status }) => {
   );
 };
 
-const upsertPayment = async ({ booking, status }) => {
+export const buildSeedPaymentTimes = ({ booking, status, paymentDelayHours = 0 }) => {
+  if (status !== "paid") {
+    return {
+      paidAt: null,
+      transferredAt: null,
+      confirmedAt: null,
+      paidAtSource: null,
+    };
+  }
+
+  const completedAt = booking.completedAt || new Date();
+  const confirmedAt = new Date(completedAt.getTime() + Number(paymentDelayHours || 0) * 60 * 60 * 1000);
+  return {
+    paidAt: confirmedAt,
+    transferredAt: null,
+    confirmedAt,
+    paidAtSource: "seed",
+  };
+};
+
+const upsertPayment = async ({ booking, status, paymentStatus, paymentDelayHours }) => {
   const baseAmount = Number(booking.totalAmount || 0);
   const platformFee = Number(booking.platformFee || 0);
+  const paymentTimes = buildSeedPaymentTimes({ booking, status, paymentDelayHours });
+  const normalizedPaymentStatus = status === "paid" ? "paid" : paymentStatus || "pending";
 
   await Payment.findOneAndUpdate(
     { bookingId: booking._id },
@@ -1646,10 +1753,10 @@ const upsertPayment = async ({ booking, status }) => {
         platformFee,
         companionEarning: Math.max(baseAmount - platformFee, 0),
         baseAmount,
-        paidAmount: status === "paid" ? baseAmount : 0,
+        paidAmount: normalizedPaymentStatus === "paid" ? baseAmount : 0,
         method: "prototype",
-        status: status === "paid" ? "paid" : "pending",
-        paidAt: status === "paid" ? booking.completedAt || new Date() : null,
+        status: normalizedPaymentStatus,
+        ...paymentTimes,
       },
     },
     { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
@@ -1740,12 +1847,59 @@ const seedBookings = async ({ users, elders, services }) => {
       addressLocation: item.addressLocation,
       note: item.note,
       status: item.status,
+      acceptedAt: ["completed", "paid"].includes(item.status)
+        ? new Date(startTime.getTime() - 12 * 60 * 60 * 1000)
+        : null,
+      checkInAt: ["completed", "paid"].includes(item.status)
+        ? new Date(startTime.getTime() - 5 * 60 * 1000)
+        : null,
+      checkOutAt: completedAt,
       completedAt,
       paymentDueAt: completedAt && ["completed", "paid"].includes(item.status)
         ? new Date(completedAt.getTime() + 3 * 24 * 60 * 60 * 1000)
         : null,
       totalAmount,
       platformFee: Math.round(totalAmount * platformFeeRate),
+      cancellation: item.status === "cancelled"
+        ? {
+            reason: item.cancellationReason || "other",
+            details: item.cancellationDetails || "",
+            cancelledAt: new Date(startTime.getTime() - 6 * 60 * 60 * 1000),
+            cancelledBy: item.cancelledByRole === "customer"
+              ? customerId
+              : item.cancelledByRole === "companion"
+                ? companionId
+                : null,
+            cancelledByRole: item.cancelledByRole || "system",
+          }
+        : {
+            reason: "",
+            details: "",
+            cancelledAt: null,
+            cancelledBy: null,
+            cancelledByRole: "",
+          },
+      incident: item.incident
+        ? {
+            ...item.incident,
+            reportedAt: new Date(startTime.getTime() + 60 * 60 * 1000),
+            reportedBy: companionId,
+            resolvedAt: new Date(startTime.getTime() + 75 * 60 * 1000),
+            resolvedBy: null,
+            previousCompanionId: null,
+          }
+        : {
+            status: "none",
+            reason: "",
+            details: "",
+            reportedAt: null,
+            reportedBy: null,
+            resolvedAt: null,
+            resolvedBy: null,
+            resolution: "",
+            adminNote: "",
+            previousCompanionId: null,
+          },
     };
     const existingSeedBooking = await Booking.findOne({ seedKey: item.seedKey }).select("_id");
     let legacyBooking = null;
@@ -1773,7 +1927,14 @@ const seedBookings = async ({ users, elders, services }) => {
     await upsertShiftLog({ booking, service, status: item.status });
 
     if (["completed", "paid"].includes(item.status)) {
-      await upsertPayment({ booking, status: item.status });
+      await upsertPayment({
+        booking,
+        status: item.status,
+        paymentStatus: item.paymentStatus,
+        paymentDelayHours: item.paymentDelayHours,
+      });
+    } else {
+      await Payment.deleteOne({ bookingId: booking._id });
     }
 
     if (item.review && item.status !== "paid") {
@@ -1793,6 +1954,8 @@ const seedBookings = async ({ users, elders, services }) => {
         },
         { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
       );
+    } else {
+      await Review.deleteOne({ bookingId: booking._id });
     }
 
     const bookingCreatedAt = new Date(startTime.getTime() - ((seedIndex % 4) + 2) * 24 * 60 * 60 * 1000);
@@ -1800,7 +1963,10 @@ const seedBookings = async ({ users, elders, services }) => {
     await setSeedDocumentTimestamps(Booking, { _id: booking._id }, bookingCreatedAt, bookingUpdatedAt);
     await setSeedDocumentTimestamps(ShiftLog, { bookingId: booking._id }, startTime, bookingUpdatedAt);
     if (["completed", "paid"].includes(item.status)) {
-      await setSeedDocumentTimestamps(Payment, { bookingId: booking._id }, bookingUpdatedAt, bookingUpdatedAt);
+      const paymentUpdatedAt = item.status === "paid"
+        ? new Date(bookingUpdatedAt.getTime() + Number(item.paymentDelayHours || 0) * 60 * 60 * 1000)
+        : bookingUpdatedAt;
+      await setSeedDocumentTimestamps(Payment, { bookingId: booking._id }, bookingUpdatedAt, paymentUpdatedAt);
     }
     if (item.review) {
       const reviewCreatedAt = new Date(bookingUpdatedAt.getTime() + ((seedIndex % 5) + 1) * 60 * 60 * 1000);
